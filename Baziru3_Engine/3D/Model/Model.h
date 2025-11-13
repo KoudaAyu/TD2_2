@@ -56,7 +56,9 @@ public:
 	void SetColor(Vector4 color);
 	void SetTexture(const std::string& filePath);
 
-
+	// --- debug/accessor ---
+	size_t GetVertexCount() const { return modelData_.vertices.size(); }
+	const std::string& GetTexturePath() const { return modelData_.material.textureFilePath; }
 
 private:
 	ModelCommon* modelCommon_ = nullptr; // (= ModelCommon 役)
