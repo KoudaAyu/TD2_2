@@ -72,7 +72,7 @@ void Sprite::Initialize(SpriteCom *spriteCom, std::string textureFilePath) {
   // vertexData_[3].texcoord = {1.0f, 0.0f};
   // vertexData_[3].normal = {0.0f, 0.0f, -1.0f};
 
-  transform_.scale_ = {scale_.x, scale_.y, 1.0f};
+  transform_.SetScale({ scale_.x, scale_.y, 1.0f });
 
   /// ==================================
   /// マテリアルリソース
@@ -195,7 +195,7 @@ void Sprite::Update() {
 
   // Sprite用のworldViewProjectMatrix
   Matrix4x4 worldMatrixSprite = MakeAffineMatrix(
-      transform_.scale_, transform_.rotation_, transform_.translation_);
+      transform_.GetScale(), transform_.GetRotate(), transform_.GetTranslate());
   Matrix4x4 viewMatrixSprite = MakeIdentity4x4();
   Matrix4x4 projectionMatrixSprite = MakeOrthographicMatrix(
       0.0f, 0.0f, float(spriteCom_->GetDirectXCom()->GetClientWidth()),
@@ -209,11 +209,11 @@ void Sprite::Update() {
       {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}};
 
   // UVTransform用
-  Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransform_.scale_);
+  Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransform_.GetScale());
   uvTransformMatrix =
-      Multiply(uvTransformMatrix, MakeRotateZMatrix(uvTransform_.rotation_.z));
+      Multiply(uvTransformMatrix, MakeRotateZMatrix(uvTransform_.GetRotate().z));
   uvTransformMatrix =
-      Multiply(uvTransformMatrix, MakeTranslateMatrix(uvTransform_.translation_));
+      Multiply(uvTransformMatrix, MakeTranslateMatrix(uvTransform_.GetTranslate()));
   materialData_->uvTransform = uvTransformMatrix;
 }
 /// <summary>

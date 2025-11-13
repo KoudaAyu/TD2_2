@@ -83,9 +83,9 @@ public:
 
 	void SetCamera(Camera* camera) { camera_ = camera; }
 
-	void SetScale(const Vector3& scale) { transform_.scale_ = scale; }
-	void SetRotate(const Vector3& rotate) { transform_.rotation_ = rotate; }
-	void SetTranslate(const Vector3& translate) { transform_.translation_ = translate; }    
+	void SetScale(const Vector3& scale) { transform_.SetScale(scale); }
+	void SetRotate(const Vector3& rotate) { transform_.SetRotate(rotate); }
+	void SetTranslate(const Vector3& translate) { transform_.SetTranslate(translate); }
 
 	void SetTransform(const Transform& transform) { transform_ = transform; }
 
@@ -113,9 +113,9 @@ public:
 
 public:
 	// --- getter ---
-	const Vector3& GetScale() const { return transform_.scale_; }
-	const Vector3& GetRotate() const { return transform_.rotation_; }
-	const Vector3& GetTranslate() const { return transform_.translation_; }
+	const Vector3& GetScale() const { return transform_.GetScale(); }
+	const Vector3& GetRotate() const { return transform_.GetRotate(); }
+	const Vector3& GetTranslate() const { return transform_.GetTranslate(); }
 	Model* GetModel() const { return model_; }
 	void SetColor(const Vector4& color);
 };
