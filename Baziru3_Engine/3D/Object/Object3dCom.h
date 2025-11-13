@@ -3,6 +3,7 @@
 #include <wrl.h>
 
 #include "DirectXCom.h"
+#include "Vector.h" // Camera生成ヘルパー用（Vector3）
 
 class Camera;
 
@@ -52,6 +53,15 @@ public:
     defaultCamera_ = defaultCamera;
   }
   Camera *GetDefaultCamera() const { return defaultCamera_; }
+
+  /// <summary>
+  /// デフォルトカメラ生成ヘルパー
+  /// 生成 -> 位置設定 -> Update -> デフォルト登録 を一括で行う
+  /// 呼び出し側で delete してください
+  /// </summary>
+  /// <param name="translate">初期位置 (既定 {-5 の Z 位置など好みに変更)</param>
+  /// <returns>生成された Camera*</returns>
+  Camera* CreateDefaultCamera(const Vector3& translate = {0.0f, 0.0f, -5.0f});
 
   private:
   /// <summary>

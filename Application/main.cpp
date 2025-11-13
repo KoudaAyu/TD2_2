@@ -8,6 +8,9 @@
 #include"Object3dCom.h"
 #include"WinApp.h"
 
+
+#include"Player.h"
+
 using namespace StringUtility;
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
@@ -15,116 +18,62 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 	WinApp* winApp = new WinApp();
 	winApp->Initialize();
 
-	assert(winApp->GetHInstance() != nullptr);
-	assert(winApp->GetHwnd() != nullptr);
+	DirectXCom* dx = new DirectXCom();
+	dx->Initialize(winApp);
 
-	DirectXCom* directXCom = new DirectXCom();
-	directXCom->Initialize(winApp);
-	HRESULT hr = directXCom->GetHr();
+	SrvManager* srv = new SrvManager();
+	srv->Initialize(dx);
 
+	TextureManager::GetInstance()->Initialize(dx, srv);
 
-	//SRVマネージャの初期化
-	SrvManager* srvManager = new SrvManager();
-	srvManager->Initialize(directXCom);
+	Object3dCom* objCom = new Object3dCom();
+	objCom->Initialize(dx);
 
-#ifdef USE_IMGUI
-	ImGuiManager* imguiManager = nullptr;
-	imguiManager = new ImGuiManager();
-	imguiManager->Initialize(winApp, directXCom, srvManager);
-#endif
+	ModelManager::GetInstance()->Initialize(dx);
 
-	TextureManager::GetInstance()->Initialize(directXCom, srvManager);
+	// Camera (生成→位置設定→Update→デフォルト登録を一括)
+	Camera* camera = objCom->CreateDefaultCamera({ 0,0,-5 });
+	// 画面サイズでアスペクトを設定し、FOVを少し広げる
+	camera->SetAspectRatio(static_cast<float>(dx->GetClientWidth()) / static_cast<float>(dx->GetClientHeight()));
+	camera->SetFovY(0.8f); // 広めにして横方向が見えるように
 
-	// スプライト共通部の初期化
-	SpriteCom* spriteCom = new SpriteCom;
-	spriteCom->Initialize(directXCom);
+	// Object (モデル未読込なら読み込み→設定し Transform と Camera 即時反映)
+	Object3d* obj =
+		Object3d::Create(objCom, "apple.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera);
 
-	// 3Dオブジェクト共通部の初期化
-	Object3dCom* object3dCom = new Object3dCom();
-	object3dCom->Initialize(directXCom);
+	// Player 用 Object3d と Player インスタンス生成（中心付近に配置し視野内に入れる）
+	Object3d* playerModel =
+		Object3d::Create(objCom, "apple.obj", { {1,1,1},{0,0,0},{0.3f,0,0} }, camera);
+	Player* player = new Player();
+	player->Initialize(playerModel, camera, { 0.3f, 0.0f, 0.0f }, objCom);
 
-	// 3Dモデルマネージャーの初期化
-	ModelManager::GetInstance()->Initialize(directXCom);
-
-	// サウンドマネージャの初期化（シーンより先）
-	SoundManager* soundManager = new SoundManager();
-	if (!soundManager->Initialize())
+	while (!winApp->ProcessMessage())
 	{
-		assert(0 && "XAudio2初期化失敗");
-		return -1;
+		// Update
+		camera->Update();
+		obj->Update();
+		player->Update();
+
+		// Draw
+		dx->PreDraw();
+		srv->PreDraw();
+		objCom->ApplyCommonRenderState(); // カリング疑い時は ApplyCommonRenderState(false);
+		//obj->Draw();
+		player->Draw();
+		dx->PostDraw();
 	}
 
-
-	while (true)
-	{
-		if (winApp->ProcessMessage())
-		{
-			// ゲームループを抜ける
-			break;
-		}
-
-#ifdef _DEBUG
-		imguiManager->Begin();
-
-		// 開発用UIの処理、実際に開発用のUIを出す場合はここをゲーム固有の処理に置き換え
-		ImGui::ShowDemoWindow();
-
-		ImGui::Begin("Windows"); // ImGui書くならここから
-#endif
-		//シーンの処理
-#ifdef _DEBUG
-		ImGui::End();
-		ImGui::Render();
-#endif
-
-#ifdef _DEBUG
-		imguiManager->End();
-#endif
-
-		//描画前提処理
-
-		directXCom->PreDraw();
-
-		srvManager->PreDraw();
-
-		object3dCom->ApplyCommonRenderState();
-
-		spriteCom->ApplyCommonRenderState();
-
-		//描画処理
-
-#ifdef _DEBUG
-		imguiManager->Draw();
-#endif
-		//描画後処理
-		directXCom->PostDraw();
-	}
-
-#ifdef _DEBUG
-	imguiManager->Finalize();
-#endif
-
-	soundManager->Finalize();
-	delete soundManager;
-
-	delete spriteCom;
-
-	delete object3dCom;
-
-	TextureManager::GetInstance()->Finalize();
-
-	delete srvManager;
-	winApp->Finalize();
-
-	// 3Dモデルマネージャーの終了
+	// finalize
+	delete player;
+	delete playerModel;
+	delete obj;
+	delete camera;
 	ModelManager::GetInstance()->Finalize();
-
-	delete directXCom;
-#ifdef _DEBUG
-	delete imguiManager;
-#endif
-	// Windowsの解放
+	TextureManager::GetInstance()->Finalize();
+	delete objCom;
+	delete srv;
+	delete dx;
+	winApp->Finalize();
 	delete winApp;
-
 	return 0;
 }

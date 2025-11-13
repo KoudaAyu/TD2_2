@@ -87,6 +87,30 @@ public:
 	void SetRotate(const Vector3& rotate) { transform_.rotation_ = rotate; }
 	void SetTranslate(const Vector3& translate) { transform_.translation_ = translate; }    
 
+	void SetTransform(const Transform& transform) { transform_ = transform; }
+
+	/// <summary>
+	/// 指定TransformとCameraを一括適用し 必要なら即時にUpdate()で行列をGPUへ反映する
+	/// </summary>
+	/// <param name="t">Transform</param>
+	/// <param name="cam">Camera</param>
+	/// <param name="immediateUpdate">true: 即座にUpdate()実行 / false: 次フレームの通常Updateで反映</param>
+	void ApplyState(const Transform& t, Camera* cam, bool immediateUpdate = true);
+
+	/// <summary>
+	/// Object3d生成の簡易ヘルパー
+	/// モデル未読み込みなら読み込み→設定し、Transform & Camera を適用して即座に Update します。
+	/// </summary>
+	/// <param name="object3dCom">Object3dCom*</param>
+	/// <param name="modelPath">モデルファイル名</param>
+	/// <param name="transform">初期Transform (省略可)</param>
+	/// <param name="camera">使用するカメラ (省略可 / nullptrでデフォルトカメラを設置)</param>
+	/// <returns>生成済みObject3d* （delete は呼び出し側で行う）</returns>
+	static Object3d* Create(Object3dCom* object3dCom,
+		const std::string& modelPath,
+		const Transform& transform = { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} },
+		Camera* camera = nullptr);
+
 public:
 	// --- getter ---
 	const Vector3& GetScale() const { return transform_.scale_; }
