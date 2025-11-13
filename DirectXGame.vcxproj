@@ -11,6 +11,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Application\GameScene.cpp" />
+    <ClCompile Include="Application\Player.cpp" />
     <ClCompile Include="Baziru3_Engine\MathUtl\AABB.cpp" />
     <ClCompile Include="Baziru3_Engine\Camera\Camera.cpp" />
     <ClCompile Include="Baziru3_Engine\Base\D3DResourceLeakChecker.cpp" />
@@ -72,6 +74,8 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Application\GameScene.h" />
+    <ClInclude Include="Application\Player.h" />
     <ClInclude Include="Baziru3_Engine\MathUtl\AABB.h" />
     <ClInclude Include="Baziru3_Engine\Camera\Camera.h" />
     <ClInclude Include="Baziru3_Engine\Base\D3DResourceLeakChecker.h" />
