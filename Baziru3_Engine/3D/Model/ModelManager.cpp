@@ -50,3 +50,9 @@ Model* ModelManager::FindModel(const std::string& filePath)
 	return nullptr;
 }
 
+Model* ModelManager::LoadAndGetModel(const std::string& filePath)
+{
+    LoadModel(filePath);
+    return FindModel(filePath);
+}
+

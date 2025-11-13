@@ -136,6 +136,14 @@ void Object3d::SetModel(const std::string &filePath) {
   model_ = ModelManager::GetInstance()->FindModel(filePath);
 }
 
+void Object3d::ApplyState(const Transform& t, Camera* cam, bool immediateUpdate)
+{
+    transform_ = t;
+    camera_ = cam;
+    if (immediateUpdate) { Update(); }
+
+}
+
 void Object3d::SetColor(const Vector4& color)
 {
     this->color = color;

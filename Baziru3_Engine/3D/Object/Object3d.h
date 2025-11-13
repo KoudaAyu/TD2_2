@@ -87,6 +87,17 @@ public:
 	void SetRotate(const Vector3& rotate) { transform_.rotation_ = rotate; }
 	void SetTranslate(const Vector3& translate) { transform_.translation_ = translate; }    
 
+	void SetTransform(const Transform& transform) { transform_ = transform; }
+
+	/// <summary>
+	/// 指定TransformとCameraを一括適用し 必要なら即時にUpdate()で行列をGPUへ反映する
+	/// </summary>
+	/// <param name="t">Transform</param>
+	/// <param name="cam">Camera</param>
+	/// <param name="immediateUpdate">true: 即座にUpdate()実行 / false: 次フレームの通常Updateで反映</param>
+	void ApplyState(const Transform& t, Camera* cam, bool immediateUpdate = true);
+
+
 public:
 	// --- getter ---
 	const Vector3& GetScale() const { return transform_.scale_; }
