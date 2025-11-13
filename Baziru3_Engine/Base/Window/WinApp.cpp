@@ -58,7 +58,7 @@ void WinApp::Initialize() {
 
   // ウィンドウの生成
   hwnd_ = CreateWindow(wc.lpszClassName,             // ウィンドウクラス名
-                       L"2124_のびへび",            // ウィンドウタイトル
+                       L"window name",            // ウィンドウタイトル
                        WS_OVERLAPPEDWINDOW,          // ウィンドウスタイル
                        CW_USEDEFAULT, CW_USEDEFAULT, // 位置
                        wrc.right - wrc.left, wrc.bottom - wrc.top, // サイズ
