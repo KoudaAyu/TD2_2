@@ -42,6 +42,7 @@
     <ClCompile Include="Application\main.cpp" />
     <ClCompile Include="Application\GameScene.cpp" />
     <ClCompile Include="Application\Player.cpp" />
+    <ClCompile Include="Baziru3_Engine\MathUtl\Transform.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Baziru3_Engine\Base\D3DResourceLeakChecker.h" />

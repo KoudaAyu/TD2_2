@@ -73,13 +73,14 @@ void Object3d::Initialize(Object3dCom *object3dCom) {
 /// </summary>
 void Object3d::Update() {
 
-  transform_.rotation_.y += 0.00f;
-  if (transform_.rotation_.y > DirectX::XM_2PI) {
-    transform_.rotation_.y -= DirectX::XM_2PI; // 角度を一周分でラップ
-  }
+  Vector3 rot = transform_.GetRotate();
+  rot.y += 0.0f;
+  if (rot.y > DirectX::XM_2PI) { rot.y -= DirectX::XM_2PI;// 角度を一周分でラップ
+  } 
+  transform_.SetRotate(rot);
 
-  Matrix4x4 worldMatrix = MakeAffineMatrix(transform_.scale_, transform_.rotation_,
-                                           transform_.translation_);
+  Matrix4x4 worldMatrix = MakeAffineMatrix(transform_.GetScale(), transform_.GetRotate(),
+                                           transform_.GetTranslate());
   // Matrix4x4 cameraMatrix =
   //	MakeAffineMatrix(cameraTransform_.scale, cameraTransform_.rotate,
   //		cameraTransform_.translate);
