@@ -1,4 +1,5 @@
 #include "Object3dCom.h"
+#include "Camera.h"
 
 /// <summary>
 /// 初期化
@@ -19,6 +20,17 @@ void Object3dCom::ApplyCommonRenderState() {
   directXCom_->GetCommandList()->SetPipelineState(pipelineFrontCCW_.Get());
   directXCom_->GetCommandList()->IASetPrimitiveTopology(
       D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
+
+/// <summary>
+/// デフォルトカメラ生成ヘルパー
+/// </summary>
+Camera* Object3dCom::CreateDefaultCamera(const Vector3& translate) {
+    Camera* camera = new Camera();
+    camera->SetTranslate(translate);
+    camera->Update();
+    SetDefaultCamera(camera);
+    return camera;
 }
 
 /// <summary>

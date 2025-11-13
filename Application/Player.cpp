@@ -18,6 +18,9 @@ void Player::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Obje
 
     keyInput_ = KeyInput::GetInstance();
 
+    // 初期Transform（スケール0で不可視にならないように 1 を設定）
+    worldTransform_.scale_ = {1.0f,1.0f,1.0f};
+    worldTransform_.rotation_ = {0.0f,0.0f,0.0f};
     worldTransform_.translation_ = pos;
 
     if (model_)
