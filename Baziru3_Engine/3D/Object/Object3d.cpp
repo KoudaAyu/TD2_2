@@ -152,3 +152,25 @@ void Object3d::SetColor(const Vector4& color)
         directionalLight_->color = color;
     }
 }
+
+// 静的ファクトリ
+Object3d* Object3d::Create(Object3dCom* object3dCom,
+    const std::string& modelPath,
+    const Transform& transform,
+    Camera* camera)
+{
+    assert(object3dCom);
+    Object3d* obj = new Object3d();
+    obj->Initialize(object3dCom);
+
+    // モデル取得（未読み込みなら読み込む）
+    Model* model = ModelManager::GetInstance()->LoadAndGetModel(modelPath);
+    assert(model);
+    obj->SetModel(model);
+
+    // Camera 指定なければデフォルト
+    if (!camera) { camera = object3dCom->GetDefaultCamera(); }
+    obj->ApplyState(transform, camera, true);
+
+    return obj;
+}

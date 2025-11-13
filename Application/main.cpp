@@ -31,30 +31,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 
     ModelManager::GetInstance()->Initialize(dx);
 
-    // Camera
-    Camera* cam = new Camera();
-    cam->SetTranslate({ 0, 0, -5 });
-    cam->Update();
-    objCom->SetDefaultCamera(cam);
+    // Camera (生成→位置設定→Update→デフォルト登録を一括)
+    Camera* camera = objCom->CreateDefaultCamera({0,0,-5});
 
-    // Load model
-    auto* mm = ModelManager::GetInstance();
-    mm->LoadModel("apple.obj");
-    Model* mdl = mm->FindModel("apple.obj");
-    assert(mdl);
-    assert(mdl->GetVertexCount() > 0);
-
-    // Object
-    Object3d* obj = new Object3d();
-    obj->Initialize(objCom);
-    obj->SetModel(mdl);
-    obj->SetTranslate({ 0,0,0 });
-    obj->Update();
+    // Object (モデル未読込なら読み込み→設定し Transform と Camera 即時反映)
+    Object3d* obj = 
+        Object3d::Create(objCom, "apple.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera);
 
     while (!winApp->ProcessMessage())
     {
         // Update
-        cam->Update();
+        camera->Update();
         obj->Update();
 
         // Draw
@@ -67,7 +54,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 
     // finalize
     delete obj;
-    delete cam;
+    delete camera;
     ModelManager::GetInstance()->Finalize();
     TextureManager::GetInstance()->Finalize();
     delete objCom;
