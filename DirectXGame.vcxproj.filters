@@ -43,6 +43,7 @@
     <ClCompile Include="Application\GameScene.cpp" />
     <ClCompile Include="Application\Player.cpp" />
     <ClCompile Include="Baziru3_Engine\MathUtl\Transform.cpp" />
+    <ClCompile Include="Application\Bullet.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Baziru3_Engine\Base\D3DResourceLeakChecker.h" />
@@ -82,6 +83,7 @@
     <ClInclude Include="Baziru3_Engine\Particle\ParticleEmitter.h" />
     <ClInclude Include="Application\GameScene.h" />
     <ClInclude Include="Application\Player.h" />
+    <ClInclude Include="Application\Bullet.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\shaders\Object3d.hlsli" />

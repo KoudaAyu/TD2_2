@@ -11,6 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Application\Bullet.cpp" />
     <ClCompile Include="Application\GameScene.cpp" />
     <ClCompile Include="Application\Player.cpp" />
     <ClCompile Include="Baziru3_Engine\MathUtl\AABB.cpp" />
@@ -75,6 +76,7 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Application\Bullet.h" />
     <ClInclude Include="Application\GameScene.h" />
     <ClInclude Include="Application\Player.h" />
     <ClInclude Include="Baziru3_Engine\MathUtl\AABB.h" />
