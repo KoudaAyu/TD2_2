@@ -6,6 +6,14 @@
 class TitleScene
 {
 public:
+
+	enum class Phase
+	{
+		kFadeIn,
+		kMain,
+		kFadeOut,
+	};
+
 	TitleScene() = default;
 	~TitleScene();
 	void Initialize(SpriteCom* spriteCom);
@@ -22,4 +30,6 @@ private:
 	Fade* fade_ = nullptr;
 
 	KeyInput* keyInput_ = nullptr;
+
+	Phase phase_ = Phase::kFadeIn;
 };
