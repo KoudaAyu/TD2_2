@@ -17,6 +17,14 @@ public:
 
 public:
 
+	// 生存状態のgetter/setter
+	bool IsAlive() const { return isAlive_; }
+	void SetAlive(bool isAlive) { isAlive_ = isAlive; }
+
+private:
+
+	bool isAlive_ = true;
+
 
 private:
 	Transform worldTransform_ = {};
