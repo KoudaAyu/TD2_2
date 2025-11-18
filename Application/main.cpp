@@ -56,11 +56,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 
 	TextureManager::GetInstance()->Initialize(dx, srv);
 
-	// Use global objCom (avoid local shadowing)
+	
 	objCom = new Object3dCom();
 	objCom->Initialize(dx);
 
-	// SpriteCom を作成して Initialize (global)
+	// SpriteCom を作成して Initialize 
 	spriteCom = new SpriteCom();
 	spriteCom->Initialize(dx);
 
@@ -68,22 +68,25 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 
 	// 入力
 	KeyInput* keyInput = new KeyInput();
-	keyInput->Initialize(winApp); // グローバルインスタンス設定
+	keyInput->Initialize(winApp);
 
-	// Camera (生成→位置設定→Update→デフォルト登録を一括) Use global camera (avoid shadowing)
+	
 	camera = objCom->CreateDefaultCamera({ 0,0,-5 });
 	// 画面サイズでアスペクトを設定し、FOVを少し広げる
 	camera->SetAspectRatio(static_cast<float>(dx->GetClientWidth()) / static_cast<float>(dx->GetClientHeight()));
 	camera->SetFovY(0.8f); // 広めにして横方向が見えるように
 
-
-
-	//GameScene* gameScene = new GameScene();
-	//gameScene->Initialize(camera, objCom);
-
+#ifdef _DEBUG
+	scene = Scene::kGame;
+	gameScene = new GameScene();
+	gameScene->Initialize(camera,objCom);
+#else
 	scene = Scene::kTitle;
 	titleScene = new TitleScene();
 	titleScene->Initialize(spriteCom);
+#endif
+
+
 
 	while (!winApp->ProcessMessage())
 	{
@@ -92,16 +95,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 
 		// Update
 		camera->Update();
-		/*gameScene->Update();*/
+#ifdef _DEBUG
+		gameScene->Update();
+#else
 		ChangePhase();
 		UpdateScene();
+#endif
 
 		// Draw
 		dx->PreDraw();
 		srv->PreDraw();
 		objCom->ApplyCommonRenderState(); // カリング疑い時は ApplyCommonRenderState(false);
-		/*gameScene->Draw();*/
+#ifdef _DEBUG
+		gameScene->Draw();
+#else
 		DrawScene();
+#endif
 		dx->PostDraw();
 	}
 
