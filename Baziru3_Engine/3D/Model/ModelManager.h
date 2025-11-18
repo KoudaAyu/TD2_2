@@ -21,6 +21,8 @@ public:
     // モデルの検索
     Model* FindModel(const std::string& filePath);
 	
+    // 読み込み + 取得のヘルパー（未読み込みなら読み込み、Model* を返す）
+    Model* LoadAndGetModel(const std::string& filePath);
    
 private:
 	static ModelManager* instance;
