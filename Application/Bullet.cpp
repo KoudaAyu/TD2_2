@@ -15,6 +15,10 @@ void Bullet::Initialize()
 
 void Bullet::Update()
 {
+	if (!isActive_)
+	{
+		return;
+	}
 }
 
 void Bullet::Draw()
