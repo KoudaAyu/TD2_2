@@ -10,6 +10,7 @@
 
 
 #include"Player.h"
+#include"KeyInput.h"
 
 using namespace StringUtility;
 
@@ -31,6 +32,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 
 	ModelManager::GetInstance()->Initialize(dx);
 
+	// 入力
+	KeyInput* keyInput = new KeyInput();
+	keyInput->Initialize(winApp); // グローバルインスタンス設定
+
 	// Camera (生成→位置設定→Update→デフォルト登録を一括)
 	Camera* camera = objCom->CreateDefaultCamera({ 0,0,-5 });
 	// 画面サイズでアスペクトを設定し、FOVを少し広げる
@@ -49,6 +54,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 
 	while (!winApp->ProcessMessage())
 	{
+		// Input Update (毎フレーム最初に呼ぶ)
+		keyInput->Update();
+
 		// Update
 		camera->Update();
 		obj->Update();
@@ -68,6 +76,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 	delete playerModel;
 	delete obj;
 	delete camera;
+	delete keyInput; // 入力破棄
 	ModelManager::GetInstance()->Finalize();
 	TextureManager::GetInstance()->Finalize();
 	delete objCom;
