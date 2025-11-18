@@ -9,6 +9,9 @@ void Sprite::Initialize(SpriteCom *spriteCom, std::string textureFilePath) {
 
   textureFilePath_ = textureFilePath;
 
+  // 必要なテクスチャを事前にロードしておく（以降のメタデータ/ハンドル取得で assert 回避）
+  TextureManager::GetInstance()->LoadTexture(textureFilePath_);
+
   /// ==================================
   /// 頂点リソース
   /// ==================================
@@ -54,23 +57,6 @@ void Sprite::Initialize(SpriteCom *spriteCom, std::string textureFilePath) {
   vertexData_[1].texcoord = {0.0f, 0.0f};
   vertexData_[2].texcoord = {1.0f, 1.0f};
   vertexData_[3].texcoord = {1.0f, 0.0f};
-
-  //// 左下
-  // vertexData_[0].position = {0.0f, 1.0f, 0.0f, 1.0f};
-  // vertexData_[0].texcoord = {0.0f, 1.0f};
-  // vertexData_[0].normal = {0.0f, 0.0f, -1.0f};
-  ////左上
-  // vertexData_[1].position = {0.0f, 0.0f, 0.0f, 1.0f};
-  // vertexData_[1].texcoord = {0.0f, 0.0f};
-  // vertexData_[1].normal = {0.0f, 0.0f, -1.0f};
-  //// 右下
-  // vertexData_[2].position = {1.0f, 1.0f, 0.0f, 1.0f};
-  // vertexData_[2].texcoord = {1.0f, 1.0f};
-  // vertexData_[2].normal = {0.0f, 0.0f, -1.0f};
-  //// 右上
-  // vertexData_[3].position = {1.0f, 0.0f, 0.0f, 1.0f};
-  // vertexData_[3].texcoord = {1.0f, 0.0f};
-  // vertexData_[3].normal = {0.0f, 0.0f, -1.0f};
 
   transform_.SetScale({ scale_.x, scale_.y, 1.0f });
 
@@ -133,7 +119,7 @@ void Sprite::Initialize(SpriteCom *spriteCom, std::string textureFilePath) {
   transformationMatrixData_->WVP = MakeIdentity4x4();
   transformationMatrixData_->World = MakeIdentity4x4();
 
-  // 単位行列を書き込んでおく
+  // テクスチャインデックス取得（LoadTexture済み）
   textureIndex_ =
       TextureManager::GetInstance()->GetTextureIndexByFilePath(textureFilePath_);
 

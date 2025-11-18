@@ -13,6 +13,13 @@ public:
 	void Update();
 	void Draw();
 
+public:
+	bool IsFinish() const { return isFinish_; }
+
+private:
+
+	bool isFinish_ = false;
+
 private:
 
 	Camera* camera_ = nullptr;
