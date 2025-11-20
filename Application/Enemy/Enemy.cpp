@@ -1,4 +1,5 @@
 #include "Enemy.h"
+#include "Player.h"
 
 Enemy::~Enemy()
 {
@@ -89,6 +90,59 @@ void Enemy::Fire()
 	Vector3 spawnPos = worldTransform_.GetTranslate();
 	spawnPos.z -= 1.0f;
 	Vector3 bulletVelocity{ 0.0f, 0.0f, -1.0f };
+	bullet_->Initialize(bulletModel, spawnPos, object3dCom_, bulletVelocity);
+
+	//弾を登録する
+	bullets_.push_back(bullet_);
+}
+
+void Enemy::AimBullet()
+{
+#ifdef _DEBUG
+	assert(player_);
+#endif
+
+	//弾の速さ
+	const float kBulletSpeed = 1.0f;
+
+	// 敵とプレイヤーの位置差を計算し、正規化して速さに合わせる
+	Vector3 enemyPos = worldTransform_.GetTranslate();
+	Vector3 playerPos = player_->GetWorldTranslate();
+	Vector3 dir{ playerPos.x - enemyPos.x, playerPos.y - enemyPos.y, playerPos.z - enemyPos.z };
+
+	// 正規化
+	Vector3 normDir = Normalize(dir);
+	Vector3 bulletVelocity{ 0.0f, 0.0f, -1.0f };
+	if (Length(dir) > 1e-6f)
+	{
+		bulletVelocity = normDir * kBulletSpeed;
+	}
+	else
+	{
+		bulletVelocity = { 0.0f, 0.0f, -kBulletSpeed };
+	}
+
+	Object3d* bulletModel = new Object3d();
+	bulletModel->Initialize(object3dCom_);
+
+
+	if (model_)
+	{
+		if (auto* src = model_->GetModel())
+		{
+
+			bulletModel->SetModel(new Model(*src));
+
+			const Vector4 bulletColor{ 1.0f, 0.2f, 0.2f, 1.0f };
+			bulletModel->GetModel()->SetColor(bulletColor);
+			bulletModel->SetColor(bulletColor);
+		}
+	}
+
+	EnemyBullet* bullet_ = new EnemyBullet();
+	Vector3 spawnPos = worldTransform_.GetTranslate();
+	spawnPos.z -= 1.0f;
+	// bulletVelocity は上で計算済み
 	bullet_->Initialize(bulletModel, spawnPos, object3dCom_, bulletVelocity);
 
 	//弾を登録する
