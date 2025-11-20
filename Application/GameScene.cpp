@@ -73,6 +73,8 @@ void GameScene::Update()
 #endif
 	enemy_->Update();
 	player_->Update();
+
+	CheckAllCollisions();
 }
 
 void GameScene::Draw()
