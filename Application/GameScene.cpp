@@ -17,6 +17,8 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom)
 	// カメラの初期化（アスペクト比設定）
 	camera_->Initialize();
 
+	keyInput_ = KeyInput::GetInstance();	
+
 #ifdef _DEBUG
 	// 画面サイズから DebugCamera を初期化 (幅/高さは DirectXCom 経由で取得する想定)
 	float width = static_cast<float>(object3dCom_->GetDirectXCom()->GetClientWidth());
@@ -43,15 +45,28 @@ void GameScene::Update()
 	player_->DrawImGui();
 #endif
 
+	if(keyInput_->TriggerKey(DIK_F1))
+	{
+		isDebugCameraActive_ = !isDebugCameraActive_;
+	}
 
-
-	if (debugCamera_) { debugCamera_->Update(); }
+	if (isDebugCameraActive_ && debugCamera_)
+	{
+		debugCamera_->Update();
+		// デバッグカメラの行列をメインカメラへコピー
+		camera_->OverrideViewProjection(debugCamera_->GetViewMatrix(), debugCamera_->GetProjectionMatrix());
+	}
+	else
+	{
+		// 通常のレールカメラ更新
+		railCameraController_->Update();
+	}
+#else
+	// リリース時は通常カメラのみ
+	railCameraController_->Update();
 #endif
 
 	player_->Update();
-
-
-	railCameraController_->Update();
 }
 
 void GameScene::Draw()

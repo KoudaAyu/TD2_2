@@ -39,15 +39,15 @@ void DebugCamera::Update()
 	if (keyInput_.IsKeyPressed(DIK_UP))
 	{
 
-		// カメラ移動ベクトル
-		Vector3 move = { 0.0f, 0.0f, speed };
+		// カメラ移動ベクトル(回転)
+		Vector3 move = { speed, 0.0f, 0.0f };
 		rotation_ += move;
 	}
 	else if (keyInput_.IsKeyPressed(DIK_DOWN))
 	{
 
-		// カメラ移動ベクトル
-		Vector3 move = { 0.0f, 0.0f, -speed };
+		// カメラ移動ベクトル(回転)
+		Vector3 move = { -speed, 0.0f, 0.0f };
 		rotation_ += move;
 	}
 
@@ -62,6 +62,6 @@ void DebugCamera::Update()
 	Matrix4x4 worldMatrix =
 		MakeAffineMatrix({ 1.0f, 1.0f, 1.0f }, matRot_, translation_);
 	view_matrix_ = Inverse(worldMatrix);
-	Matrix4x4 projection_Matrix =
+	projection_matrix_ =
 		MakePerspectiveFovMatrix(fovY, aspectRatio, nearZ, farZ);
 }

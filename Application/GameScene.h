@@ -22,6 +22,7 @@ public:
 private:
 
 	bool isFinish_ = false;
+	bool isDebugCameraActive_ = false;
 
 private:
 
