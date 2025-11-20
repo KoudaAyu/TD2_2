@@ -2,6 +2,7 @@
 
 GameScene::~GameScene()
 {
+	delete enemy_;
 	delete player_;
 	delete railCameraController_;
 #ifdef _DEBUG
@@ -28,9 +29,13 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom)
 #endif
 
 	model_ = Object3d::Create(object3dCom_, "apple.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera);
+	enemyModel_ = Object3d::Create(object3dCom_, "wall.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera);
 
 	player_ = new Player();
 	player_->Initialize(model_, camera, { 0.0f,0.0f,0.0f }, object3dCom);
+
+	enemy_ = new Enemy();
+	enemy_->Initialize(enemyModel_, camera, { 0.0f,0.0f,10.0f }, object3dCom);
 
 	railCameraController_ = new RailCameraController();
 	railCameraController_->SetCamera(camera_);
@@ -65,11 +70,12 @@ void GameScene::Update()
 	// リリース時は通常カメラのみ
 	railCameraController_->Update();
 #endif
-
+	enemy_->Update();
 	player_->Update();
 }
 
 void GameScene::Draw()
 {
+	enemy_->Draw();
 	player_->Draw();
 }

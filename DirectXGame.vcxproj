@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Application\Bullet.cpp" />
+    <ClCompile Include="Application\Enemy.cpp" />
     <ClCompile Include="Application\Fade.cpp" />
     <ClCompile Include="Application\GameScene.cpp" />
     <ClCompile Include="Application\Player.cpp" />
@@ -82,6 +83,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application\Bullet.h" />
+    <ClInclude Include="Application\Enemy.h" />
     <ClInclude Include="Application\Fade.h" />
     <ClInclude Include="Application\GameScene.h" />
     <ClInclude Include="Application\Player.h" />

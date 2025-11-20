@@ -1,6 +1,7 @@
 #pragma once
 #include"Camera.h"
 #include"DebugCamera.h"
+#include"Enemy.h"
 #include"KeyInput.h"
 #include"Object3d.h"
 #include"Object3dCom.h"
@@ -28,8 +29,10 @@ private:
 
 	Camera* camera_ = nullptr;
 	DebugCamera* debugCamera_ = nullptr;
+	Enemy* enemy_ = nullptr;
 	KeyInput* keyInput_ = nullptr;
 	Object3d* model_ = nullptr;
+	Object3d* enemyModel_ = nullptr;
 	Object3dCom* object3dCom_ = nullptr;
 	Player* player_ = nullptr;
 	RailCameraController* railCameraController_ = nullptr;
