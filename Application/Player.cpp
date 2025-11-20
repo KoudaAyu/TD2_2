@@ -1,5 +1,9 @@
 #include "Player.h"
+#include<algorithm>
 #include<cassert>
+#ifdef USE_IMGUI
+#include "externals/imgui/imgui.h"
+#endif
 
 Player::~Player()
 {
@@ -39,26 +43,9 @@ void Player::Update()
         return;
     }
 
-    
-    if (keyInput_->TriggerKey(DIK_A))
-    {
-		worldTransform_.SetTranslate(worldTransform_.GetTranslate() + Vector3{ -1.0f, 0.0f, 0.0f });
-    }
+    Move();
 
-    if (keyInput_->TriggerKey(DIK_D))
-    {
-		worldTransform_.SetTranslate(worldTransform_.GetTranslate() + Vector3{ 1.0f, 0.0f, 0.0f });
-    }
-
-    if (keyInput_->TriggerKey(DIK_W))
-    {
-        worldTransform_.SetTranslate(worldTransform_.GetTranslate() + Vector3{ 0.0f, 1.0f, 0.0f });
-    }
-    if(keyInput_->TriggerKey(DIK_S))
-    {
-        worldTransform_.SetTranslate(worldTransform_.GetTranslate() + Vector3{ 0.0f, -1.0f, 0.0f });
-	}
-
+    MoveLimit();
 
     // ワールド行列の更新（必要なら維持）
     worldTransform_.TransferMatrix();
@@ -78,4 +65,70 @@ void Player::Draw()
         model_->Draw();
     }
 }
+
+void Player::Move()
+{
+    Vector3 move = { 0.0f,0.0f,0.0f };
+    const float kCharacterSpeed = 0.2f;
+
+    if (keyInput_->IsKeyPressed(DIK_A))
+    {
+        move.x -= kCharacterSpeed;
+    }
+
+    if (keyInput_->IsKeyPressed(DIK_D))
+    {
+        move.x += kCharacterSpeed;
+    }
+
+    if (keyInput_->IsKeyPressed(DIK_W))
+    {
+        move.y += kCharacterSpeed;
+    }
+    if (keyInput_->IsKeyPressed(DIK_S))
+    {
+        move.y -= kCharacterSpeed;
+    }
+
+    worldTransform_.SetTranslate(worldTransform_.GetTranslate() + move);
+}
+
+void Player::MoveLimit()
+{
+    const float kMoveLimitX = 6.0f;
+    const float kMoveLimitY = 4.0f;
+
+    // 位置を取得し、範囲を超えないように clamp して戻す
+    Vector3 t = worldTransform_.GetTranslate();
+    t.x = std::clamp(t.x, -kMoveLimitX, kMoveLimitX);
+    t.y = std::clamp(t.y, -kMoveLimitY, kMoveLimitY);
+    worldTransform_.SetTranslate(t);
+}
+
+#ifdef USE_IMGUI
+void Player::DrawImGui()
+{
+    if (!ImGui::Begin("Player"))
+    {
+        ImGui::End();
+        return;
+    }
+
+    // 基本情報表示
+    ImGui::Text("Alive: %s", isAlive_ ? "true" : "false");
+
+    Vector3 translate = worldTransform_.GetTranslate();
+    if (ImGui::DragFloat3("Translate", &translate.x, 0.1f))
+    {
+        worldTransform_.SetTranslate(translate);
+        worldTransform_.TransferMatrix();
+        if (model_)
+        {
+            model_->ApplyState(worldTransform_, camera_, true);
+        }
+    }
+
+    ImGui::End();
+}
+#endif
 
