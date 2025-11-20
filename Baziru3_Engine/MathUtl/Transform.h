@@ -28,6 +28,9 @@ public:
 
 	void TransferMatrix();
 
+	// ワールド行列の取得
+	const Matrix4x4& GetWorldMatrix() const { return matWorld_; }
+
 	// 直接アクセスされるケースが多いため公開
 	
 private:
