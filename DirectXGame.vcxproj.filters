@@ -46,6 +46,7 @@
     <ClCompile Include="Application\Bullet.cpp" />
     <ClCompile Include="Application\TitleScene.cpp" />
     <ClCompile Include="Application\Fade.cpp" />
+    <ClCompile Include="Baziru3_Engine\Camera\RailCameraController.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Baziru3_Engine\Base\D3DResourceLeakChecker.h" />
@@ -88,6 +89,7 @@
     <ClInclude Include="Application\Bullet.h" />
     <ClInclude Include="Application\TitleScene.h" />
     <ClInclude Include="Application\Fade.h" />
+    <ClInclude Include="Baziru3_Engine\Camera\RailCameraController.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\shaders\Object3d.hlsli" />

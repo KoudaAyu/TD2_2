@@ -10,12 +10,6 @@ private:
 	Matrix4x4 projectionMatrix_;
 	Matrix4x4 viewProjectionMatrix_;
 
-	//float fovY = 0.45f; // 資料通り
-    //float aspectRatio = static_cast<float>(winApp->GetClientWidth()) /
-    //                    static_cast<float>(winApp->GetClientHeight());
-    //float nearZ = 0.1f;
-    //float farZ = 100.0f;
-
 	//水平方向視野角
 	float fovY_ = 0.45f;
 	//アスペクト比
@@ -35,6 +29,11 @@ public:
 	/// コンストラクタ
 	/// </summary>
 	Camera();
+
+	/// <summary>
+	/// 初期化処理（ウィンドウサイズ等に依存する行列生成）
+	/// </summary>
+	void Initialize();
 
 	/// <summary>
 	/// 更新

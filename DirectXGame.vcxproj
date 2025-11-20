@@ -16,6 +16,7 @@
     <ClCompile Include="Application\GameScene.cpp" />
     <ClCompile Include="Application\Player.cpp" />
     <ClCompile Include="Application\TitleScene.cpp" />
+    <ClCompile Include="Baziru3_Engine\Camera\RailCameraController.cpp" />
     <ClCompile Include="Baziru3_Engine\MathUtl\AABB.cpp" />
     <ClCompile Include="Baziru3_Engine\Camera\Camera.cpp" />
     <ClCompile Include="Baziru3_Engine\Base\D3DResourceLeakChecker.cpp" />
@@ -83,6 +84,7 @@
     <ClInclude Include="Application\GameScene.h" />
     <ClInclude Include="Application\Player.h" />
     <ClInclude Include="Application\TitleScene.h" />
+    <ClInclude Include="Baziru3_Engine\Camera\RailCameraController.h" />
     <ClInclude Include="Baziru3_Engine\MathUtl\AABB.h" />
     <ClInclude Include="Baziru3_Engine\Camera\Camera.h" />
     <ClInclude Include="Baziru3_Engine\Base\D3DResourceLeakChecker.h" />
