@@ -11,6 +11,12 @@ Player::~Player()
     model_ = nullptr;
     camera_ = nullptr;
     object3dCom_ = nullptr;
+
+    if (barrier_)
+    {
+        delete barrier_;
+        barrier_ = nullptr;
+    }
 }
 
 void Player::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object3dCom* object3dCom)
@@ -47,6 +53,13 @@ void Player::Update()
 
     MoveLimit();
 
+    // 回転処理を追加
+    Rotate();
+
+	Barrier();
+
+   
+
     // ワールド行列の更新（必要なら維持）
     worldTransform_.TransferMatrix();
 
@@ -56,10 +69,22 @@ void Player::Update()
         model_->ApplyState(worldTransform_, camera_, false);
         model_->Update();
     }
+
+     if(barrier_)
+    {
+        barrier_->Update();
+	}
 }
 
 void Player::Draw()
 {
+    
+
+    if (barrier_)
+    {
+		barrier_->Draw(*camera_);
+    }
+
     if (model_)
     {
         model_->Draw();
@@ -71,21 +96,21 @@ void Player::Move()
     Vector3 move = { 0.0f,0.0f,0.0f };
     const float kCharacterSpeed = 0.2f;
 
-    if (keyInput_->IsKeyPressed(DIK_A))
+    if (keyInput_->PushKey(DIK_A))
     {
         move.x -= kCharacterSpeed;
     }
 
-    if (keyInput_->IsKeyPressed(DIK_D))
+    if (keyInput_->PushKey(DIK_D))
     {
         move.x += kCharacterSpeed;
     }
 
-    if (keyInput_->IsKeyPressed(DIK_W))
+    if (keyInput_->PushKey(DIK_W))
     {
         move.y += kCharacterSpeed;
     }
-    if (keyInput_->IsKeyPressed(DIK_S))
+    if (keyInput_->PushKey(DIK_S))
     {
         move.y -= kCharacterSpeed;
     }
@@ -103,6 +128,46 @@ void Player::MoveLimit()
     t.x = std::clamp(t.x, -kMoveLimitX, kMoveLimitX);
     t.y = std::clamp(t.y, -kMoveLimitY, kMoveLimitY);
     worldTransform_.SetTranslate(t);
+}
+
+void Player::Rotate()
+{
+    const float kRotSpeed = 0.02f;
+
+    // 現在の回転を取得
+    Vector3 rot = worldTransform_.GetRotate();
+
+    // 方向キー左でY軸回転を減算（左回転）
+    if (keyInput_->PushKey(DIK_LEFT))
+    {
+        rot.y -= kRotSpeed;
+    }
+
+    // 方向キー右でY軸回転を加算（右回転）
+    if (keyInput_->PushKey(DIK_RIGHT))
+    {
+        rot.y += kRotSpeed;
+    }
+
+    worldTransform_.SetRotate(rot);
+}
+
+void Player::Barrier()
+{
+    if (keyInput_->TriggerKey(DIK_SPACE))
+    {
+		// If a barrier already exists, delete it to avoid leak and replace
+		if (barrier_)
+		{
+			delete barrier_;
+			barrier_ = nullptr;
+		}
+
+		PlayerBarrier* barrier = new PlayerBarrier();
+		barrier->Initialize(model_, worldTransform_.GetTranslate(), object3dCom_);
+
+		barrier_ = barrier;
+    }
 }
 
 #ifdef USE_IMGUI
