@@ -4,6 +4,7 @@
 #include"KeyInput.h"
 #include"Object3d.h"
 #include"Object3dCom.h"
+#include"PlayerBarrier.h"
 #include"Transform.h"
 
 class Player
@@ -21,6 +22,16 @@ public:
 	/// 移動制限
 	/// </summary>
 	void MoveLimit();
+
+	/// <summary>
+	/// 旋回
+	/// </summary>
+	void Rotate();
+
+	/// <summary>
+	/// バリア関係
+	/// </summary>
+	void Barrier();
 
 
 #ifdef USE_IMGUI
@@ -51,4 +62,6 @@ private:
 	Camera* camera_ = nullptr;
 
 	Object3dCom* object3dCom_ = nullptr;
+
+	PlayerBarrier* barrier_ = nullptr;
 };

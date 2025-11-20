@@ -51,6 +51,7 @@
     <ClCompile Include="Baziru3_Engine\2D\Texture\TextureManager.cpp" />
     <ClCompile Include="Baziru3_Engine\Base\Window\WinApp.cpp" />
     <ClCompile Include="Application\main.cpp" />
+    <ClCompile Include="PlayerBarrier.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Resources\shaders\Particle.PS.hlsl">
@@ -120,6 +121,7 @@
     <ClInclude Include="Baziru3_Engine\MathUtl\Transform.h" />
     <ClInclude Include="Baziru3_Engine\MathUtl\Vector.h" />
     <ClInclude Include="Baziru3_Engine\Base\Window\WinApp.h" />
+    <ClInclude Include="PlayerBarrier.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />
