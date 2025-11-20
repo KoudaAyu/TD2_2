@@ -34,6 +34,9 @@ Scene scene = Scene::kUnknown;
 Camera* camera = nullptr;
 Object3dCom* objCom = nullptr;
 SpriteCom* spriteCom = nullptr;
+#ifdef USE_IMGUI
+ImGuiManager* imguiManager = nullptr;
+#endif
 
 void ChangePhase();
 
@@ -76,6 +79,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 	camera->SetAspectRatio(static_cast<float>(dx->GetClientWidth()) / static_cast<float>(dx->GetClientHeight()));
 	camera->SetFovY(0.8f); // 広めにして横方向が見えるように
 
+#ifdef USE_IMGUI
+	// ImGui初期化
+	imguiManager = new ImGuiManager();
+	imguiManager->Initialize(winApp, dx, srv);
+#endif
+
 #ifdef _DEBUG
 	scene = Scene::kGame;
 	gameScene = new GameScene();
@@ -93,6 +102,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 		// Input Update (毎フレーム最初に呼ぶ)
 		keyInput->Update();
 
+#ifdef USE_IMGUI
+		// ImGuiフレーム開始（これより後に ImGui::Begin 等を呼べる）
+		imguiManager->Begin();
+#endif
+
 		// Update
 		camera->Update();
 #ifdef _DEBUG
@@ -100,6 +114,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 #else
 		ChangePhase();
 		UpdateScene();
+#endif
+
+#ifdef USE_IMGUI
+		// ImGuiフレーム終了（内部コマンド生成）
+		imguiManager->End();
 #endif
 
 		// Draw
@@ -111,6 +130,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 #else
 		DrawScene();
 #endif
+#ifdef USE_IMGUI
+		// ImGui描画（3D描画の後に）
+		imguiManager->Draw();
+#endif
 		dx->PostDraw();
 	}
 
@@ -120,6 +143,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 	delete titleScene;
 	delete camera;
 	delete keyInput; // 入力破棄
+#ifdef USE_IMGUI
+	if (imguiManager) { imguiManager->Finalize(); delete imguiManager; }
+#endif
 	ModelManager::GetInstance()->Finalize();
 	TextureManager::GetInstance()->Finalize();
 	delete objCom;

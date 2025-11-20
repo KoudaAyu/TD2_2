@@ -7,6 +7,10 @@
 class DebugCamera
 {
 public: 
+	// コンストラクタを追加（幅・高さを受け取る）
+	DebugCamera(float width, float height)
+		: aspectRatio(width / height) {}
+
 	void Initialize();
 
 	void Update();

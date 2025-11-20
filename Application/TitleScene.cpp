@@ -29,7 +29,7 @@ void TitleScene::Update()
 
 	case Phase::kMain:
 		// スペースキーが押されたらフェードアウトへ
-		if (keyInput_->IsKeyPressed(DIK_SPACE)) {
+		if (keyInput_->PushKey(DIK_SPACE)) {
 			phase_ = Phase::kFadeOut;
 			fade_->Start(Fade::State::kFadeOut, 1.0f);
 
