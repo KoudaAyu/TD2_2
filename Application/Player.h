@@ -15,6 +15,19 @@ public:
 	void Update();
 	void Draw();
 
+	void Move();
+
+	/// <summary>
+	/// 移動制限
+	/// </summary>
+	void MoveLimit();
+
+
+#ifdef USE_IMGUI
+	// ImGui用のウィンドウ描画。ImGuiManager::Begin() と End() の間で呼び出してください。
+	void DrawImGui();
+#endif
+
 public:
 
 	// 生存状態のgetter/setter
