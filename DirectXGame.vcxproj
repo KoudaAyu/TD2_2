@@ -12,7 +12,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Application\Bullet.cpp" />
-    <ClCompile Include="Application\Enemy.cpp" />
+    <ClCompile Include="Application\Enemy\Enemy.cpp" />
+    <ClCompile Include="Application\Enemy\EnemyBullet.cpp" />
     <ClCompile Include="Application\Fade.cpp" />
     <ClCompile Include="Application\GameScene.cpp" />
     <ClCompile Include="Application\Player.cpp" />
@@ -83,7 +84,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application\Bullet.h" />
-    <ClInclude Include="Application\Enemy.h" />
+    <ClInclude Include="Application\Enemy\Enemy.h" />
+    <ClInclude Include="Application\Enemy\EnemyBullet.h" />
     <ClInclude Include="Application\Fade.h" />
     <ClInclude Include="Application\GameScene.h" />
     <ClInclude Include="Application\Player.h" />
@@ -95,6 +97,7 @@
     <ClInclude Include="Baziru3_Engine\Camera\DebugCamera.h" />
     <ClInclude Include="Baziru3_Engine\Base\DirectXCom.h" />
     <ClInclude Include="Baziru3_Engine\MathUtl\MathUtl.h" />
+    <ClInclude Include="EnemyBullet.h" />
     <ClInclude Include="externals\imgui\imconfig.h" />
     <ClInclude Include="externals\imgui\imgui.h" />
     <ClInclude Include="externals\imgui\imgui_impl_dx12.h" />
@@ -192,7 +195,7 @@
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <TreatWarningAsError>true</TreatWarningAsError>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Application;$(ProjectDir)Baziru3_Engine\2D\Sprite;$(ProjectDir)Baziru3_Engine\2D\Texture;$(ProjectDir)Baziru3_Engine\3D\Light;$(ProjectDir)Baziru3_Engine\3D\Model;$(ProjectDir)Baziru3_Engine\3D\Object;$(ProjectDir)Baziru3_Engine\Audio;$(ProjectDir)Baziru3_Engine\Base\ImGui;$(ProjectDir)Baziru3_Engine\Base\Window;$(ProjectDir)Baziru3_Engine\Base;$(ProjectDir)Baziru3_Engine\Camera;$(ProjectDir)Baziru3_Engine\IO\KeyInput;$(ProjectDir)Baziru3_Engine\MapChip;$(ProjectDir)Baziru3_Engine\MathUtl;$(ProjectDir)Baziru3_Engine\Particle;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Application;$(ProjectDir)Baziru3_Engine\2D\Sprite;$(ProjectDir)Baziru3_Engine\2D\Texture;$(ProjectDir)Baziru3_Engine\3D\Light;$(ProjectDir)Baziru3_Engine\3D\Model;$(ProjectDir)Baziru3_Engine\3D\Object;$(ProjectDir)Baziru3_Engine\Audio;$(ProjectDir)Baziru3_Engine\Base\ImGui;$(ProjectDir)Baziru3_Engine\Base\Window;$(ProjectDir)Baziru3_Engine\Base;$(ProjectDir)Baziru3_Engine\Camera;$(ProjectDir)Baziru3_Engine\IO\KeyInput;$(ProjectDir)Baziru3_Engine\MapChip;$(ProjectDir)Baziru3_Engine\MathUtl;$(ProjectDir)Baziru3_Engine\Particle;$(ProjectDir)Application\Enemy;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -217,7 +220,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <Optimization>MaxSpeed</Optimization>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Application;$(ProjectDir)Baziru3_Engine\2D\Sprite;$(ProjectDir)Baziru3_Engine\2D\Texture;$(ProjectDir)Baziru3_Engine\3D\Light;$(ProjectDir)Baziru3_Engine\3D\Model;$(ProjectDir)Baziru3_Engine\3D\Object;$(ProjectDir)Baziru3_Engine\Audio;$(ProjectDir)Baziru3_Engine\Base\ImGui;$(ProjectDir)Baziru3_Engine\Base\Window;$(ProjectDir)Baziru3_Engine\Base;$(ProjectDir)Baziru3_Engine\Camera;$(ProjectDir)Baziru3_Engine\IO\KeyInput;$(ProjectDir)Baziru3_Engine\MapChip;$(ProjectDir)Baziru3_Engine\MathUtl;$(ProjectDir)Baziru3_Engine\Particle;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Application;$(ProjectDir)Baziru3_Engine\2D\Sprite;$(ProjectDir)Baziru3_Engine\2D\Texture;$(ProjectDir)Baziru3_Engine\3D\Light;$(ProjectDir)Baziru3_Engine\3D\Model;$(ProjectDir)Baziru3_Engine\3D\Object;$(ProjectDir)Baziru3_Engine\Audio;$(ProjectDir)Baziru3_Engine\Base\ImGui;$(ProjectDir)Baziru3_Engine\Base\Window;$(ProjectDir)Baziru3_Engine\Base;$(ProjectDir)Baziru3_Engine\Camera;$(ProjectDir)Baziru3_Engine\IO\KeyInput;$(ProjectDir)Baziru3_Engine\MapChip;$(ProjectDir)Baziru3_Engine\MathUtl;$(ProjectDir)Baziru3_Engine\Particle;$(ProjectDir)Application\Enemy;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

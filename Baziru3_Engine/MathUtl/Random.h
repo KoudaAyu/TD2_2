@@ -13,5 +13,5 @@ private:
 public:
 
 	static void SeedEngine();
-	static float GeneraterFloat(float min, float max);
+	static float GeneratorFloat(float min, float max);
 };
