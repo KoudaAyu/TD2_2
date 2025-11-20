@@ -30,6 +30,11 @@ public:
 	void Draw();
 
 	/// <summary>
+	/// 衝突処理
+	/// </summary>
+	void OnCollision();
+
+	/// <summary>
 	/// 弾発射
 	/// </summary>
 	void Fire();
@@ -60,6 +65,8 @@ public:
 	{
 		return worldTransform_.GetWorldMatrix();
 	};
+
+	const std::list<EnemyBullet*>& GetBullets() const { return bullets_; }
 
 private:
 	

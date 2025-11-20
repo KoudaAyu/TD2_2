@@ -46,6 +46,11 @@ void EnemyBullet::Initialize(Object3d* model, const Vector3 pos, Object3dCom* ob
 
 void EnemyBullet::Update()
 {
+	if (!isActive_)
+	{
+		return;
+	}
+
 	worldTransform_ += velocity_;
 	worldTransform_.TransferMatrix();
 	if (model_)
@@ -57,8 +62,18 @@ void EnemyBullet::Update()
 
 void EnemyBullet::Draw()
 {
+	if(!isActive_)
+	{
+		return;
+	}
+
 	if (model_)
 	{
 		model_->Draw();
 	}
+}
+
+void EnemyBullet::OnCollision()
+{
+	isActive_ = false;
 }

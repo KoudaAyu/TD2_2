@@ -178,6 +178,10 @@ void Player::Barrier()
 	}
 }
 
+void Player::OnCollision()
+{
+}
+
 #ifdef USE_IMGUI
 void Player::DrawImGui()
 {

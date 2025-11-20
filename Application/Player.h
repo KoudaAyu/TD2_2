@@ -33,6 +33,11 @@ public:
 	/// </summary>
 	void Barrier();
 
+	/// <summary>
+	/// 衝突処理
+	/// </summary>
+	void OnCollision();
+
 
 #ifdef USE_IMGUI
 	// ImGui用のウィンドウ描画。ImGuiManager::Begin() と End() の間で呼び出してください。
@@ -56,6 +61,8 @@ public:
 	{
 		return worldTransform_.GetWorldMatrix();
 	};
+
+	const PlayerBarrier* GetBarrier() const { return barrier_; }
 
 
 private:

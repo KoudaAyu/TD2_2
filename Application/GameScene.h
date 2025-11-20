@@ -17,6 +17,11 @@ public:
 	void Update();
 	void Draw();
 
+	/// <summary>
+	/// 衝突判定と衝突処理の実行
+	/// </summary>
+	void CheckAllCollisions();
+
 public:
 	bool IsFinish() const { return isFinish_; }
 
