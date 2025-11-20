@@ -36,6 +36,7 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom)
 
 	enemy_ = new Enemy();
 	enemy_->Initialize(enemyModel_, camera, { 0.0f,0.0f,10.0f }, object3dCom);
+	enemy_->SetPlayer(player_);
 
 	railCameraController_ = new RailCameraController();
 	railCameraController_->SetCamera(camera_);

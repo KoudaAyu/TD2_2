@@ -45,6 +45,19 @@ public:
 	bool IsAlive() const { return isAlive_; }
 	void SetAlive(bool isAlive) { isAlive_ = isAlive; }
 
+	
+	Vector3 GetWorldTranslate() const
+	{
+		return worldTransform_.GetTranslate();
+	};
+
+	// ワールド行列のgetter（参照で返す）
+	const Matrix4x4& GetWorldMatrix() const
+	{
+		return worldTransform_.GetWorldMatrix();
+	};
+
+
 private:
 
 	bool isAlive_ = true;

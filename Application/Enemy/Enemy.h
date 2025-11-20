@@ -8,6 +8,7 @@
 #include"Object3dCom.h"
 #include"Transform.h"
 
+class Player;
 
 class Enemy
 {
@@ -33,6 +34,7 @@ public:
 	/// </summary>
 	void Fire();
 
+	void AimBullet();
 
 	//フェーズごとの更新
 
@@ -50,6 +52,14 @@ public:
 	/// 離脱フェーズの更新
 	/// </summary>
 	void LeaveUpdate();
+
+public:
+	void SetPlayer(Player* player) { player_ = player; }	
+
+	const Matrix4x4& GetWorldMatrix() const
+	{
+		return worldTransform_.GetWorldMatrix();
+	};
 
 private:
 	
@@ -74,4 +84,6 @@ private:
 	Transform worldTransform_ = {};
 	Object3d* model_ = nullptr;
 	Object3dCom* object3dCom_ = nullptr;
+
+	Player* player_ = nullptr;
 };
