@@ -33,6 +33,9 @@ public:
 
 	// 直接アクセスされるケースが多いため公開
 	
+	// translation にベクトルを加算するための演算子
+	Transform& operator+=(const Vector3& rhs) { translation_ += rhs; return *this; }
+
 private:
 	Matrix4x4 matWorld_{};
 
