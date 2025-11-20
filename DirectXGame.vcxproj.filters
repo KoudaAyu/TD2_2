@@ -48,6 +48,7 @@
     <ClCompile Include="Application\Fade.cpp" />
     <ClCompile Include="Baziru3_Engine\Camera\RailCameraController.cpp" />
     <ClCompile Include="PlayerBarrier.cpp" />
+    <ClCompile Include="Baziru3_Engine\MathUtl\MathUtl.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Baziru3_Engine\Base\D3DResourceLeakChecker.h" />
@@ -92,6 +93,7 @@
     <ClInclude Include="Application\Fade.h" />
     <ClInclude Include="Baziru3_Engine\Camera\RailCameraController.h" />
     <ClInclude Include="PlayerBarrier.h" />
+    <ClInclude Include="Baziru3_Engine\MathUtl\MathUtl.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\shaders\Object3d.hlsli" />

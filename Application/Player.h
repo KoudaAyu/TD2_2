@@ -5,7 +5,7 @@
 #include"Object3d.h"
 #include"Object3dCom.h"
 #include"PlayerBarrier.h"
-#include"Transform.h"
+#include"MathUtl.h"
 
 class Player
 {
