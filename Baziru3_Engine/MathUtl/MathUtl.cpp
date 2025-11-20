@@ -25,3 +25,10 @@ Vector3 Normalize(const Vector3& v)
 	if (len <= 1e-6f) return {0.0f, 0.0f, 0.0f};
 	return { v.x / len, v.y / len, v.z / len };
 }
+
+// 2点間の距離
+float Distance(const Vector3& a, const Vector3& b)
+{
+	Vector3 diff{ a.x - b.x, a.y - b.y, a.z - b.z };
+	return Length(diff);
+}

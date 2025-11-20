@@ -14,8 +14,30 @@ public:
 	void Update();
 	void Draw();
 
+
+	/// <summary>
+	/// 衝突処理
+	/// </summary>
+	void OnCollision();
+
+public:
+	bool IsActive() const { return isActive_; }
+
+	Vector3 GetWorldTranslate() const
+	{
+		return worldTransform_.GetTranslate();
+	};
+
+	const Matrix4x4& GetWorldMatrix() const
+	{
+		return worldTransform_.GetWorldMatrix();
+	};
+	
+
 private:
 	Vector3 velocity_ = { 0.0f, 0.0f, -1.0f };
+
+	bool isActive_ = true;
 private:
 	Camera* camera_ = nullptr;
 	Transform worldTransform_ = {};
