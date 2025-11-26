@@ -322,12 +322,11 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 		assert(SUCCEEDED(hr));
 
 		// ── 2) “同じ rootSignature_” を使って PSO を作る ──
-		// ※ ここはあなたのシェーダ取得方法に合わせて差し替え。
-		//    例：CompileShader_(L"Resources/shaders/Particle.VS.hlsl", L"vs_6_0")
+		
 		ComPtr<IDxcBlob> vs = dx_->CompileShader(L"Resources/shaders/Particle.VS.hlsl", L"vs_6_0");
 		ComPtr<IDxcBlob> ps = dx_->CompileShader(L"Resources/shaders/Particle.PS.hlsl", L"ps_6_0");
 
-		// あなたの Vertex 構造体に合わせる（float4 pos, float2 uv）
+		
 		D3D12_INPUT_ELEMENT_DESC inputElems[] = {
 			{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0,  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, 16, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },

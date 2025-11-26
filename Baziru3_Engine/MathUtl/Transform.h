@@ -28,8 +28,14 @@ public:
 
 	void TransferMatrix();
 
+	// ワールド行列の取得
+	const Matrix4x4& GetWorldMatrix() const { return matWorld_; }
+
 	// 直接アクセスされるケースが多いため公開
 	
+	// translation にベクトルを加算するための演算子
+	Transform& operator+=(const Vector3& rhs) { translation_ += rhs; return *this; }
+
 private:
 	Matrix4x4 matWorld_{};
 
