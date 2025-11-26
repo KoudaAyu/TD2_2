@@ -12,38 +12,38 @@ void DebugCamera::Update()
 {
 
 
-	if (keyInput_.IsKeyPressed(DIK_D))
+	if (keyInput_.PushKey(DIK_D))
 	{
 		// カメラ移動ベクトル
 		Vector3 move = { speed, 0.0f, 0.0f };
 		translation_ += move;
 	}
-	else if (keyInput_.IsKeyPressed(DIK_A))
+	else if (keyInput_.PushKey(DIK_A))
 	{
 		// カメラ移動ベクトル
 		Vector3 move = { -speed, 0.0f, 0.0f };
 		translation_ += move;
 	}
-	else if (keyInput_.IsKeyPressed(DIK_W))
+	else if (keyInput_.PushKey(DIK_W))
 	{
 		// カメラ移動ベクトル
 		Vector3 move = { 0.0f, 0.0f, speed };
 		translation_ += move;
 	}
-	else if (keyInput_.IsKeyPressed(DIK_S))
+	else if (keyInput_.PushKey(DIK_S))
 	{
 		// カメラ移動ベクトル
 		Vector3 move = { 0.0f, 0.0f, -speed };
 		translation_ += move;
 	}
-	if (keyInput_.IsKeyPressed(DIK_UP))
+	if (keyInput_.PushKey(DIK_UP))
 	{
 
 		// カメラ移動ベクトル(回転)
 		Vector3 move = { speed, 0.0f, 0.0f };
 		rotation_ += move;
 	}
-	else if (keyInput_.IsKeyPressed(DIK_DOWN))
+	else if (keyInput_.PushKey(DIK_DOWN))
 	{
 
 		// カメラ移動ベクトル(回転)

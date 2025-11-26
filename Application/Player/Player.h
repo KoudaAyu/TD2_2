@@ -4,7 +4,9 @@
 #include"KeyInput.h"
 #include"Object3d.h"
 #include"Object3dCom.h"
-#include"Transform.h"
+#include"PlayerBarrier.h"
+#include"MathUtl.h"
+#include <vector>
 
 class Player
 {
@@ -22,6 +24,21 @@ public:
 	/// </summary>
 	void MoveLimit();
 
+	/// <summary>
+	/// 旋回
+	/// </summary>
+	void Rotate();
+
+	/// <summary>
+	/// バリア関係
+	/// </summary>
+	void Barrier();
+
+	/// <summary>
+	/// 衝突処理
+	/// </summary>
+	void OnCollision();
+
 
 #ifdef USE_IMGUI
 	// ImGui用のウィンドウ描画。ImGuiManager::Begin() と End() の間で呼び出してください。
@@ -33,6 +50,21 @@ public:
 	// 生存状態のgetter/setter
 	bool IsAlive() const { return isAlive_; }
 	void SetAlive(bool isAlive) { isAlive_ = isAlive; }
+
+	
+	Vector3 GetWorldTranslate() const
+	{
+		return worldTransform_.GetTranslate();
+	};
+
+	// ワールド行列のgetter（参照で返す）
+	const Matrix4x4& GetWorldMatrix() const
+	{
+		return worldTransform_.GetWorldMatrix();
+	};
+
+	// バリア群を取得（複数化対応）
+	const std::vector<PlayerBarrier*>& GetBarriers() const { return barriers_; }
 
 private:
 
@@ -51,4 +83,7 @@ private:
 	Camera* camera_ = nullptr;
 
 	Object3dCom* object3dCom_ = nullptr;
+
+	// 単一のバリアから複数のバリアに変更
+	std::vector<PlayerBarrier*> barriers_;
 };
