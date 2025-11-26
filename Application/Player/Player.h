@@ -41,7 +41,7 @@ public:
 
 
 #ifdef USE_IMGUI
-	// ImGui用のウィンドウ描画。ImGuiManager::Begin() と End() の間で呼び出してください。
+	
 	void DrawImGui();
 #endif
 
