@@ -33,6 +33,11 @@ public:
 	/// </summary>
 	void Barrier();
 
+	/// <summary>
+	/// 衝突処理
+	/// </summary>
+	void OnCollision();
+
 
 #ifdef USE_IMGUI
 	// ImGui用のウィンドウ描画。ImGuiManager::Begin() と End() の間で呼び出してください。
@@ -44,6 +49,21 @@ public:
 	// 生存状態のgetter/setter
 	bool IsAlive() const { return isAlive_; }
 	void SetAlive(bool isAlive) { isAlive_ = isAlive; }
+
+	
+	Vector3 GetWorldTranslate() const
+	{
+		return worldTransform_.GetTranslate();
+	};
+
+	// ワールド行列のgetter（参照で返す）
+	const Matrix4x4& GetWorldMatrix() const
+	{
+		return worldTransform_.GetWorldMatrix();
+	};
+
+	const PlayerBarrier* GetBarrier() const { return barrier_; }
+
 
 private:
 

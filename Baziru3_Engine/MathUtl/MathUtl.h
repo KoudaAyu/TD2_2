@@ -4,3 +4,10 @@
 #include "Matrix4x4.h"	
 
 Vector3 TransformNormal(const Vector3& v,const Matrix4x4& m);
+
+// 追加: ベクトル長・正規化ユーティリティ
+float Length(const Vector3& v);
+Vector3 Normalize(const Vector3& v);
+
+// 2点間の距離を返す
+float Distance(const Vector3& a, const Vector3& b);
