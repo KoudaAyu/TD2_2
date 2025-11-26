@@ -75,3 +75,8 @@ void PlayerBarrier::Draw(const Camera& camera)
         barrierModel_->Draw();
     }
 }
+
+void PlayerBarrier::OnCollision()
+{
+    isActive_ = false;
+}

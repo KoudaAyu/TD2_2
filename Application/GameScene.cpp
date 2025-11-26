@@ -2,6 +2,7 @@
 
 GameScene::~GameScene()
 {
+	delete enemy_;
 	delete player_;
 	delete railCameraController_;
 #ifdef _DEBUG
@@ -28,9 +29,14 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom)
 #endif
 
 	model_ = Object3d::Create(object3dCom_, "apple.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera);
+	enemyModel_ = Object3d::Create(object3dCom_, "wall.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera);
 
 	player_ = new Player();
 	player_->Initialize(model_, camera, { 0.0f,0.0f,0.0f }, object3dCom);
+
+	enemy_ = new Enemy();
+	enemy_->Initialize(enemyModel_, camera, { 0.0f,0.0f,10.0f }, object3dCom);
+	enemy_->SetPlayer(player_);
 
 	railCameraController_ = new RailCameraController();
 	railCameraController_->SetCamera(camera_);
@@ -65,11 +71,51 @@ void GameScene::Update()
 	// リリース時は通常カメラのみ
 	railCameraController_->Update();
 #endif
-
+	enemy_->Update();
 	player_->Update();
+
+	CheckAllCollisions();
 }
 
 void GameScene::Draw()
 {
+	enemy_->Draw();
 	player_->Draw();
+}
+
+void GameScene::CheckAllCollisions()
+{
+	Vector3 posA, posB;
+
+	//バリア
+	const PlayerBarrier* barrier = player_->GetBarrier();
+	//敵の弾のリスト
+	const std::list<EnemyBullet*>& enemyBullets = enemy_->GetBullets();
+
+#pragma region 自キャラと敵の弾の当たり判定
+	posA = player_->GetWorldTranslate();
+	for(EnemyBullet* bullet : enemyBullets)
+	{
+		posB = bullet->GetWorldTranslate();
+
+		// 距離（MathUtl の Distance を使用）
+		float distance = Distance(posA, posB);
+
+		const float threshold = 1.0f;
+		if (distance < threshold)
+		{
+			player_->OnCollision();
+			bullet->OnCollision();
+		}
+
+
+
+	}
+#pragma endregion
+
+#pragma region バリアと敵の当たり判定
+#pragma endregion
+
+#pragma region バリアと敵の弾の当たり判定
+#pragma endregion
 }

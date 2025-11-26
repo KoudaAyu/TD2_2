@@ -6,7 +6,7 @@ std::mt19937_64 Random::randomEngine_;
 
 void Random::SeedEngine() { randomEngine_.seed(seedGenerator_()); }
 
-float Random::GeneraterFloat(float min, float max) {
+float Random::GeneratorFloat(float min, float max) {
 	std::uniform_real_distribution<float> distribution(min, max);
 
 	//乱数を返す

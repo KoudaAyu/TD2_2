@@ -13,6 +13,11 @@ public:
     void Update();
     void Draw(const Camera& camera);
 
+    /// <summary>
+    /// 衝突処理
+    /// </summary>
+    void OnCollision();
+
 public:
 	bool IsActive() const { return isActive_; }
 
