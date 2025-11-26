@@ -6,6 +6,7 @@
 #include"Object3dCom.h"
 #include"PlayerBarrier.h"
 #include"MathUtl.h"
+#include <vector>
 
 class Player
 {
@@ -83,5 +84,6 @@ private:
 
 	Object3dCom* object3dCom_ = nullptr;
 
-	PlayerBarrier* barrier_ = nullptr;
+	// 単一のバリアから複数のバリアに変更
+	std::vector<PlayerBarrier*> barriers_;
 };
