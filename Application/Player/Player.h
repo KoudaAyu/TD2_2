@@ -86,4 +86,23 @@ private:
 
 	// 単一のバリアから複数のバリアに変更
 	std::vector<PlayerBarrier*> barriers_;
+
+	// --- ジャンプ関連変数 ---
+	// 重力（フレームごとに垂直速度へ加算）
+	static constexpr float kGravity = -0.035f;
+	// 一段目のジャンプ初速（低めに設定）
+	static constexpr float kFirstJumpVelocity = 0.65f;
+	// 二段目のジャンプ初速
+	static constexpr float kSecondJumpVelocity = 0.9f;
+	// 最大二段ジャンプ
+	static constexpr int kMaxJumpCount = 2;
+
+	// 移動制限（外部でも参照するためクラス定数として定義）
+	static constexpr float kMoveLimitX = 6.0f;
+	static constexpr float kMoveLimitY = 4.0f;
+
+	// 現在の垂直速度
+	float verticalVelocity_ = 0.0f;
+	// 現在のジャンプ回数（着地でリセット）
+	int jumpCount_ = 0;
 };
