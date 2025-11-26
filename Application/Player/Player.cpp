@@ -181,6 +181,9 @@ void Player::Barrier()
 
 void Player::OnCollision()
 {
+#ifndef _DEBUG
+	isAlive_ = false;
+#endif
 }
 
 #ifdef USE_IMGUI

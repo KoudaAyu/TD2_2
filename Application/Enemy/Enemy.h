@@ -66,6 +66,8 @@ public:
 		return worldTransform_.GetWorldMatrix();
 	};
 
+	Vector3 GetWorldTranslate() const { return worldTransform_.GetTranslate(); }
+
 	const std::list<EnemyBullet*>& GetBullets() const { return bullets_; }
 
 private:
