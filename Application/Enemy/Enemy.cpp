@@ -176,3 +176,14 @@ void Enemy::LeaveUpdate()
 {
 	worldTransform_ += leaveVelocity;
 }
+
+// 衝突処理の実装
+void Enemy::OnCollision()
+{
+	// 衝突を受けたら簡単に画面外へ移動させ、保持している弾を無効化する
+	worldTransform_.SetTranslate({ 10000.0f, 10000.0f, 10000.0f });
+	for (EnemyBullet* b : bullets_)
+	{
+		if (b) b->OnCollision();
+	}
+}

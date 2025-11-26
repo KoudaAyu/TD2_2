@@ -107,15 +107,34 @@ void GameScene::CheckAllCollisions()
 			player_->OnCollision();
 			bullet->OnCollision();
 		}
-
-
-
 	}
 #pragma endregion
 
 #pragma region バリアと敵の当たり判定
-	// バリアと敵本体の当たり判定（必要なら実装）
-	// ここではスキップ
+	// バリアと敵本体の当たり判定を実装（書き方を他と統一）
+	if (enemy_)
+	{
+	
+		posB = enemy_->GetWorldTranslate();
+
+		for (const PlayerBarrier* barrier : barriers)
+		{
+			if (!barrier) continue;
+			if (!barrier->IsActive()) continue;
+
+			posA = barrier->GetWorldTranslate();
+
+			float distance = Distance(posA, posB);
+			const float threshold = 1.5f; // 判定半径 (必要に応じて調整)
+			if (distance < threshold)
+			{
+				// 衝突発生: バリアと敵に衝突処理を通知
+				const_cast<PlayerBarrier*>(barrier)->OnCollision();
+				enemy_->OnCollision();
+				break; // 敵は一度当たれば十分なのでループを抜ける
+			}
+		}
+	}
 #pragma endregion
 
 #pragma region バリアと敵の弾の当たり判定
