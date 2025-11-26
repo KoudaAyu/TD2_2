@@ -63,8 +63,8 @@ public:
 		return worldTransform_.GetWorldMatrix();
 	};
 
-	const PlayerBarrier* GetBarrier() const { return barrier_; }
-
+	// バリア群を取得（複数化対応）
+	const std::vector<PlayerBarrier*>& GetBarriers() const { return barriers_; }
 
 private:
 

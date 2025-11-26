@@ -87,8 +87,8 @@ void GameScene::CheckAllCollisions()
 {
 	Vector3 posA, posB;
 
-	//バリア
-	const PlayerBarrier* barrier = player_->GetBarrier();
+	// バリア群を取得
+	const std::vector<PlayerBarrier*>& barriers = player_->GetBarriers();
 	//敵の弾のリスト
 	const std::list<EnemyBullet*>& enemyBullets = enemy_->GetBullets();
 
@@ -114,8 +114,32 @@ void GameScene::CheckAllCollisions()
 #pragma endregion
 
 #pragma region バリアと敵の当たり判定
+	// バリアと敵本体の当たり判定（必要なら実装）
+	// ここではスキップ
 #pragma endregion
 
 #pragma region バリアと敵の弾の当たり判定
+	// すべての弾に対して、任意のアクティブなバリアと衝突したら弾を無効化
+	for (EnemyBullet* bullet : enemyBullets)
+	{
+		if (!bullet->IsActive()) continue;
+		posB = bullet->GetWorldTranslate();
+
+		for (const PlayerBarrier* barrier : barriers)
+		{
+			if (!barrier) continue;
+			if (!barrier->IsActive()) continue;
+
+			posA = barrier->GetWorldTranslate();
+
+			float distance = Distance(posA, posB);
+			const float threshold = 1.0f; // バリアのサイズに合わせて調整
+			if (distance < threshold)
+			{
+				bullet->OnCollision();
+				break; // この弾は処理済みなので次の弾へ
+			}
+		}
+	}
 #pragma endregion
 }
