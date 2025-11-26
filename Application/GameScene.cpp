@@ -41,6 +41,8 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom)
 	railCameraController_ = new RailCameraController();
 	railCameraController_->SetCamera(camera_);
 	railCameraController_->Initialize({ 0.0f, 5.0f, -10.0f }, { 20.0f, 0.0f, 0.0f });
+	// Set camera to follow player
+	railCameraController_->SetTarget(player_);
 }
 
 void GameScene::Update()
@@ -56,6 +58,10 @@ void GameScene::Update()
 		isDebugCameraActive_ = !isDebugCameraActive_;
 	}
 
+	// Update gameplay objects first so camera follows newest positions
+	enemy_->Update();
+	player_->Update();
+
 	if (isDebugCameraActive_ && debugCamera_)
 	{
 		debugCamera_->Update();
@@ -64,15 +70,16 @@ void GameScene::Update()
 	}
 	else
 	{
-		// 通常のレールカメラ更新
+		// 通常のレールカメラ更新（player の更新後に行う）
 		railCameraController_->Update();
 	}
 #else
 	// リリース時は通常カメラのみ
-	railCameraController_->Update();
-#endif
+	// Update gameplay objects first
 	enemy_->Update();
 	player_->Update();
+	railCameraController_->Update();
+#endif
 
 	CheckAllCollisions();
 }

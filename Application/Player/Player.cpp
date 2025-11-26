@@ -37,6 +37,10 @@ void Player::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Obje
 	{
 		model_->ApplyState(worldTransform_, camera_, true);
 	}
+
+	// 初期ジャンプ状態
+	verticalVelocity_ = 0.0f;
+	jumpCount_ = 0;
 }
 
 
@@ -122,14 +126,44 @@ void Player::Move()
 		move.y -= kCharacterSpeed;
 	}
 
+	// ジャンプ処理 (Space: トリガーでジャンプ／二段ジャンプ対応)
+	if (keyInput_->TriggerKey(DIK_SPACE))
+	{
+		if (jumpCount_ < kMaxJumpCount)
+		{
+			// 一段目と二段目で初速を変える
+			if (jumpCount_ == 0)
+			{
+				verticalVelocity_ = kFirstJumpVelocity;
+			}
+			else
+			{
+				verticalVelocity_ = kSecondJumpVelocity;
+			}
+			jumpCount_++;
+		}
+	}
+
+	// 重力を適用
+	verticalVelocity_ += kGravity;
+	move.y += verticalVelocity_;
+
+	// 移動を適用（X/Yはmoveベクトルで扱う）
 	worldTransform_.SetTranslate(worldTransform_.GetTranslate() + move);
+
+	// 地面判定: Yが下限に達したら着地扱いにする（ここでは -kMoveLimitY を地面とする）
+	Vector3 pos = worldTransform_.GetTranslate();
+	if (pos.y <= -kMoveLimitY)
+	{
+		pos.y = -kMoveLimitY;
+		worldTransform_.SetTranslate(pos);
+		verticalVelocity_ = 0.0f;
+		jumpCount_ = 0; // 着地でジャンプ回数リセット
+	}
 }
 
 void Player::MoveLimit()
 {
-	const float kMoveLimitX = 6.0f;
-	const float kMoveLimitY = 4.0f;
-
 	// 位置を取得し、範囲を超えないように clamp して戻す
 	Vector3 t = worldTransform_.GetTranslate();
 	t.x = std::clamp(t.x, -kMoveLimitX, kMoveLimitX);
@@ -161,7 +195,8 @@ void Player::Rotate()
 
 void Player::Barrier()
 {
-	if (keyInput_->TriggerKey(DIK_SPACE))
+	// バリア発射キーを変更: 例として LEFT CONTROL を使用（Triggerで発射）
+	if (keyInput_->TriggerKey(DIK_LCONTROL))
 	{
 		const float kBarrierSpeed = 0.5f;
 
