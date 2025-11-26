@@ -12,11 +12,11 @@ Player::~Player()
 	camera_ = nullptr;
 	object3dCom_ = nullptr;
 
-	if (barrier_)
+	for (auto b : barriers_)
 	{
-		delete barrier_;
-		barrier_ = nullptr;
+		if (b) delete b;
 	}
+	barriers_.clear();
 }
 
 void Player::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object3dCom* object3dCom)
@@ -70,19 +70,26 @@ void Player::Update()
 		model_->Update();
 	}
 
-	if (barrier_)
-	{
-		barrier_->Update();
+	// Update barriers and remove inactive
+	for (auto it = barriers_.begin(); it != barriers_.end();) {
+		PlayerBarrier* b = *it;
+		if (b) {
+			b->Update();
+			if (!b->IsActive()) {
+				delete b;
+				it = barriers_.erase(it);
+				continue;
+			}
+		}
+		++it;
 	}
 }
 
 void Player::Draw()
 {
-
-
-	if (barrier_)
+	for (auto b : barriers_)
 	{
-		barrier_->Draw(*camera_);
+		if (b) b->Draw(*camera_);
 	}
 
 	if (model_)
@@ -156,13 +163,6 @@ void Player::Barrier()
 {
 	if (keyInput_->TriggerKey(DIK_SPACE))
 	{
-
-		if (barrier_)
-		{
-			delete barrier_;
-			barrier_ = nullptr;
-		}
-
 		const float kBarrierSpeed = 0.5f;
 
 		Vector3 velocity({ 0.0f,0.0f,kBarrierSpeed });
@@ -174,7 +174,8 @@ void Player::Barrier()
 		PlayerBarrier* barrier = new PlayerBarrier();
 		barrier->Initialize(model_, worldTransform_.GetTranslate(), object3dCom_, velocity);
 
-		barrier_ = barrier;
+		// 新しいバリアを配列に追加
+		barriers_.push_back(barrier);
 	}
 }
 
