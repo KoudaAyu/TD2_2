@@ -6,6 +6,7 @@
 #include"Object3dCom.h"
 #include"PlayerBarrier.h"
 #include"MathUtl.h"
+#include <vector>
 
 class Player
 {
@@ -62,8 +63,8 @@ public:
 		return worldTransform_.GetWorldMatrix();
 	};
 
-	const PlayerBarrier* GetBarrier() const { return barrier_; }
-
+	// バリア群を取得（複数化対応）
+	const std::vector<PlayerBarrier*>& GetBarriers() const { return barriers_; }
 
 private:
 
@@ -83,5 +84,6 @@ private:
 
 	Object3dCom* object3dCom_ = nullptr;
 
-	PlayerBarrier* barrier_ = nullptr;
+	// 単一のバリアから複数のバリアに変更
+	std::vector<PlayerBarrier*> barriers_;
 };

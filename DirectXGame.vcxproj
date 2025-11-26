@@ -129,6 +129,7 @@
     <ClInclude Include="Baziru3_Engine\MathUtl\Vector.h" />
     <ClInclude Include="Baziru3_Engine\Base\Window\WinApp.h" />
     <ClInclude Include="Application\Player\PlayerBarrier.h" />
+    <ClInclude Include="PlayerBarrier.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />
