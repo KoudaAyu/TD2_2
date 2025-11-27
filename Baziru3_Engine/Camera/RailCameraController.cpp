@@ -1,6 +1,7 @@
 #include "RailCameraController.h"
 #include "../../Application/Player/Player.h"
 #include <cmath>
+#include "../MathUtl/Matrix4x4.h"
 
 RailCameraController::RailCameraController()
 {
@@ -37,6 +38,14 @@ void RailCameraController::Initialize(const Vector3& worldPosition, const Vector
     }
 }
 
+// Helper: rotate a vector by Y rotation (in radians)
+static inline Vector3 RotateAroundY(const Vector3& v, float yaw)
+{
+    float c = cosf(yaw);
+    float s = sinf(yaw);
+    return { v.x * c + v.z * s, v.y, -v.x * s + v.z * c };
+}
+
 void RailCameraController::Update()
 {
     if (camera_)
@@ -55,8 +64,14 @@ void RailCameraController::Update()
                 offset_.z = camPos.z - targetPos.z;
             }
 
-            // 目的地としてターゲット位置+オフセットを設定し、追従する
-            Vector3 desired = { targetPos.x + offset_.x, targetPos.y + offset_.y, targetPos.z + offset_.z };
+            // プレイヤーの向きに合わせてオフセットを回転させる
+            Vector3 playerRot = target_->GetWorldRotate();
+            // world rotation stores radians in this project for internal transform; if it's degrees, convert accordingly
+            // Here RotateAroundY expects radians
+            Vector3 rotatedOffset = RotateAroundY(offset_, playerRot.y);
+
+            // 目的地としてターゲット位置+回転したオフセットを設定し、追従する
+            Vector3 desired = { targetPos.x + rotatedOffset.x, targetPos.y + rotatedOffset.y, targetPos.z + rotatedOffset.z };
             Vector3 current = worldTransform_.GetTranslate();
             // 補間係数（滑らかさ）
             const float kLerp = 0.15f;
@@ -64,6 +79,11 @@ void RailCameraController::Update()
 
             worldTransform_.SetTranslate(next);
             worldTransform_.TransferMatrix();
+
+            // カメラをプレイヤーの向きに合わせる：常に背中を向くようにY回転をプレイヤーと同じにする
+            Vector3 camRot = worldTransform_.GetRotate();
+            camRot.y = playerRot.y;
+            worldTransform_.SetRotate(camRot);
 
             camera_->SetTranslate(worldTransform_.GetTranslate());
             camera_->SetRotate(worldTransform_.GetRotate());
