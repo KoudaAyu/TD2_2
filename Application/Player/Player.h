@@ -65,6 +65,12 @@ public:
 		return worldTransform_.GetWorldMatrix();
 	};
 
+	// ワールド回転のgetter
+	const Vector3& GetWorldRotate() const
+	{
+		return worldTransform_.GetRotate();
+	}
+
 	// バリア群を取得（複数化対応）
 	const std::vector<PlayerBarrier*>& GetBarriers() const { return barriers_; }
 
@@ -104,6 +110,10 @@ private:
 	// 移動制限（外部でも参照するためクラス定数として定義）
 	static constexpr float kMoveLimitX = 6.0f;
 	static constexpr float kMoveLimitY = 4.0f;
+
+	// 衝突時のカメラ振動パラメータ
+	static constexpr float kCollisionShakeAmplitude = 0.6f; // ワールド単位
+	static constexpr float kCollisionShakeDuration = 0.5f;  // 秒
 
 	// 現在の垂直速度
 	float verticalVelocity_ = 0.0f;

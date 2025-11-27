@@ -232,6 +232,7 @@ void Player::Rotate()
 void Player::Barrier()
 {
 	// バリア発射キーを変更: 例として LEFT CONTROL を使用（Triggerで発射）
+
 	bool fireTriggered = keyInput_->TriggerKey(DIK_LCONTROL);
 	// コントローラの B ボタンでも発射可能にする
 	if (!fireTriggered && controller_ && controller_->IsConnected()) {
@@ -240,7 +241,8 @@ void Player::Barrier()
 		}
 	}
 
-	if (fireTriggered)
+	if (keyInput_->TriggerKey(DIK_1))
+
 	{
 		const float kBarrierSpeed = 0.5f;
 
@@ -263,6 +265,12 @@ void Player::OnCollision()
 #ifndef _DEBUG
 	isAlive_ = false;
 #endif
+
+	// カメラがある場合は衝突時にカメラを揺らす
+	if (camera_)
+	{
+		camera_->StartShake(kCollisionShakeAmplitude, kCollisionShakeDuration);
+	}
 }
 
 #ifdef USE_IMGUI

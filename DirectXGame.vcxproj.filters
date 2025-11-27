@@ -98,10 +98,11 @@
     <ClInclude Include="Application\Player\PlayerBarrier.h" />
     <ClInclude Include="Baziru3_Engine\MathUtl\MathUtl.h" />
     <ClInclude Include="Application\Enemy\Enemy.h" />
-    <ClInclude Include="EnemyBullet.h" />
     <ClInclude Include="Application\Enemy\EnemyBullet.h" />
+
     <ClInclude Include="PlayerBarrier.h" />
     <ClInclude Include="Baziru3_Engine\IO\XBox\Controller.h" />
+
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\shaders\Object3d.hlsli" />

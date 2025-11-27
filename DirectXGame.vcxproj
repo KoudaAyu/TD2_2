@@ -98,8 +98,10 @@
     <ClInclude Include="Baziru3_Engine\Camera\DebugCamera.h" />
     <ClInclude Include="Baziru3_Engine\Base\DirectXCom.h" />
     <ClInclude Include="Baziru3_Engine\MathUtl\MathUtl.h" />
+
     <ClInclude Include="Baziru3_Engine\IO\XBox\Controller.h" />
     <ClInclude Include="EnemyBullet.h" />
+
     <ClInclude Include="externals\imgui\imconfig.h" />
     <ClInclude Include="externals\imgui\imgui.h" />
     <ClInclude Include="externals\imgui\imgui_impl_dx12.h" />
@@ -131,7 +133,6 @@
     <ClInclude Include="Baziru3_Engine\MathUtl\Vector.h" />
     <ClInclude Include="Baziru3_Engine\Base\Window\WinApp.h" />
     <ClInclude Include="Application\Player\PlayerBarrier.h" />
-    <ClInclude Include="PlayerBarrier.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />
