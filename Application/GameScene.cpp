@@ -2,8 +2,12 @@
 
 GameScene::~GameScene()
 {
+	delete enemy_;
 	delete player_;
 	delete railCameraController_;
+#ifdef _DEBUG
+	delete debugCamera_;
+#endif
 }
 
 void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom)
@@ -14,24 +18,154 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom)
 	// カメラの初期化（アスペクト比設定）
 	camera_->Initialize();
 
+	keyInput_ = KeyInput::GetInstance();	
+
+#ifdef _DEBUG
+	// 画面サイズから DebugCamera を初期化 (幅/高さは DirectXCom 経由で取得する想定)
+	float width = static_cast<float>(object3dCom_->GetDirectXCom()->GetClientWidth());
+	float height = static_cast<float>(object3dCom_->GetDirectXCom()->GetClientHeight());
+	debugCamera_ = new DebugCamera(width, height);
+	debugCamera_->Initialize();
+#endif
+
 	model_ = Object3d::Create(object3dCom_, "apple.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera);
+	enemyModel_ = Object3d::Create(object3dCom_, "wall.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera);
 
 	player_ = new Player();
-	player_->Initialize(model_,camera,{0.0f,0.0f,0.0f},object3dCom);
+	player_->Initialize(model_, camera, { 0.0f,0.0f,0.0f }, object3dCom);
+
+	enemy_ = new Enemy();
+	enemy_->Initialize(enemyModel_, camera, { 0.0f,0.0f,10.0f }, object3dCom);
+	enemy_->SetPlayer(player_);
 
 	railCameraController_ = new RailCameraController();
 	railCameraController_->SetCamera(camera_);
 	railCameraController_->Initialize({ 0.0f, 5.0f, -10.0f }, { 20.0f, 0.0f, 0.0f });
+	// Set camera to follow player
+	railCameraController_->SetTarget(player_);
 }
 
 void GameScene::Update()
 {
+#ifdef _DEBUG
+#ifdef USE_IMGUI
+	// ImGuiフレーム中 (ImGuiManager::Begin() 呼び出し後) にのみUI描画
+	player_->DrawImGui();
+#endif
+
+	if(keyInput_->TriggerKey(DIK_F1))
+	{
+		isDebugCameraActive_ = !isDebugCameraActive_;
+	}
+
+	// Update gameplay objects first so camera follows newest positions
+	enemy_->Update();
 	player_->Update();
 
+	if (isDebugCameraActive_ && debugCamera_)
+	{
+		debugCamera_->Update();
+		// デバッグカメラの行列をメインカメラへコピー
+		camera_->OverrideViewProjection(debugCamera_->GetViewMatrix(), debugCamera_->GetProjectionMatrix());
+	}
+	else
+	{
+		// 通常のレールカメラ更新（player の更新後に行う）
+		railCameraController_->Update();
+	}
+#else
+	// リリース時は通常カメラのみ
+	// Update gameplay objects first
+	enemy_->Update();
+	player_->Update();
 	railCameraController_->Update();
+#endif
+
+	CheckAllCollisions();
 }
 
 void GameScene::Draw()
 {
+	enemy_->Draw();
 	player_->Draw();
+}
+
+void GameScene::CheckAllCollisions()
+{
+	Vector3 posA, posB;
+
+	// バリア群を取得
+	const std::vector<PlayerBarrier*>& barriers = player_->GetBarriers();
+	//敵の弾のリスト
+	const std::list<EnemyBullet*>& enemyBullets = enemy_->GetBullets();
+
+#pragma region 自キャラと敵の弾の当たり判定
+	posA = player_->GetWorldTranslate();
+	for(EnemyBullet* bullet : enemyBullets)
+	{
+		posB = bullet->GetWorldTranslate();
+
+		// 距離（MathUtl の Distance を使用）
+		float distance = Distance(posA, posB);
+
+		const float threshold = 1.0f;
+		if (distance < threshold)
+		{
+			player_->OnCollision();
+			bullet->OnCollision();
+		}
+	}
+#pragma endregion
+
+#pragma region バリアと敵の当たり判定
+	// バリアと敵本体の当たり判定を実装（書き方を他と統一）
+	if (enemy_)
+	{
+	
+		posB = enemy_->GetWorldTranslate();
+
+		for (const PlayerBarrier* barrier : barriers)
+		{
+			if (!barrier) continue;
+			if (!barrier->IsActive()) continue;
+
+			posA = barrier->GetWorldTranslate();
+
+			float distance = Distance(posA, posB);
+			const float threshold = 1.5f; // 判定半径 (必要に応じて調整)
+			if (distance < threshold)
+			{
+				// 衝突発生: バリアと敵に衝突処理を通知
+				const_cast<PlayerBarrier*>(barrier)->OnCollision();
+				enemy_->OnCollision();
+				break; // 敵は一度当たれば十分なのでループを抜ける
+			}
+		}
+	}
+#pragma endregion
+
+#pragma region バリアと敵の弾の当たり判定
+	// すべての弾に対して、任意のアクティブなバリアと衝突したら弾を無効化
+	for (EnemyBullet* bullet : enemyBullets)
+	{
+		if (!bullet->IsActive()) continue;
+		posB = bullet->GetWorldTranslate();
+
+		for (const PlayerBarrier* barrier : barriers)
+		{
+			if (!barrier) continue;
+			if (!barrier->IsActive()) continue;
+
+			posA = barrier->GetWorldTranslate();
+
+			float distance = Distance(posA, posB);
+			const float threshold = 1.0f; // バリアのサイズに合わせて調整
+			if (distance < threshold)
+			{
+				bullet->OnCollision();
+				break; // この弾は処理済みなので次の弾へ
+			}
+		}
+	}
+#pragma endregion
 }

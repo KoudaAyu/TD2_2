@@ -29,7 +29,7 @@ public:
     void Update();
 
     // キー状態取得
-    bool IsKeyPressed(int dik_code) const;
+    bool PushKey(int dik_code) const;
     // キー押し始め（トリガー）
     bool TriggerKey(int dik_code) const;
 
@@ -80,7 +80,7 @@ private:
 };
 
 // インライン実装
-inline bool KeyInput::IsKeyPressed(int dik_code) const
+inline bool KeyInput::PushKey(int dik_code) const
 {
     if (dik_code >= 0 && dik_code < 256)
     {

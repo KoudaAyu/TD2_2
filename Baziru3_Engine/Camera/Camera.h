@@ -101,4 +101,15 @@ public:
 	/// </summary>
 	/// <param name="farZ"></param>
 	void SetFarClip(const float farZ) { farZ_ = farZ; }
+
+	/// <summary>
+	/// デバッグカメラなど外部カメラから行列を強制適用
+	/// </summary>
+	/// <param name="view"></param>
+	/// <param name="projection"></param>
+	void OverrideViewProjection(const Matrix4x4& view, const Matrix4x4& projection) {
+		viewMatrix_ = view;
+		projectionMatrix_ = projection;
+		viewProjectionMatrix_ = Multiply(viewMatrix_, projectionMatrix_);
+	}
 };
