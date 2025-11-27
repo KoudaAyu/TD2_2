@@ -1,6 +1,7 @@
 #include "Player.h"
 #include<algorithm>
 #include<cassert>
+#include "../../Baziru3_Engine/IO/XBox/Controller.h"
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
@@ -17,6 +18,12 @@ Player::~Player()
 		if (b) delete b;
 		}
 	barriers_.clear();
+
+	if (controller_)
+	{
+		delete controller_;
+		controller_ = nullptr;
+	}
 }
 
 void Player::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object3dCom* object3dCom)
@@ -41,6 +48,9 @@ void Player::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Obje
 	// 初期ジャンプ状態
 	verticalVelocity_ = 0.0f;
 	jumpCount_ = 0;
+
+	// コントローラー初期化（左スティックを移動に使用）
+	controller_ = new Controller(0);
 }
 
 
@@ -51,6 +61,12 @@ void Player::Update()
 	if (!isAlive_)
 	{
 		return;
+	}
+
+	// コントローラーの状態を更新
+	if (controller_)
+	{
+		controller_->Update();
 	}
 
 	Move();
@@ -107,6 +123,7 @@ void Player::Move()
 	Vector3 move = { 0.0f,0.0f,0.0f };
 	const float kCharacterSpeed = 0.2f;
 
+	// キーボード入力
 	if (keyInput_->PushKey(DIK_A))
 	{
 		move.x -= kCharacterSpeed;
@@ -126,8 +143,27 @@ void Player::Move()
 		move.y -= kCharacterSpeed;
 	}
 
-	// ジャンプ処理 (Space: トリガーでジャンプ／二段ジャンプ対応)
-	if (keyInput_->TriggerKey(DIK_SPACE))
+	// コントローラー左スティックによる移動（キーボードと併用）
+	if (controller_ && controller_->IsConnected())
+	{
+		Controller::Stick ls = controller_->GetLeftStick();
+		// 左スティックのX軸は左右、Y軸は前後に対応（キーボードのW/Sと同じ符号）
+		move.x += ls.x * kCharacterSpeed;
+		move.y += ls.y * kCharacterSpeed;
+	}
+
+	// ジャンプ処理 (SpaceまたはコントローラーAボタン: トリガーでジャンプ／二段ジャンプ対応)
+	bool jumpTriggered = keyInput_->TriggerKey(DIK_SPACE);
+	if (!jumpTriggered && controller_ && controller_->IsConnected())
+	{
+		// XINPUT_GAMEPAD_A を押した瞬間を検出
+		if (controller_->WasButtonPressedThisFrame(XINPUT_GAMEPAD_A))
+		{
+			jumpTriggered = true;
+		}
+	}
+
+	if (jumpTriggered)
 	{
 		if (jumpCount_ < kMaxJumpCount)
 		{
@@ -196,7 +232,17 @@ void Player::Rotate()
 void Player::Barrier()
 {
 	// バリア発射キーを変更: 例として LEFT CONTROL を使用（Triggerで発射）
+
+	bool fireTriggered = keyInput_->TriggerKey(DIK_LCONTROL);
+	// コントローラの B ボタンでも発射可能にする
+	if (!fireTriggered && controller_ && controller_->IsConnected()) {
+		if (controller_->WasButtonPressedThisFrame(XINPUT_GAMEPAD_B)) {
+			fireTriggered = true;
+		}
+	}
+
 	if (keyInput_->TriggerKey(DIK_1))
+
 	{
 		const float kBarrierSpeed = 0.5f;
 
