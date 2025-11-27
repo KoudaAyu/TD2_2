@@ -7,13 +7,14 @@
 #include"Object3dCom.h"
 #include"Player.h"
 #include"RailCameraController.h"
+#include"Fade.h"
 
 class GameScene
 {
 public:
 	GameScene() = default;
 	~GameScene();
-	void Initialize(Camera* camera, Object3dCom* object3dCom);
+	void Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* spriteCom);
 	void Update();
 	void Draw();
 
@@ -42,5 +43,10 @@ private:
 	Player* player_ = nullptr;
 	RailCameraController* railCameraController_ = nullptr;
 
+	
+	Fade* fade_ = nullptr;
+
+	enum class Phase { kMain, kFadeOut };
+	Phase phase_ = Phase::kMain;
 
 };

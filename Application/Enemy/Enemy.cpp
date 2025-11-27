@@ -6,6 +6,7 @@ Enemy::~Enemy()
 	for (EnemyBullet* bullet : bullets_)
 	{
 		delete bullet;
+		bullet = nullptr;
 	}
 	bullets_.clear();
 }
@@ -24,10 +25,22 @@ void Enemy::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Objec
 
 	// 発射関数を初期化時に呼び出す
 	ApproachInitialize();
+
+	// 初期状態はアクティブ
+	isActive_ = true;
 }
 
 void Enemy::Update()
 {
+	if (!isActive_)
+	{
+		// 非アクティブ時は弾のみ更新して描画はしない
+		for (EnemyBullet* bullet : bullets_)
+		{
+			if (bullet) bullet->Update();
+		}
+		return;
+	}
 
 	switch (phase_)
 	{
@@ -45,7 +58,7 @@ void Enemy::Update()
 	}
 	for (EnemyBullet* bullet : bullets_)
 	{
-		bullet->Update();
+		if (bullet) bullet->Update();
 	}
 
 	
@@ -55,12 +68,11 @@ void Enemy::Update()
 
 void Enemy::Draw()
 {
-
 	for (EnemyBullet* bullet : bullets_)
 	{
-		bullet->Draw();
+		if (bullet) bullet->Draw();
 	}
-	if (model_)
+	if (model_ && isActive_)
 	{
 		model_->Draw();
 	}
@@ -68,6 +80,7 @@ void Enemy::Draw()
 
 void Enemy::Fire()
 {
+	if (!isActive_) return; // 非アクティブ時は発射しない
 
 	Object3d* bulletModel = new Object3d();
 	bulletModel->Initialize(object3dCom_);
@@ -186,4 +199,7 @@ void Enemy::OnCollision()
 	{
 		if (b) b->OnCollision();
 	}
+
+	// 敵を非アクティブ化
+	isActive_ = false;
 }

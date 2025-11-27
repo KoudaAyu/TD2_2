@@ -5,12 +5,13 @@ GameScene::~GameScene()
 	delete enemy_;
 	delete player_;
 	delete railCameraController_;
+	if (fade_) delete fade_;
 #ifdef _DEBUG
 	delete debugCamera_;
 #endif
 }
 
-void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom)
+void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* spriteCom)
 {
 
 	object3dCom_ = object3dCom;
@@ -43,6 +44,11 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom)
 	railCameraController_->Initialize({ 0.0f, 5.0f, -10.0f }, { 20.0f, 0.0f, 0.0f });
 	// Set camera to follow player
 	railCameraController_->SetTarget(player_);
+
+// Fade for transitions
+	fade_ = new Fade();
+	fade_->Initialize(spriteCom);
+	fade_->Start(Fade::State::kNone, 1.0f);
 }
 
 void GameScene::Update()
@@ -59,8 +65,15 @@ void GameScene::Update()
 	}
 
 	// Update gameplay objects first so camera follows newest positions
-	enemy_->Update();
+	if (enemy_) enemy_->Update();
 	player_->Update();
+
+	// Check enemy active state and start fade-out if dead
+	if (enemy_ && !enemy_->IsActive() && phase_ == Phase::kMain)
+	{
+		phase_ = Phase::kFadeOut;
+		fade_->Start(Fade::State::kFadeOut, 1.0f);
+	}
 
 	if (isDebugCameraActive_ && debugCamera_)
 	{
@@ -76,18 +89,42 @@ void GameScene::Update()
 #else
 	// リリース時は通常カメラのみ
 	// Update gameplay objects first
-	enemy_->Update();
+	if (enemy_) enemy_->Update();
 	player_->Update();
 	railCameraController_->Update();
+
+	// Check enemy active state and start fade-out if dead
+	if (enemy_ && !enemy_->IsActive() && phase_ == Phase::kMain)
+	{
+		phase_ = Phase::kFadeOut;
+		fade_->Start(Fade::State::kFadeOut, 1.0f);
+	}
 #endif
+
+	// Fade update and scene finish when fade completes
+	if (phase_ == Phase::kFadeOut)
+	{
+		fade_->Update();
+		if (fade_->IsFinished())
+		{
+			isFinish_ = true; // Signal to main to change to Title
+		}
+	}
 
 	CheckAllCollisions();
 }
 
 void GameScene::Draw()
 {
+	// Draw bullets/enemy even if enemy is inactive
 	enemy_->Draw();
 	player_->Draw();
+
+	// Draw fade on top if active
+	if (phase_ == Phase::kFadeOut)
+	{
+		fade_->Draw();
+	}
 }
 
 void GameScene::CheckAllCollisions()
