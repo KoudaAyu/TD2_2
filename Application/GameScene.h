@@ -8,6 +8,7 @@
 #include"Player.h"
 #include"RailCameraController.h"
 #include"Fade.h"
+#include "Boss.h"
 
 class GameScene
 {
@@ -43,7 +44,10 @@ private:
 	Player* player_ = nullptr;
 	RailCameraController* railCameraController_ = nullptr;
 
-	
+	// Debug boss body model (bomb.obj)
+	Object3d* bossBodyModel_ = nullptr;
+	Boss* boss_ = nullptr;
+
 	Fade* fade_ = nullptr;
 
 	enum class Phase { kMain, kFadeOut };

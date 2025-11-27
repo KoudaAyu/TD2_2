@@ -9,17 +9,19 @@ GameScene::~GameScene()
 #ifdef _DEBUG
 	delete debugCamera_;
 #endif
+	// cleanup boss: delete boss first since it may own the model
+	if (boss_) delete boss_;
+	if (bossBodyModel_) delete bossBodyModel_;
 }
 
 void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* spriteCom)
 {
-
 	object3dCom_ = object3dCom;
 	camera_ = camera;
 	// カメラの初期化（アスペクト比設定）
 	camera_->Initialize();
 
-	keyInput_ = KeyInput::GetInstance();	
+	keyInput_ = KeyInput::GetInstance();
 
 #ifdef _DEBUG
 	// 画面サイズから DebugCamera を初期化 (幅/高さは DirectXCom 経由で取得する想定)
@@ -44,6 +46,18 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 	railCameraController_->Initialize({ 0.0f, 5.0f, -10.0f }, { 20.0f, 0.0f, 0.0f });
 	// Set camera to follow player
 	railCameraController_->SetTarget(player_);
+
+	// Create debug boss body model (bomb.obj) positioned ahead of player
+	bossBodyModel_ = Object3d::Create(object3dCom_, "bomb.obj", { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,15.0f} }, camera_);
+
+	boss_ = new Boss();
+
+	boss_->Initialize(bossBodyModel_, camera_, { 0.0f, 0.0f, 15.0f }, object3dCom_);
+	boss_->SetPlayer(player_);
+
+	// Transfer ownership: GameScene no longer keeps a raw pointer to the model
+	// Boss now owns the Object3d pointer passed in
+	bossBodyModel_ = nullptr;
 
 // Fade for transitions
 	fade_ = new Fade();
@@ -101,13 +115,16 @@ void GameScene::Update()
 	}
 #endif
 
-	// Fade update and scene finish when fade completes
+	// Update boss model if exists
+	if (boss_) boss_->Update();
+
+	
 	if (phase_ == Phase::kFadeOut)
 	{
 		fade_->Update();
 		if (fade_->IsFinished())
 		{
-			isFinish_ = true; // Signal to main to change to Title
+			isFinish_ = true; 
 		}
 	}
 
@@ -119,6 +136,9 @@ void GameScene::Draw()
 	// Draw bullets/enemy even if enemy is inactive
 	enemy_->Draw();
 	player_->Draw();
+
+	// Draw boss
+	if (boss_) boss_->Draw();
 
 	// Draw fade on top if active
 	if (phase_ == Phase::kFadeOut)
