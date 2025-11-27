@@ -7,15 +7,25 @@
 Camera::Camera()
 	: transform_({ {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} }),
 	fovY_(0.45f),
-	aspectRatio_(float(WinApp::kClientWidth) / float(WinApp::kClientHeight)),
+	aspectRatio_(1.0f), // 実際のサイズに応じてInitializeで設定
 	nearZ_(0.1f), farZ_(100.0f),
 	worldMatrix_(MakeAffineMatrix(transform_.GetScale(), transform_.GetRotate(),
 		transform_.GetTranslate())),
 	viewMatrix_(Inverse(worldMatrix_)),
-	projectionMatrix_(
-		MakePerspectiveFovMatrix(fovY_, aspectRatio_, nearZ_, farZ_)),
+	projectionMatrix_(MakePerspectiveFovMatrix(fovY_, aspectRatio_, nearZ_, farZ_)),
 	viewProjectionMatrix_(Multiply(viewMatrix_, projectionMatrix_))
 {
+}
+
+/// <summary>
+/// 初期化
+/// </summary>
+void Camera::Initialize()
+{
+	// ウィンドウサイズからアスペクト比を設定
+	aspectRatio_ = float(WinApp::kClientWidth) / float(WinApp::kClientHeight);
+	// 行列更新
+	Update();
 }
 
 void Camera::Update()
