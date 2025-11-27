@@ -1,5 +1,7 @@
 #include "Camera.h"
 #include"WinApp.h"
+#include "Random.h"
+#include <cmath>
 
 /// <summary>
 /// コンストラクタ
@@ -28,10 +30,57 @@ void Camera::Initialize()
 	Update();
 }
 
+void Camera::StartShake(float amplitude, float duration)
+{
+	if (duration <= 0.0f || amplitude <= 0.0f) return;
+	isShaking_ = true;
+	shakeAmplitude_ = amplitude;
+	shakeDuration_ = duration;
+	shakeTimer_ = duration;
+	shakeTimeElapsed_ = 0.0f;
+	shakeOffset_ = { 0.0f, 0.0f, 0.0f };
+}
+
 void Camera::Update()
 {
 	transform_.SetRotate(rotation_);
 	transform_.SetTranslate(translation_);
+
+
+	const float dt = 1.0f / 60.0f;
+	if (isShaking_)
+	{
+		
+		shakeTimeElapsed_ += dt;
+		shakeTimer_ -= dt;
+
+		
+		float t = (shakeDuration_ > 0.0f) ? (shakeTimer_ / shakeDuration_) : 0.0f;
+		if (t < 0.0f) t = 0.0f;
+
+		
+		float ax = Random::GeneratorFloat(-1.0f, 1.0f) * shakeAmplitude_ * t;
+		float ay = Random::GeneratorFloat(-1.0f, 1.0f) * shakeAmplitude_ * t;
+		float az = Random::GeneratorFloat(-1.0f, 1.0f) * shakeAmplitude_ * t;
+		shakeOffset_.x = ax;
+		shakeOffset_.y = ay;
+		shakeOffset_.z = az;
+
+		if (shakeTimer_ <= 0.0f)
+		{
+			
+			isShaking_ = false;
+			shakeOffset_ = { 0.0f, 0.0f, 0.0f };
+		}
+	}
+	else
+	{
+		shakeOffset_ = { 0.0f, 0.0f, 0.0f };
+	}
+
+
+	Vector3 effectiveTranslate = translation_ + shakeOffset_;
+	transform_.SetTranslate(effectiveTranslate);
 
 	// transformからアフィン変換行列を計算
 	worldMatrix_ = MakeAffineMatrix(transform_.GetScale(), transform_.GetRotate(),

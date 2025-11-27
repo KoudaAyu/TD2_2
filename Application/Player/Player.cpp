@@ -15,7 +15,7 @@ Player::~Player()
 	for (auto b : barriers_)
 	{
 		if (b) delete b;
-	}
+		}
 	barriers_.clear();
 }
 
@@ -219,6 +219,12 @@ void Player::OnCollision()
 #ifndef _DEBUG
 	isAlive_ = false;
 #endif
+
+	// カメラがある場合は衝突時にカメラを揺らす
+	if (camera_)
+	{
+		camera_->StartShake(kCollisionShakeAmplitude, kCollisionShakeDuration);
+	}
 }
 
 #ifdef USE_IMGUI
