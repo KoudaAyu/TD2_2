@@ -196,7 +196,7 @@ void Player::Rotate()
 void Player::Barrier()
 {
 	// バリア発射キーを変更: 例として LEFT CONTROL を使用（Triggerで発射）
-	if (keyInput_->TriggerKey(DIK_LCONTROL))
+	if (keyInput_->TriggerKey(DIK_1))
 	{
 		const float kBarrierSpeed = 0.5f;
 
