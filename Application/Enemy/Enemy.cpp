@@ -34,7 +34,7 @@ void Enemy::Update()
 		case Phase::Approach:
 		default:
 		{
-			ApproachUpdate();
+			//ApproachUpdate();
 		}
 		break;
 		case Phase::Leave:

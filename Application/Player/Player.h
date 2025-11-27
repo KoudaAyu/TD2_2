@@ -8,6 +8,8 @@
 #include"MathUtl.h"
 #include <vector>
 
+class Controller; // forward declaration for controller pointer
+
 class Player
 {
 public:
@@ -83,6 +85,8 @@ private:
 	Camera* camera_ = nullptr;
 
 	Object3dCom* object3dCom_ = nullptr;
+
+	Controller* controller_ = nullptr; // added controller pointer
 
 	// 単一のバリアから複数のバリアに変更
 	std::vector<PlayerBarrier*> barriers_;
