@@ -107,6 +107,10 @@ private:
 	static constexpr float kMoveLimitX = 6.0f;
 	static constexpr float kMoveLimitY = 4.0f;
 
+	// 衝突時のカメラ振動パラメータ
+	static constexpr float kCollisionShakeAmplitude = 0.6f; // ワールド単位
+	static constexpr float kCollisionShakeDuration = 0.5f;  // 秒
+
 	// 現在の垂直速度
 	float verticalVelocity_ = 0.0f;
 	// 現在のジャンプ回数（着地でリセット）

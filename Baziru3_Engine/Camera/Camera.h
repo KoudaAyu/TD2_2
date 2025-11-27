@@ -24,6 +24,14 @@ private:
 	// 移動
 	Vector3 translation_ = { 0.0f, 0.0f, 0.0f };
 
+	// Camera shake
+	bool isShaking_ = false;
+	float shakeAmplitude_ = 0.0f; // 最大揺れ幅
+	float shakeDuration_ = 0.0f;  // 揺れ継続時間（秒）
+	float shakeTimer_ = 0.0f;     // 残り時間（秒）
+	float shakeTimeElapsed_ = 0.0f; // 経過時間（秒）
+	Vector3 shakeOffset_ = { 0.0f, 0.0f, 0.0f };
+
 public:
 	/// <summary>
 	/// コンストラクタ
@@ -112,4 +120,21 @@ public:
 		projectionMatrix_ = projection;
 		viewProjectionMatrix_ = Multiply(viewMatrix_, projectionMatrix_);
 	}
+
+
+	
+	/// <summary>
+	/// 揺れを開始する
+	/// </summary>
+	/// <param name="amplitude">最大揺れ幅(ワールド単位)</param>
+	/// <param name="duration">duration: 継続時間(秒)</param>
+	void StartShake(float amplitude, float duration);
+	/// <summary>
+	/// デフォルトの揺れ幅を設定
+	/// </summary>
+	void SetShakeAmplitude(float amplitude) { shakeAmplitude_ = amplitude; }
+	/// <summary>
+	/// デフォルトの揺れ継続時間を設定
+	/// </summary>
+	void SetShakeDuration(float duration) { shakeDuration_ = duration; }
 };
