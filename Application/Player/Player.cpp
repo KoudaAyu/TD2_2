@@ -241,7 +241,8 @@ void Player::Barrier()
 		}
 	}
 
-	if (keyInput_->TriggerKey(DIK_1))
+	// キーボードの '1' キーでも発射できるようにする
+	if (fireTriggered || keyInput_->TriggerKey(DIK_1))
 
 	{
 		const float kBarrierSpeed = 0.5f;
@@ -299,6 +300,7 @@ void Player::DrawImGui()
 	ImGui::End();
 }
 #endif
+
 
 
 
