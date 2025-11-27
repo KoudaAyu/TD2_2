@@ -88,7 +88,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 #ifdef _DEBUG
 	scene = Scene::kGame;
 	gameScene = new GameScene();
-	gameScene->Initialize(camera,objCom);
+	gameScene->Initialize(camera,objCom,spriteCom);
 #else
 	scene = Scene::kTitle;
 	titleScene = new TitleScene();
@@ -168,7 +168,7 @@ void ChangePhase()
 			titleScene = nullptr;
 			scene = Scene::kGame;
 			gameScene = new GameScene();
-			gameScene->Initialize(camera, objCom);
+			gameScene->Initialize(camera, objCom, spriteCom);
 		}
 		break;
 

@@ -70,6 +70,9 @@ public:
 
 	const std::list<EnemyBullet*>& GetBullets() const { return bullets_; }
 
+	// 敵の生存/アクティブ状態
+	bool IsActive() const { return isActive_; }
+
 private:
 	
 	//フェーズ
@@ -95,4 +98,7 @@ private:
 	Object3dCom* object3dCom_ = nullptr;
 
 	Player* player_ = nullptr;
+
+	// 生存フラグ。衝突などで false にする。
+	bool isActive_ = true;
 };
