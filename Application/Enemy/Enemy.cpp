@@ -17,14 +17,15 @@ void Enemy::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Objec
 	camera_ = camera;
 	object3dCom_ = object3dCom;
 	worldTransform_.Initialize();
-	worldTransform_.SetTranslate(pos);
+
+	// 出現アニメーション用の初期化を先に行い、モデルに開始位置を反映する
+	SpawnInitialize(pos);
+
+	// Apply initial state (now at spawn start position)
 	if (model_)
 	{
 		model_->ApplyState(worldTransform_, camera_, true);
 	}
-
-	// 発射関数を初期化時に呼び出す
-	SpawnInitialize(pos);
 
 	// 初期状態はアクティブ
 	isActive_ = true;
