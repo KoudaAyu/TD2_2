@@ -67,6 +67,9 @@ private:
 	int maxWaves_ = 2;
 	void SpawnWave();
 
+	bool isWaitingForNextWave_ = false;
+	float waveDelay_ = 3.0f; 
+	float waveDelayTimer_ = 0.0f;
 
 #ifdef _DEBUG
 	void ResetScene();

@@ -13,6 +13,10 @@ ParticleManager* ParticleManager::GetInstance() {
 	return instance;
 }
 
+bool ParticleManager::HasGroup(const std::string& name) const {
+    return particleGroups.find(name) != particleGroups.end();
+}
+
 void ParticleManager::Initialize(DirectXCom* dx, SrvManager* srvMgr, Object3dCom* object3dCom)
 {
 	// ● 引数でDirectXCommonとSRVマネージャのポインタを受け取ってメンバ変数に記録する。
@@ -403,8 +407,9 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 
 	void ParticleManager::Emit(const std::string name, const Vector3 & position, uint32_t count)
 	{
-		assert(particleGroups.find(name) != particleGroups.end());
-		ParticleGroup& group = particleGroups[name];
+		auto it = particleGroups.find(name);
+		if (it == particleGroups.end()) return; // silently ignore missing group
+		ParticleGroup& group = it->second;
 
 		std::uniform_real_distribution<float> u01(0.0f, 1.0f);
 		auto rand01 = [&] { return u01(rng_); };
@@ -530,8 +535,9 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 		const Vector3& position,
 		float speed, float scale, float life)
 	{
-		assert(particleGroups.find(name) != particleGroups.end());
-		ParticleGroup& group = particleGroups[name];
+		auto it = particleGroups.find(name);
+		if (it == particleGroups.end()) return; // silently ignore missing group
+		ParticleGroup& group = it->second;
 
 		// 8方向（45度ごと）
 		for (int i = 0; i < 8; ++i) {
@@ -577,8 +583,9 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 		float radialAccel  // ★ 追加: 半径の加速度（不要なら0）
 	)
 	{
-		assert(particleGroups.find(name) != particleGroups.end());
-		ParticleGroup& group = particleGroups[name];
+		auto it = particleGroups.find(name);
+		if (it == particleGroups.end()) return; // silently ignore missing group
+		ParticleGroup& group = it->second;
 
 		constexpr int kCount = 8;
 		const float step = 2.0f * 3.14159265358979323846f / float(kCount);
@@ -626,8 +633,9 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 		float radialSpeedAbs,
 		float radialAccelAbs)
 	{
-		assert(particleGroups.find(name) != particleGroups.end());
-		ParticleGroup& group = particleGroups[name];
+		auto it = particleGroups.find(name);
+		if (it == particleGroups.end()) return; // silently ignore missing group
+		ParticleGroup& group = it->second;
 
 		constexpr int kCount = 8;
 		const float step = 2.0f * 3.14159265358979323846f / float(kCount);
