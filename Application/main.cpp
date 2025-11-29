@@ -92,9 +92,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 #endif
 
 #ifdef _DEBUG
-	scene = Scene::kGame;
+	/*scene = Scene::kGame;
 	gameScene = new GameScene();
-	gameScene->Initialize(camera,objCom,spriteCom);
+	gameScene->Initialize(camera,objCom,spriteCom);*/
+	scene = Scene::kTitle;
+	titleScene = new TitleScene();
+	titleScene->Initialize(spriteCom);
 #else
 	scene = Scene::kTitle;
 	titleScene = new TitleScene();
@@ -116,7 +119,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 		// Update
 		camera->Update();
 #ifdef _DEBUG
-		gameScene->Update();
+		/*gameScene->Update();*/
+		ChangePhase();
+		UpdateScene();
 #else
 		ChangePhase();
 		UpdateScene();
@@ -132,7 +137,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 		srv->PreDraw();
 		objCom->ApplyCommonRenderState(); // カリング疑い時は ApplyCommonRenderState(false);
 #ifdef _DEBUG
-		gameScene->Draw();
+		/*gameScene->Draw();*/
+		DrawScene();
 #else
 		DrawScene();
 #endif
@@ -176,7 +182,7 @@ void ChangePhase()
 			titleScene = nullptr;
 			scene = Scene::kSelect;
 			selectScene = new SelectScene();
-			selectScene->Initialize(spriteCom);
+			selectScene->Initialize(spriteCom, objCom, camera);
 		}
 		break;
 
