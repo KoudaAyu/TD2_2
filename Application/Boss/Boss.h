@@ -56,4 +56,13 @@ private:
     Player* player_ = nullptr;
 
     bool isActive_ = true;
+
+   
+    enum class Phase { Spawn, Active, Leave };
+    Phase phase_ = Phase::Active;
+
+    Vector3 spawnStart_ = { 0.0f, 0.0f, 0.0f };
+    Vector3 spawnTarget_ = { 0.0f, 0.0f, 0.0f };
+    int spawnTimer_ = 0;
+    int spawnDuration_ = 180;
 };

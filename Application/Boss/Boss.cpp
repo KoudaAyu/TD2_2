@@ -30,18 +30,19 @@ void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object
     object3dCom_ = object3dCom;
 
     worldTransform_.Initialize();
-    worldTransform_.SetTranslate(pos);
+    spawnTarget_ = pos;
+    spawnStart_ = { pos.x, pos.y + 8.0f, pos.z + 40.0f };
+    worldTransform_.SetTranslate(spawnTarget_);
+
     if (model_)
     {
         model_->ApplyState(worldTransform_, camera_, true);
     }
 
-    // Create a non-humanoid boss composed of many square/block parts arranged in a grid
     const int gridSizeX = 3;
     const int gridSizeY = 3;
-    const float spacing = 1.2f; // spacing between blocks
+    const float spacing = 1.2f;
 
-    // center the grid around origin
     float offsetX = -(gridSizeX - 1) * 0.5f * spacing;
     float offsetY = -(gridSizeY - 1) * 0.5f * spacing;
 
@@ -55,7 +56,6 @@ void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object
         }
     }
 
-    // Optionally add a second layer to make it more blocky (stacked in Y)
     const int layers = 2;
     for (int l = 1; l < layers; ++l)
     {
@@ -71,7 +71,26 @@ void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object
         }
     }
 
+    for (size_t i = 0; i < parts_.size(); ++i)
+    {
+        BossPart* p = parts_[i].get();
+        if (!p) continue;
+        Vector3 targetLocal = p->GetWorldTranslate();
+        Vector3 bossPos = worldTransform_.GetTranslate();
+        Vector3 localTarget = { targetLocal.x - bossPos.x, targetLocal.y - bossPos.y, targetLocal.z - bossPos.z };
+
+        float scatterScale = 4.0f;
+        Vector3 startLocal = { localTarget.x * scatterScale, localTarget.y * scatterScale + 6.0f, localTarget.z + 12.0f };
+
+        int dur = spawnDuration_;
+        p->StartSpawn(startLocal, dur);
+    }
+
     isActive_ = true;
+
+   
+    phase_ = Phase::Spawn;
+    spawnTimer_ = 0;
 }
 
 void Boss::Update()
@@ -83,6 +102,29 @@ void Boss::Update()
             if (b) b->Update();
         }
         return;
+    }
+
+    if (phase_ == Phase::Spawn)
+    {
+        ++spawnTimer_;
+        float t = (spawnDuration_ <= 0) ? 1.0f : (float)spawnTimer_ / (float)spawnDuration_;
+        if (t > 1.0f) t = 1.0f;
+
+       
+        for (auto& p : parts_)
+        {
+            if (p) p->UpdateSpawn(t);
+        }
+
+        if (spawnTimer_ >= spawnDuration_)
+        {
+            phase_ = Phase::Active;
+          
+            if (camera_)
+            {
+                camera_->StartShake(0.6f, 0.6f);
+            }
+        }
     }
 
     for (auto& p : parts_)

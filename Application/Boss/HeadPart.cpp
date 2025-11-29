@@ -20,11 +20,11 @@ void HeadPart::Initialize(Boss* owner, Object3d* model, const Vector3& localPos)
 
     worldTransform_.Initialize();
     worldTransform_.SetTranslate(localPos);
+    spawnTargetLocal_ = localPos;
 
     if (model && object3dCom_)
     {
-        // create several stacked cubes/boxes to make a square/rectangular head
-        const int parts = 3;
+         const int parts = 3;
         models_.reserve(parts);
         localTransforms_.reserve(parts);
 
@@ -50,6 +50,40 @@ void HeadPart::Initialize(Boss* owner, Object3d* model, const Vector3& localPos)
             models_.push_back(sub);
             localTransforms_.push_back(lt);
         }
+    }
+}
+
+void HeadPart::StartSpawn(const Vector3& startLocal, int duration)
+{
+    isSpawning_ = true;
+    spawnStartLocal_ = startLocal;
+    spawnTimer_ = 0;
+    spawnDuration_ = duration;
+
+    worldTransform_.SetTranslate(spawnStartLocal_);
+}
+
+void HeadPart::UpdateSpawn(float progress)
+{
+    if (!isSpawning_) return;
+    if (progress < 0.0f) progress = 0.0f;
+    if (progress > 1.0f) progress = 1.0f;
+
+   
+    float ease = 1.0f - (1.0f - progress) * (1.0f - progress);
+
+    Vector3 cur = {
+        spawnStartLocal_.x + (spawnTargetLocal_.x - spawnStartLocal_.x) * ease,
+        spawnStartLocal_.y + (spawnTargetLocal_.y - spawnStartLocal_.y) * ease,
+        spawnStartLocal_.z + (spawnTargetLocal_.z - spawnStartLocal_.z) * ease
+    };
+    worldTransform_.SetTranslate(cur);
+
+    if (progress >= 1.0f)
+    {
+        isSpawning_ = false;
+       
+        worldTransform_.SetTranslate(spawnTargetLocal_);
     }
 }
 

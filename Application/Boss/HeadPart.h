@@ -27,6 +27,10 @@ public:
     const Matrix4x4& GetWorldMatrix() const override;
     Vector3 GetWorldTranslate() const override;
 
+   
+    void StartSpawn(const Vector3& startLocal, int duration) override;
+    void UpdateSpawn(float progress) override;
+
 private:
     Boss* owner_ = nullptr;
     Camera* camera_ = nullptr;
@@ -36,4 +40,11 @@ private:
     Transform worldTransform_ = {};
 
     int hp_ = 50;
+
+  
+    bool isSpawning_ = false;
+    Vector3 spawnStartLocal_ = {0.0f,0.0f,0.0f};
+    Vector3 spawnTargetLocal_ = {0.0f,0.0f,0.0f};
+    int spawnTimer_ = 0;
+    int spawnDuration_ = 0;
 };

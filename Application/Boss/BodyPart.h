@@ -29,16 +29,27 @@ public:
     const Matrix4x4& GetWorldMatrix() const override;
     Vector3 GetWorldTranslate() const override;
 
+    // spawn animation
+    void StartSpawn(const Vector3& startLocal, int duration) override;
+    void UpdateSpawn(float progress) override;
+
 private:
     Boss* owner_ = nullptr;
     Camera* camera_ = nullptr;
-    // store multiple sub-models to compose the body
+  
     std::vector<Object3d*> models_;
     Object3dCom* object3dCom_ = nullptr;
-    // local transforms for each sub-model (relative to boss origin)
+ 
     std::vector<Transform> localTransforms_;
 
     Transform worldTransform_ = {};
 
     int hp_ = 100; // 胴体はさらに耐久力が高い
+
+   
+    bool isSpawning_ = false;
+    Vector3 spawnStartLocal_ = {0.0f, 0.0f, 0.0f};
+    Vector3 spawnTargetLocal_ = {0.0f, 0.0f, 0.0f};
+    int spawnTimer_ = 0;
+    int spawnDuration_ = 0;
 };

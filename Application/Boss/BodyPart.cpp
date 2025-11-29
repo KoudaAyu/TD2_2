@@ -20,17 +20,14 @@ void BodyPart::Initialize(Boss* owner, Object3d* model, const Vector3& localPos)
 
     worldTransform_.Initialize();
     worldTransform_.SetTranslate(localPos);
+    spawnTargetLocal_ = localPos;
 
-    // If a source model is provided, create several copies with different local transforms
-    // to compose a rectangular, blocky body (like an EVA-like square-shaped angel)
-    if (model && object3dCom_)
+     if (model && object3dCom_)
     {
-        // We'll make a central block and several layered blocks around it
-        const int layers = 4;
+         const int layers = 4;
         models_.reserve(layers);
         localTransforms_.reserve(layers);
 
-        // base sizes and offsets
         Vector3 baseScale = { 1.2f, 1.2f, 1.2f };
         Vector3 offsets[4] = {
             { 0.0f, 0.0f, 0.0f },
@@ -60,6 +57,42 @@ void BodyPart::Initialize(Boss* owner, Object3d* model, const Vector3& localPos)
             models_.push_back(sub);
             localTransforms_.push_back(lt);
         }
+
+        
+    }
+}
+
+void BodyPart::StartSpawn(const Vector3& startLocal, int duration)
+{
+    isSpawning_ = true;
+    spawnStartLocal_ = startLocal;
+    spawnTimer_ = 0;
+    spawnDuration_ = duration;
+
+    worldTransform_.SetTranslate(spawnStartLocal_);
+}
+
+void BodyPart::UpdateSpawn(float progress)
+{
+    if (!isSpawning_) return;
+    if (progress < 0.0f) progress = 0.0f;
+    if (progress > 1.0f) progress = 1.0f;
+
+    // ease-out
+    float ease = 1.0f - (1.0f - progress) * (1.0f - progress);
+
+    Vector3 cur = {
+        spawnStartLocal_.x + (spawnTargetLocal_.x - spawnStartLocal_.x) * ease,
+        spawnStartLocal_.y + (spawnTargetLocal_.y - spawnStartLocal_.y) * ease,
+        spawnStartLocal_.z + (spawnTargetLocal_.z - spawnStartLocal_.z) * ease
+    };
+    worldTransform_.SetTranslate(cur);
+
+    if (progress >= 1.0f)
+    {
+        isSpawning_ = false;
+        // ensure final
+        worldTransform_.SetTranslate(spawnTargetLocal_);
     }
 }
 
@@ -69,16 +102,15 @@ void BodyPart::Update()
 
     if (owner_)
     {
-        // compute boss world position
+     
         Vector3 bossPos = owner_->GetWorldTranslate();
 
-        // Update each local transform combined with boss world transform
         for (size_t i = 0; i < models_.size(); ++i)
         {
             if (!models_[i]) continue;
 
             Transform t = localTransforms_[i];
-            // Add boss translation
+           
             Vector3 lt = t.GetTranslate();
             t.SetTranslate({ lt.x + bossPos.x + worldTransform_.GetTranslate().x,
                              lt.y + bossPos.y + worldTransform_.GetTranslate().y,
