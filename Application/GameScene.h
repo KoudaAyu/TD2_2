@@ -8,6 +8,7 @@
 #include"Player.h"
 #include"RailCameraController.h"
 #include"Fade.h"
+#include "Boss.h"
 
 class GameScene
 {
@@ -43,10 +44,21 @@ private:
 	Player* player_ = nullptr;
 	RailCameraController* railCameraController_ = nullptr;
 
-	
+	// Debug boss body model (bomb.obj)
+	Object3d* bossBodyModel_ = nullptr;
+	Boss* boss_ = nullptr;
+
 	Fade* fade_ = nullptr;
+
+	// SpriteCom pointer saved for resets
+	SpriteCom* spriteCom_ = nullptr;
 
 	enum class Phase { kMain, kFadeOut };
 	Phase phase_ = Phase::kMain;
+
+	// Reset helper (only available in debug builds)
+#ifdef _DEBUG
+	void ResetScene();
+#endif
 
 };
