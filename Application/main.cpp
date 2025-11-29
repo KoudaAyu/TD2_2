@@ -14,18 +14,24 @@
 
 #include"TitleScene.h"
 #include"GameScene.h"
+#include "SelectScene.h"
+#include "TutorialScene.h"
 
 using namespace StringUtility;
 
 GameScene* gameScene = nullptr;
 TitleScene* titleScene = nullptr;
+SelectScene* selectScene = nullptr;
+TutorialScene* tutorialScene = nullptr;
 
 enum class Scene
 {
 	kUnknown = 0,
 
 	kTitle,
+	kSelect,
 	kGame,
+	kTutorial,
 };
 
 
@@ -103,7 +109,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 		keyInput->Update();
 
 #ifdef USE_IMGUI
-		// ImGuiフレーム開始（これより後に ImGui::Begin 等を呼べる）
+		// ImGuiフレーム開始（これより後に ImGui::Begin 等を呼べる)
 		imguiManager->Begin();
 #endif
 
@@ -141,6 +147,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 
 	delete gameScene;
 	delete titleScene;
+	delete selectScene;
+	delete tutorialScene;
 	delete camera;
 	delete keyInput; // 入力破棄
 #ifdef USE_IMGUI
@@ -166,9 +174,31 @@ void ChangePhase()
 		{
 			delete titleScene;
 			titleScene = nullptr;
-			scene = Scene::kGame;
-			gameScene = new GameScene();
-			gameScene->Initialize(camera, objCom, spriteCom);
+			scene = Scene::kSelect;
+			selectScene = new SelectScene();
+			selectScene->Initialize(spriteCom);
+		}
+		break;
+
+	case Scene::kSelect:
+		if (selectScene->IsFinish())
+		{
+			// read choice and transition accordingly
+			SelectScene::Choice choice = selectScene->GetChoice();
+			delete selectScene;
+			selectScene = nullptr;
+			if (choice == SelectScene::Choice::kGame)
+			{
+				scene = Scene::kGame;
+				gameScene = new GameScene();
+				gameScene->Initialize(camera, objCom, spriteCom);
+			}
+			else
+			{
+				scene = Scene::kTutorial;
+				tutorialScene = new TutorialScene();
+				tutorialScene->Initialize(camera, objCom, spriteCom);
+			}
 		}
 		break;
 
@@ -177,6 +207,18 @@ void ChangePhase()
 		{
 			delete gameScene;
 			gameScene = nullptr;
+			scene = Scene::kTitle;
+			titleScene = new TitleScene();
+			titleScene->Initialize(spriteCom);
+		}
+
+		break;
+
+	case Scene::kTutorial:
+		if (tutorialScene->IsFinish())
+		{
+			delete tutorialScene;
+			tutorialScene = nullptr;
 			scene = Scene::kTitle;
 			titleScene = new TitleScene();
 			titleScene->Initialize(spriteCom);
@@ -193,8 +235,14 @@ void UpdateScene()
 	case Scene::kTitle:
 		titleScene->Update();
 		break;
+	case Scene::kSelect:
+		selectScene->Update();
+		break;
 	case Scene::kGame:
 		gameScene->Update();
+		break;
+	case Scene::kTutorial:
+		tutorialScene->Update();
 		break;
 
 	}
@@ -207,8 +255,14 @@ void DrawScene()
 	case Scene::kTitle:
 		titleScene->Draw();
 		break;
+	case Scene::kSelect:
+		selectScene->Draw();
+		break;
 	case Scene::kGame:
 		gameScene->Draw();
+		break;
+	case Scene::kTutorial:
+		tutorialScene->Draw();
 		break;
 	}
 }

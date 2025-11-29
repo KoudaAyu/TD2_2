@@ -45,10 +45,6 @@ void Player::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Obje
 		model_->ApplyState(worldTransform_, camera_, true);
 	}
 
-	// 初期ジャンプ状態
-	verticalVelocity_ = 0.0f;
-	jumpCount_ = 0;
-
 	// コントローラー初期化（左スティックを移動に使用）
 	controller_ = new Controller(0);
 }
@@ -152,50 +148,8 @@ void Player::Move()
 		move.y += ls.y * kCharacterSpeed;
 	}
 
-	// ジャンプ処理 (SpaceまたはコントローラーAボタン: トリガーでジャンプ／二段ジャンプ対応)
-	bool jumpTriggered = keyInput_->TriggerKey(DIK_SPACE);
-	if (!jumpTriggered && controller_ && controller_->IsConnected())
-	{
-		// XINPUT_GAMEPAD_A を押した瞬間を検出
-		if (controller_->WasButtonPressedThisFrame(XINPUT_GAMEPAD_A))
-		{
-			jumpTriggered = true;
-		}
-	}
-
-	if (jumpTriggered)
-	{
-		if (jumpCount_ < kMaxJumpCount)
-		{
-			// 一段目と二段目で初速を変える
-			if (jumpCount_ == 0)
-			{
-				verticalVelocity_ = kFirstJumpVelocity;
-			}
-			else
-			{
-				verticalVelocity_ = kSecondJumpVelocity;
-			}
-			jumpCount_++;
-		}
-	}
-
-	// 重力を適用
-	verticalVelocity_ += kGravity;
-	move.y += verticalVelocity_;
-
 	// 移動を適用（X/Yはmoveベクトルで扱う）
 	worldTransform_.SetTranslate(worldTransform_.GetTranslate() + move);
-
-	// 地面判定: Yが下限に達したら着地扱いにする（ここでは -kMoveLimitY を地面とする）
-	Vector3 pos = worldTransform_.GetTranslate();
-	if (pos.y <= -kMoveLimitY)
-	{
-		pos.y = -kMoveLimitY;
-		worldTransform_.SetTranslate(pos);
-		verticalVelocity_ = 0.0f;
-		jumpCount_ = 0; // 着地でジャンプ回数リセット
-	}
 }
 
 void Player::MoveLimit()
@@ -242,16 +196,34 @@ void Player::Barrier()
 	}
 
 	// キーボードの '1' キーでも発射できるようにする
-	if (fireTriggered || keyInput_->TriggerKey(DIK_1))
+	if (fireTriggered || keyInput_->TriggerKey(DIK_SPACE))
 
 	{
 		const float kBarrierSpeed = 0.5f;
 
-		Vector3 velocity({ 0.0f,0.0f,kBarrierSpeed });
+		Vector3 velocity;
 
-		//速度ベクトルを自機の回転に合わせて回転させる
-		worldTransform_.TransferMatrix();
-		velocity = TransformNormal(velocity, worldTransform_.GetWorldMatrix());
+		// カメラの前方向に真っ直ぐ飛ぶように設定（レールシューティング風）
+		if (camera_)
+		{
+			const Matrix4x4& camWorld = camera_->GetWorldMatrix();
+			// camWorld の列 2 を前方向ベクトルとして利用
+			Vector3 camForward = { camWorld.m[0][2], camWorld.m[1][2], camWorld.m[2][2] };
+			// 垂直成分を取り除いて真っ直ぐ飛ぶようにする
+			camForward.y = 0.0f;
+			// 正規化
+			Vector3 dir = Normalize(camForward);
+			// 長さが0に近ければフォールバック
+			if (Length(dir) <= 1e-6f) {
+				dir = { 0.0f, 0.0f, 1.0f };
+			}
+			velocity = { dir.x * kBarrierSpeed, dir.y * kBarrierSpeed, dir.z * kBarrierSpeed };
+		}
+		else
+		{
+			// フォールバック: z正方向
+			velocity = { 0.0f, 0.0f, kBarrierSpeed };
+		}
 
 		PlayerBarrier* barrier = new PlayerBarrier();
 		barrier->Initialize(model_, worldTransform_.GetTranslate(), object3dCom_, velocity);
@@ -300,6 +272,8 @@ void Player::DrawImGui()
 	ImGui::End();
 }
 #endif
+
+
 
 
 

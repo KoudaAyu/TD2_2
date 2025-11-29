@@ -56,6 +56,8 @@
     <ClCompile Include="Application\Boss\HeadPart.cpp" />
     <ClCompile Include="Application\Boss\TurretPart.cpp" />
     <ClCompile Include="Application\Boss\BodyPart.cpp" />
+    <ClCompile Include="Application\SelectScene.cpp" />
+    <ClCompile Include="Application\TutorialScene.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Baziru3_Engine\Base\D3DResourceLeakChecker.h" />
@@ -109,6 +111,8 @@
     <ClInclude Include="Application\Boss\HeadPart.h" />
     <ClInclude Include="Application\Boss\TurretPart.h" />
     <ClInclude Include="Application\Boss\BodyPart.h" />
+    <ClInclude Include="Application\SelectScene.h" />
+    <ClInclude Include="Application\TutorialScene.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\shaders\Object3d.hlsli" />

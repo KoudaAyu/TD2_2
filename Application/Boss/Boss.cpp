@@ -41,6 +41,8 @@ void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object
     Vector3 bodyPos = { 0.0f, 0.5f, 0.0f };
     Vector3 leftPos = { -1.5f, 1.0f, 0.0f };
     Vector3 rightPos = { 1.5f, 1.0f, 0.0f };
+    Vector3 leftArmPos = { -0.7f, -1.0f, 0.0f };
+    Vector3 rightArmPos = { 0.7f, -1.0f, 0.0f };
 
     parts_.push_back(std::make_unique<HeadPart>());
     parts_.back()->Initialize(this, model_, headPos);
@@ -53,11 +55,7 @@ void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object
 
     parts_.push_back(std::make_unique<TurretPart>());
     parts_.back()->Initialize(this, model_, rightPos);
-
-    // 追加: 腕パーツを胴体の下側に2つ追加（BodyPartを流用）
-    Vector3 leftArmPos = { -0.7f, -1.0f, 0.0f };
-    Vector3 rightArmPos = { 0.7f, -1.0f, 0.0f };
-
+    
     parts_.push_back(std::make_unique<BodyPart>());
     parts_.back()->Initialize(this, model_, leftArmPos);
 
@@ -113,7 +111,6 @@ void Boss::Draw()
         if (b) b->Draw();
     }
 
-    // Do not draw the parent/full boss model here — parts are drawn individually.
 
     for (auto& p : parts_)
     {

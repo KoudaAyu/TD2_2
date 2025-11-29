@@ -21,7 +21,9 @@
     <ClCompile Include="Application\Fade.cpp" />
     <ClCompile Include="Application\GameScene.cpp" />
     <ClCompile Include="Application\Player\Player.cpp" />
+    <ClCompile Include="Application\SelectScene.cpp" />
     <ClCompile Include="Application\TitleScene.cpp" />
+    <ClCompile Include="Application\TutorialScene.cpp" />
     <ClCompile Include="Baziru3_Engine\Camera\RailCameraController.cpp" />
     <ClCompile Include="Baziru3_Engine\MathUtl\AABB.cpp" />
     <ClCompile Include="Baziru3_Engine\Camera\Camera.cpp" />
@@ -99,7 +101,9 @@
     <ClInclude Include="Application\Fade.h" />
     <ClInclude Include="Application\GameScene.h" />
     <ClInclude Include="Application\Player\Player.h" />
+    <ClInclude Include="Application\SelectScene.h" />
     <ClInclude Include="Application\TitleScene.h" />
+    <ClInclude Include="Application\TutorialScene.h" />
     <ClInclude Include="Baziru3_Engine\Camera\RailCameraController.h" />
     <ClInclude Include="Baziru3_Engine\MathUtl\AABB.h" />
     <ClInclude Include="Baziru3_Engine\Camera\Camera.h" />

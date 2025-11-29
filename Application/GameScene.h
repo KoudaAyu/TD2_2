@@ -50,7 +50,15 @@ private:
 
 	Fade* fade_ = nullptr;
 
+	// SpriteCom pointer saved for resets
+	SpriteCom* spriteCom_ = nullptr;
+
 	enum class Phase { kMain, kFadeOut };
 	Phase phase_ = Phase::kMain;
+
+	// Reset helper (only available in debug builds)
+#ifdef _DEBUG
+	void ResetScene();
+#endif
 
 };
