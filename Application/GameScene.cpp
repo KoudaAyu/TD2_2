@@ -42,7 +42,7 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 	player_ = new Player();
 	player_->Initialize(model_, camera, { 0.0f,0.0f,0.0f }, object3dCom);
 
-	
+
 	currentWave_ = 0;
 	phase_ = Phase::kMain;
 	SpawnWave();
@@ -85,9 +85,9 @@ void GameScene::ResetScene()
 	// if (bossBodyModel_) { delete bossBodyModel_; bossBodyModel_ = nullptr; }
 	if (fade_) { delete fade_; fade_ = nullptr; }
 
-	
+
 	currentWave_ = 0;
-	
+
 	isWaitingForNextWave_ = false;
 	waveDelayTimer_ = 0.0f;
 
@@ -132,18 +132,18 @@ void GameScene::Update()
 		if (!enemy) continue;
 		if (!enemy->IsActive()) continue;
 		Vector3 epos = enemy->GetWorldTranslate();
-		// If enemy is still in front of threshold, consider it active
+	
 		if (epos.z > kEnemyActiveZThreshold) { anyActive = true; break; }
 	}
 	if (!anyActive && phase_ == Phase::kMain)
 	{
-	
+
 		if (currentWave_ + 1 < maxWaves_)
 		{
-			
+
 			if (!isWaitingForNextWave_)
 			{
-				
+
 				for (Enemy* enemy : enemies_) { delete enemy; }
 				enemies_.clear();
 
@@ -201,10 +201,10 @@ void GameScene::Update()
 	}
 	if (!anyActive && phase_ == Phase::kMain)
 	{
-		
+
 		if (currentWave_ + 1 < maxWaves_)
 		{
-			
+
 			if (!isWaitingForNextWave_)
 			{
 				for (Enemy* e : enemies_) { delete e; }

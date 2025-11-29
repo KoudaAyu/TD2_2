@@ -126,6 +126,9 @@ public:
 		float radialAccelAbs = 0 // 収縮加速度の大きさ [units/s^2]（正で指定 → 内向きに変換、既定0）
 	);
 
+	// 指定名のグループが存在するか
+	bool HasGroup(const std::string& name) const;
+
 private:
 	ParticleManager() = default;
 	~ParticleManager() = default;
