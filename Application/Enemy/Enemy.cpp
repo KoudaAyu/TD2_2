@@ -1,7 +1,7 @@
 #include "Enemy.h"
 #include "Player.h"
-#include "../../Baziru3_Engine/MathUtl/Random.h"
-#include "../../Baziru3_Engine/Particle/ParticleManager.h"
+#include"Random.h"
+#include"ParticleManager.h"
 
 Enemy::~Enemy()
 {
