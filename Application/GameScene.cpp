@@ -118,10 +118,15 @@ void GameScene::Update()
 	player_->Update();
 
 
+	const float kEnemyActiveZThreshold = -5.0f;
 	bool anyActive = false;
 	for (Enemy* enemy : enemies_)
 	{
-		if (enemy && enemy->IsActive()) { anyActive = true; break; }
+		if (!enemy) continue;
+		if (!enemy->IsActive()) continue;
+		Vector3 epos = enemy->GetWorldTranslate();
+		// If enemy is still in front of threshold, consider it active
+		if (epos.z > kEnemyActiveZThreshold) { anyActive = true; break; }
 	}
 	if (!anyActive && phase_ == Phase::kMain)
 	{
@@ -154,7 +159,6 @@ void GameScene::Update()
 	}
 #else
 	// リリース時は通常カメラのみ
-	// Update gameplay objects first
 	for (Enemy* enemy : enemies_)
 	{
 		if (enemy) enemy->Update();
@@ -163,10 +167,14 @@ void GameScene::Update()
 	railCameraController_->Update();
 
 
+	const float kEnemyActiveZThreshold = -5.0f;
 	bool anyActive = false;
 	for (Enemy* enemy : enemies_)
 	{
-		if (enemy && enemy->IsActive()) { anyActive = true; break; }
+		if (!enemy) continue;
+		if (!enemy->IsActive()) continue;
+		Vector3 epos = enemy->GetWorldTranslate();
+		if (epos.z > kEnemyActiveZThreshold) { anyActive = true; break; }
 	}
 	if (!anyActive && phase_ == Phase::kMain)
 	{
