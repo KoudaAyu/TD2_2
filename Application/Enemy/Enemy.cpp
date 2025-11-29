@@ -24,7 +24,7 @@ void Enemy::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Objec
 	}
 
 	// 発射関数を初期化時に呼び出す
-	ApproachInitialize();
+	SpawnInitialize(pos);
 
 	// 初期状態はアクティブ
 	isActive_ = true;
@@ -42,14 +42,18 @@ void Enemy::Update()
 		return;
 	}
 
-	switch (phase_)
+		switch (phase_)
 	{
-		case Phase::Approach:
-		default:
+		case Phase::Spawn:
 		{
-			//ApproachUpdate();
+			SpawnUpdate();
+			break;
 		}
-		break;
+		case Phase::Approach:
+		{
+			ApproachUpdate();
+			break;
+		}
 		case Phase::Leave:
 		{
 			LeaveUpdate();
@@ -162,9 +166,54 @@ void Enemy::AimBullet()
 	bullets_.push_back(bullet_);
 }
 
+void Enemy::SpawnInitialize(const Vector3& targetPos)
+{
+	// 出現アニメーションの開始位置を画面外上方に固定、あるいはランダム化しても良い
+	spawnTargetPos_ = targetPos;
+	spawnStartPos_ = { targetPos.x, targetPos.y + 8.0f, targetPos.z + 10.0f };
+	spawnTimer_ = 0;
+	phase_ = Phase::Spawn;
+
+	// 初期 transform は開始位置に設定
+	worldTransform_.SetTranslate(spawnStartPos_);
+}
+
+void Enemy::SpawnUpdate()
+{
+	// イーズインのための簡単なイージング（2乗で滑らかに減速）
+	float t = static_cast<float>(spawnTimer_) / static_cast<float>(spawnDuration_);
+	if (t > 1.0f) t = 1.0f;
+	// ease out quad
+	float ease = 1.0f - (1.0f - t) * (1.0f - t);
+
+	Vector3 newPos;
+	newPos.x = spawnStartPos_.x + (spawnTargetPos_.x - spawnStartPos_.x) * ease;
+	newPos.y = spawnStartPos_.y + (spawnTargetPos_.y - spawnStartPos_.y) * ease;
+	newPos.z = spawnStartPos_.z + (spawnTargetPos_.z - spawnStartPos_.z) * ease;
+
+	worldTransform_.SetTranslate(newPos);
+
+	// 少し回転しながら現れる演出
+	Vector3 rot = worldTransform_.GetRotate();
+	rot.x = (1.0f - ease) * 3.14f * 0.5f; // X軸を回転させて倒れながら出現
+	worldTransform_.SetRotate(rot);
+
+	spawnTimer_++;
+	// 出現時に少し光る、スケールを変化させる演出
+	Vector3 scale = worldTransform_.GetScale();
+	scale.x = scale.y = scale.z = 0.5f + 0.5f * ease; // 0.5 -> 1.0
+	worldTransform_.SetScale(scale);
+
+	if (spawnTimer_ >= spawnDuration_)
+	{
+		// 出現完了、Approach フェーズへ移行
+		phase_ = Phase::Approach;
+		ApproachInitialize();
+	}
+}
+
 void Enemy::ApproachInitialize()
 {
-	
 	fireTimer_ = kFireInterval;
 }
 
@@ -188,6 +237,14 @@ void Enemy::ApproachUpdate()
 void Enemy::LeaveUpdate()
 {
 	worldTransform_ += leaveVelocity;
+
+
+	if (worldTransform_.GetTranslate().z < -20.0f)
+	{
+		isActive_ = false;
+		
+		worldTransform_.SetTranslate({ 10000.0f, 10000.0f, 10000.0f });
+	}
 }
 
 // 衝突処理の実装

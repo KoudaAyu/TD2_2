@@ -16,9 +16,10 @@ public:
 
 	enum class Phase
 	{
+		Spawn, // 出現モーション
 		Approach,//接近する
 		Leave,//離脱する
-	};;
+	};;;
 
 
 public:
@@ -44,6 +45,16 @@ public:
 	//フェーズごとの更新
 
 	/// <summary>
+	/// 出現フェーズの初期化
+	/// </summary>
+	void SpawnInitialize(const Vector3& targetPos);
+
+	/// <summary>
+	/// 出現フェーズの更新
+	/// </summary>
+	void SpawnUpdate();
+
+	/// <summary>
 	/// 接近フェーズの初期化
 	/// </summary>
 	void ApproachInitialize();
@@ -59,7 +70,7 @@ public:
 	void LeaveUpdate();
 
 public:
-	void SetPlayer(Player* player) { player_ = player; }	
+	void SetPlayer(Player* player) { player_ = player; } 	
 
 	const Matrix4x4& GetWorldMatrix() const
 	{
@@ -76,12 +87,18 @@ public:
 private:
 	
 	//フェーズ
-	Phase phase_ = Phase::Approach;
+	Phase phase_ = Phase::Spawn;
 	//接近時の速度
 	Vector3 approachVelocity = { 0.0f, 0.0f, -0.2f };
 	//離脱時の速度
 	Vector3 leaveVelocity = { 0.2f, 0.2f, -0.2f };
 
+
+	//出現モーション用
+	Vector3 spawnStartPos_ = { 0.0f, 5.0f, 15.0f };
+	Vector3 spawnTargetPos_ = { 0.0f, 0.0f, 10.0f };
+	int32_t spawnTimer_ = 0;
+	int32_t spawnDuration_ = 60; // フレーム数での出現時間
 
 	//弾関係
 	//発射間隔

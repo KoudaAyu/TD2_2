@@ -62,6 +62,11 @@ private:
 	enum class Phase { kMain, kFadeOut };
 	Phase phase_ = Phase::kMain;
 
+	
+	int currentWave_ = 0;
+	int maxWaves_ = 2;
+	void SpawnWave();
+
 
 #ifdef _DEBUG
 	void ResetScene();

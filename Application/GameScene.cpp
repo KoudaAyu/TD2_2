@@ -2,9 +2,9 @@
 
 GameScene::~GameScene()
 {
-	for (Enemy* e : enemies_)
+	for (Enemy* enemy : enemies_)
 	{
-		delete e;
+		delete enemy;
 	}
 	enemies_.clear();
 	delete player_;
@@ -42,18 +42,10 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 	player_ = new Player();
 	player_->Initialize(model_, camera, { 0.0f,0.0f,0.0f }, object3dCom);
 
-
-
-	for (int i = 0; i < enemyCount; ++i)
-	{
-
-		Object3d* enemyModel = Object3d::Create(object3dCom_, "wall.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera);
-		Enemy* enemy = new Enemy();
-		Vector3 enemyPos = { static_cast<float>((i - enemyCount / 2) * 2), 0.0f,5.0f };
-		enemy->Initialize(enemyModel, camera, enemyPos, object3dCom);
-		enemy->SetPlayer(player_);
-		enemies_.push_back(enemy);
-	}
+	
+	currentWave_ = 0;
+	phase_ = Phase::kMain;
+	SpawnWave();
 
 	railCameraController_ = new RailCameraController();
 	railCameraController_->SetCamera(camera_);
@@ -77,9 +69,9 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 void GameScene::ResetScene()
 {
 
-	for (Enemy* e : enemies_)
+	for (Enemy* enemy : enemies_)
 	{
-		delete e;
+		delete enemy;
 	}
 	enemies_.clear();
 
@@ -89,6 +81,8 @@ void GameScene::ResetScene()
 	// if (bossBodyModel_) { delete bossBodyModel_; bossBodyModel_ = nullptr; }
 	if (fade_) { delete fade_; fade_ = nullptr; }
 
+	// reset wave
+	currentWave_ = 0;
 
 	Initialize(camera_, object3dCom_, spriteCom_);
 }
@@ -117,22 +111,39 @@ void GameScene::Update()
 #endif
 
 
-	for (Enemy* e : enemies_)
+	for (Enemy* enemy : enemies_)
 	{
-		if (e) e->Update();
+		if (enemy) enemy->Update();
 	}
 	player_->Update();
 
 
+	const float kEnemyActiveZThreshold = -5.0f;
 	bool anyActive = false;
-	for (Enemy* e : enemies_)
+	for (Enemy* enemy : enemies_)
 	{
-		if (e && e->IsActive()) { anyActive = true; break; }
+		if (!enemy) continue;
+		if (!enemy->IsActive()) continue;
+		Vector3 epos = enemy->GetWorldTranslate();
+		// If enemy is still in front of threshold, consider it active
+		if (epos.z > kEnemyActiveZThreshold) { anyActive = true; break; }
 	}
 	if (!anyActive && phase_ == Phase::kMain)
 	{
-		phase_ = Phase::kFadeOut;
-		fade_->Start(Fade::State::kFadeOut, 1.0f);
+	
+		if (currentWave_ + 1 < maxWaves_)
+		{
+			for (Enemy* enemy : enemies_) { delete enemy; }
+			enemies_.clear();
+
+			++currentWave_;
+			SpawnWave();
+		}
+		else
+		{
+			phase_ = Phase::kFadeOut;
+			fade_->Start(Fade::State::kFadeOut, 1.0f);
+		}
 	}
 
 	if (isDebugCameraActive_ && debugCamera_)
@@ -148,24 +159,39 @@ void GameScene::Update()
 	}
 #else
 	// リリース時は通常カメラのみ
-	// Update gameplay objects first
-	for (Enemy* e : enemies_)
+	for (Enemy* enemy : enemies_)
 	{
-		if (e) e->Update();
+		if (enemy) enemy->Update();
 	}
 	player_->Update();
 	railCameraController_->Update();
 
 
+	const float kEnemyActiveZThreshold = -5.0f;
 	bool anyActive = false;
-	for (Enemy* e : enemies_)
+	for (Enemy* enemy : enemies_)
 	{
-		if (e && e->IsActive()) { anyActive = true; break; }
+		if (!enemy) continue;
+		if (!enemy->IsActive()) continue;
+		Vector3 epos = enemy->GetWorldTranslate();
+		if (epos.z > kEnemyActiveZThreshold) { anyActive = true; break; }
 	}
 	if (!anyActive && phase_ == Phase::kMain)
 	{
-		phase_ = Phase::kFadeOut;
-		fade_->Start(Fade::State::kFadeOut, 1.0f);
+		
+		if (currentWave_ + 1 < maxWaves_)
+		{
+			for (Enemy* e : enemies_) { delete e; }
+			enemies_.clear();
+
+			++currentWave_;
+			SpawnWave();
+		}
+		else
+		{
+			phase_ = Phase::kFadeOut;
+			fade_->Start(Fade::State::kFadeOut, 1.0f);
+		}
 	}
 #endif
 
@@ -187,9 +213,9 @@ void GameScene::Update()
 void GameScene::Draw()
 {
 
-	for (Enemy* e : enemies_)
+	for (Enemy* enemy : enemies_)
 	{
-		if (e) e->Draw();
+		if (enemy) enemy->Draw();
 	}
 	player_->Draw();
 
@@ -211,13 +237,13 @@ void GameScene::CheckAllCollisions()
 	const std::vector<PlayerBarrier*>& barriers = player_->GetBarriers();
 	//敵の弾のリスト: aggregate from all enemies
 	std::list<EnemyBullet*> enemyBullets;
-	for (Enemy* e : enemies_)
+	for (Enemy* enemy : enemies_)
 	{
-		if (!e) continue;
-		const std::list<EnemyBullet*>& b = e->GetBullets();
-		for (EnemyBullet* bb : b)
+		if (!enemy) continue;
+		const std::list<EnemyBullet*>& enemy_Bullets = enemy->GetBullets();
+		for (EnemyBullet* enemy_Bullet : enemy_Bullets)
 		{
-			enemyBullets.push_back(bb);
+			enemyBullets.push_back(enemy_Bullet);
 		}
 	}
 
@@ -292,4 +318,18 @@ void GameScene::CheckAllCollisions()
 		}
 	}
 #pragma endregion
+}
+
+
+void GameScene::SpawnWave()
+{
+	for (int i = 0; i < enemyCount; ++i)
+	{
+		Object3d* enemyModel = Object3d::Create(object3dCom_, "wall.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera_);
+		Enemy* enemy = new Enemy();
+		Vector3 enemyPos = { static_cast<float>((i - enemyCount / 2) * 2), 0.0f, 10.0f };
+		enemy->Initialize(enemyModel, camera_, enemyPos, object3dCom_);
+		enemy->SetPlayer(player_);
+		enemies_.push_back(enemy);
+	}
 }
