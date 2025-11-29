@@ -149,18 +149,18 @@ void GameScene::Update()
 #else
 	// リリース時は通常カメラのみ
 	// Update gameplay objects first
-	for (Enemy* e : enemies_)
+	for (Enemy* enemy : enemies_)
 	{
-		if (e) e->Update();
+		if (enemy) enemy->Update();
 	}
 	player_->Update();
 	railCameraController_->Update();
 
 
 	bool anyActive = false;
-	for (Enemy* e : enemies_)
+	for (Enemy* enemy : enemies_)
 	{
-		if (e && e->IsActive()) { anyActive = true; break; }
+		if (enemy && enemy->IsActive()) { anyActive = true; break; }
 	}
 	if (!anyActive && phase_ == Phase::kMain)
 	{
