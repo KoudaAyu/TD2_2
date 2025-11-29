@@ -2,9 +2,9 @@
 
 GameScene::~GameScene()
 {
-	for (Enemy* e : enemies_)
+	for (Enemy* enemy : enemies_)
 	{
-		delete e;
+		delete enemy;
 	}
 	enemies_.clear();
 	delete player_;
@@ -77,9 +77,9 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 void GameScene::ResetScene()
 {
 
-	for (Enemy* e : enemies_)
+	for (Enemy* enemy : enemies_)
 	{
-		delete e;
+		delete enemy;
 	}
 	enemies_.clear();
 
@@ -117,17 +117,17 @@ void GameScene::Update()
 #endif
 
 
-	for (Enemy* e : enemies_)
+	for (Enemy* enemy : enemies_)
 	{
-		if (e) e->Update();
+		if (enemy) enemy->Update();
 	}
 	player_->Update();
 
 
 	bool anyActive = false;
-	for (Enemy* e : enemies_)
+	for (Enemy* enemy : enemies_)
 	{
-		if (e && e->IsActive()) { anyActive = true; break; }
+		if (enemy && enemy->IsActive()) { anyActive = true; break; }
 	}
 	if (!anyActive && phase_ == Phase::kMain)
 	{
@@ -187,9 +187,9 @@ void GameScene::Update()
 void GameScene::Draw()
 {
 
-	for (Enemy* e : enemies_)
+	for (Enemy* enemy : enemies_)
 	{
-		if (e) e->Draw();
+		if (enemy) enemy->Draw();
 	}
 	player_->Draw();
 
@@ -211,13 +211,13 @@ void GameScene::CheckAllCollisions()
 	const std::vector<PlayerBarrier*>& barriers = player_->GetBarriers();
 	//敵の弾のリスト: aggregate from all enemies
 	std::list<EnemyBullet*> enemyBullets;
-	for (Enemy* e : enemies_)
+	for (Enemy* enemy : enemies_)
 	{
-		if (!e) continue;
-		const std::list<EnemyBullet*>& b = e->GetBullets();
-		for (EnemyBullet* bb : b)
+		if (!enemy) continue;
+		const std::list<EnemyBullet*>& enemy_Bullets = enemy->GetBullets();
+		for (EnemyBullet* enemy_Bullet : enemy_Bullets)
 		{
-			enemyBullets.push_back(bb);
+			enemyBullets.push_back(enemy_Bullet);
 		}
 	}
 
