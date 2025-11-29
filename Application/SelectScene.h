@@ -4,6 +4,11 @@
 #include "KeyInput.h"
 #include "SpriteCom.h"
 
+
+class Object3d;
+class Object3dCom;
+class Camera;
+
 class SelectScene
 {
 public:
@@ -23,7 +28,8 @@ public:
     SelectScene() = default;
     ~SelectScene();
 
-    void Initialize(SpriteCom* spriteCom);
+  
+    void Initialize(SpriteCom* spriteCom, Object3dCom* object3dCom, Camera* camera);
     void Update();
     void Draw();
 
@@ -36,4 +42,10 @@ private:
     KeyInput* keyInput_ = nullptr;
     Phase phase_ = Phase::kFadeIn;
     Choice choice_ = Choice::kGame;
+
+  
+    Object3d* objectModel_ = nullptr;
+    Object3d* bombModel_ = nullptr;
+    Object3dCom* object3dCom_ = nullptr;
+    Camera* camera_ = nullptr;
 };

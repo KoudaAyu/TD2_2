@@ -2,16 +2,20 @@
 
 GameScene::~GameScene()
 {
-	delete enemy_;
+	for (Enemy* e : enemies_)
+	{
+		delete e;
+	}
+	enemies_.clear();
 	delete player_;
 	delete railCameraController_;
 	if (fade_) delete fade_;
 #ifdef _DEBUG
 	delete debugCamera_;
 #endif
-	
-	if (boss_) delete boss_;
-	if (bossBodyModel_) delete bossBodyModel_;
+
+	// if (boss_) delete boss_; // Boss disabled
+	// if (bossBodyModel_) delete bossBodyModel_; // Boss disabled
 }
 
 void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* spriteCom)
@@ -33,31 +37,36 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 #endif
 
 	model_ = Object3d::Create(object3dCom_, "apple.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera);
-	enemyModel_ = Object3d::Create(object3dCom_, "wall.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera);
+	Object3d* enemyModelTemplate = Object3d::Create(object3dCom_, "wall.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera);
 
 	player_ = new Player();
 	player_->Initialize(model_, camera, { 0.0f,0.0f,0.0f }, object3dCom);
 
-	enemy_ = new Enemy();
-	enemy_->Initialize(enemyModel_, camera, { 0.0f,0.0f,10.0f }, object3dCom);
-	enemy_->SetPlayer(player_);
+
+
+	for (int i = 0; i < enemyCount; ++i)
+	{
+
+		Object3d* enemyModel = Object3d::Create(object3dCom_, "wall.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera);
+		Enemy* enemy = new Enemy();
+		Vector3 enemyPos = { static_cast<float>((i - enemyCount / 2) * 2), 0.0f,5.0f };
+		enemy->Initialize(enemyModel, camera, enemyPos, object3dCom);
+		enemy->SetPlayer(player_);
+		enemies_.push_back(enemy);
+	}
 
 	railCameraController_ = new RailCameraController();
 	railCameraController_->SetCamera(camera_);
 	railCameraController_->Initialize({ 0.0f, 5.0f, -10.0f }, { 20.0f, 0.0f, 0.0f });
-	
+
 	railCameraController_->SetTarget(player_);
 
 
-	bossBodyModel_ = Object3d::Create(object3dCom_, "bomb.obj", { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,15.0f} }, camera_);
-
-	boss_ = new Boss();
-
-	boss_->Initialize(bossBodyModel_, camera_, { 0.0f, 0.0f, 15.0f }, object3dCom_);
-	boss_->SetPlayer(player_);
-
-	
-	bossBodyModel_ = nullptr;
+	// bossBodyModel_ = Object3d::Create(object3dCom_, "bomb.obj", { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,15.0f} }, camera_);
+	// boss_ = new Boss();
+	// boss_->Initialize(bossBodyModel_, camera_, { 0.0f, 0.0f, 15.0f }, object3dCom_);
+	// boss_->SetPlayer(player_);
+	// bossBodyModel_ = nullptr;
 
 	fade_ = new Fade();
 	fade_->Initialize(spriteCom);
@@ -67,15 +76,20 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 #ifdef _DEBUG
 void GameScene::ResetScene()
 {
-	
-	if (enemy_) { delete enemy_; enemy_ = nullptr; }
+
+	for (Enemy* e : enemies_)
+	{
+		delete e;
+	}
+	enemies_.clear();
+
 	if (player_) { delete player_; player_ = nullptr; }
 	if (railCameraController_) { delete railCameraController_; railCameraController_ = nullptr; }
-	if (boss_) { delete boss_; boss_ = nullptr; }
-	if (bossBodyModel_) { delete bossBodyModel_; bossBodyModel_ = nullptr; }
+	// if (boss_) { delete boss_; boss_ = nullptr; }
+	// if (bossBodyModel_) { delete bossBodyModel_; bossBodyModel_ = nullptr; }
 	if (fade_) { delete fade_; fade_ = nullptr; }
 
-	
+
 	Initialize(camera_, object3dCom_, spriteCom_);
 }
 #endif
@@ -88,26 +102,34 @@ void GameScene::Update()
 	player_->DrawImGui();
 #endif
 
-	if(keyInput_->TriggerKey(DIK_F1))
+	if (keyInput_->TriggerKey(DIK_F1))
 	{
 		isDebugCameraActive_ = !isDebugCameraActive_;
 	}
 
-	
-	#ifdef _DEBUG
+
+#ifdef _DEBUG
 	if (keyInput_->TriggerKey(DIK_R))
 	{
 		ResetScene();
-		return; 
+		return;
 	}
-	#endif
+#endif
 
-	
-	if (enemy_) enemy_->Update();
+
+	for (Enemy* e : enemies_)
+	{
+		if (e) e->Update();
+	}
 	player_->Update();
 
 
-	if (enemy_ && !enemy_->IsActive() && phase_ == Phase::kMain)
+	bool anyActive = false;
+	for (Enemy* e : enemies_)
+	{
+		if (e && e->IsActive()) { anyActive = true; break; }
+	}
+	if (!anyActive && phase_ == Phase::kMain)
 	{
 		phase_ = Phase::kFadeOut;
 		fade_->Start(Fade::State::kFadeOut, 1.0f);
@@ -127,12 +149,20 @@ void GameScene::Update()
 #else
 	// リリース時は通常カメラのみ
 	// Update gameplay objects first
-	if (enemy_) enemy_->Update();
+	for (Enemy* e : enemies_)
+	{
+		if (e) e->Update();
+	}
 	player_->Update();
 	railCameraController_->Update();
 
-	
-	if (enemy_ && !enemy_->IsActive() && phase_ == Phase::kMain)
+
+	bool anyActive = false;
+	for (Enemy* e : enemies_)
+	{
+		if (e && e->IsActive()) { anyActive = true; break; }
+	}
+	if (!anyActive && phase_ == Phase::kMain)
 	{
 		phase_ = Phase::kFadeOut;
 		fade_->Start(Fade::State::kFadeOut, 1.0f);
@@ -140,15 +170,14 @@ void GameScene::Update()
 #endif
 
 
-	if (boss_) boss_->Update();
+	// if (boss_) boss_->Update();
 
-	
 	if (phase_ == Phase::kFadeOut)
 	{
 		fade_->Update();
 		if (fade_->IsFinished())
 		{
-			isFinish_ = true; 
+			isFinish_ = true;
 		}
 	}
 
@@ -158,11 +187,14 @@ void GameScene::Update()
 void GameScene::Draw()
 {
 
-	enemy_->Draw();
+	for (Enemy* e : enemies_)
+	{
+		if (e) e->Draw();
+	}
 	player_->Draw();
 
-	
-	if (boss_) boss_->Draw();
+
+	// if (boss_) boss_->Draw();
 
 
 	if (phase_ == Phase::kFadeOut)
@@ -177,12 +209,21 @@ void GameScene::CheckAllCollisions()
 
 	// バリア群を取得
 	const std::vector<PlayerBarrier*>& barriers = player_->GetBarriers();
-	//敵の弾のリスト
-	const std::list<EnemyBullet*>& enemyBullets = enemy_->GetBullets();
+	//敵の弾のリスト: aggregate from all enemies
+	std::list<EnemyBullet*> enemyBullets;
+	for (Enemy* e : enemies_)
+	{
+		if (!e) continue;
+		const std::list<EnemyBullet*>& b = e->GetBullets();
+		for (EnemyBullet* bb : b)
+		{
+			enemyBullets.push_back(bb);
+		}
+	}
 
 #pragma region 自キャラと敵の弾の当たり判定
 	posA = player_->GetWorldTranslate();
-	for(EnemyBullet* bullet : enemyBullets)
+	for (EnemyBullet* bullet : enemyBullets)
 	{
 		posB = bullet->GetWorldTranslate();
 
@@ -200,9 +241,11 @@ void GameScene::CheckAllCollisions()
 
 #pragma region バリアと敵の当たり判定
 	// バリアと敵本体の当たり判定を実装（書き方を他と統一）
-	if (enemy_)
+	for (Enemy* enemy_ : enemies_)
 	{
-	
+		if (!enemy_) continue;
+		if (!enemy_->IsActive()) continue;
+
 		posB = enemy_->GetWorldTranslate();
 
 		for (const PlayerBarrier* barrier : barriers)

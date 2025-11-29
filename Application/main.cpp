@@ -95,6 +95,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 	scene = Scene::kGame;
 	gameScene = new GameScene();
 	gameScene->Initialize(camera,objCom,spriteCom);
+	/*scene = Scene::kTitle;
+	titleScene = new TitleScene();
+	titleScene->Initialize(spriteCom);*/
 #else
 	scene = Scene::kTitle;
 	titleScene = new TitleScene();
@@ -117,6 +120,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 		camera->Update();
 #ifdef _DEBUG
 		gameScene->Update();
+		/*ChangePhase();
+		UpdateScene();*/
 #else
 		ChangePhase();
 		UpdateScene();
@@ -133,6 +138,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 		objCom->ApplyCommonRenderState(); // カリング疑い時は ApplyCommonRenderState(false);
 #ifdef _DEBUG
 		gameScene->Draw();
+		//DrawScene();
 #else
 		DrawScene();
 #endif
@@ -176,14 +182,14 @@ void ChangePhase()
 			titleScene = nullptr;
 			scene = Scene::kSelect;
 			selectScene = new SelectScene();
-			selectScene->Initialize(spriteCom);
+			selectScene->Initialize(spriteCom, objCom, camera);
 		}
 		break;
 
 	case Scene::kSelect:
 		if (selectScene->IsFinish())
 		{
-			// read choice and transition accordingly
+		
 			SelectScene::Choice choice = selectScene->GetChoice();
 			delete selectScene;
 			selectScene = nullptr;
