@@ -14,8 +14,8 @@ GameScene::~GameScene()
 	delete debugCamera_;
 #endif
 
-	// if (boss_) delete boss_; // Boss disabled
-	// if (bossBodyModel_) delete bossBodyModel_; // Boss disabled
+	if (boss_) delete boss_;
+	if (bossBodyModel_) delete bossBodyModel_;
 }
 
 void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* spriteCom)
@@ -54,11 +54,9 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 	railCameraController_->SetTarget(player_);
 
 
-	// bossBodyModel_ = Object3d::Create(object3dCom_, "bomb.obj", { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,15.0f} }, camera_);
-	// boss_ = new Boss();
-	// boss_->Initialize(bossBodyModel_, camera_, { 0.0f, 0.0f, 15.0f }, object3dCom_);
-	// boss_->SetPlayer(player_);
-	// bossBodyModel_ = nullptr;
+	
+	bossBodyModel_ = nullptr;
+	boss_ = nullptr;
 
 	fade_ = new Fade();
 	fade_->Initialize(spriteCom);
@@ -81,8 +79,8 @@ void GameScene::ResetScene()
 
 	if (player_) { delete player_; player_ = nullptr; }
 	if (railCameraController_) { delete railCameraController_; railCameraController_ = nullptr; }
-	// if (boss_) { delete boss_; boss_ = nullptr; }
-	// if (bossBodyModel_) { delete bossBodyModel_; bossBodyModel_ = nullptr; }
+	if (boss_) { delete boss_; boss_ = nullptr; }
+	if (bossBodyModel_) { delete bossBodyModel_; bossBodyModel_ = nullptr; }
 	if (fade_) { delete fade_; fade_ = nullptr; }
 
 
@@ -164,8 +162,16 @@ void GameScene::Update()
 		}
 		else
 		{
-			phase_ = Phase::kFadeOut;
-			fade_->Start(Fade::State::kFadeOut, 1.0f);
+			
+			phase_ = Phase::kBoss;
+			
+			if (!boss_)
+			{
+				bossBodyModel_ = Object3d::Create(object3dCom_, "bomb.obj", { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,15.0f} }, camera_);
+				boss_ = new Boss();
+				boss_->Initialize(bossBodyModel_, camera_, { 0.0f, 0.0f, 15.0f }, object3dCom_);
+				boss_->SetPlayer(player_);
+			}
 		}
 	}
 
@@ -227,14 +233,31 @@ void GameScene::Update()
 		}
 		else
 		{
-			phase_ = Phase::kFadeOut;
-			fade_->Start(Fade::State::kFadeOut, 1.0f);
+
+			phase_ = Phase::kBoss;
+			if (!boss_)
+			{
+				bossBodyModel_ = Object3d::Create(object3dCom_, "bomb.obj", { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,15.0f} }, camera_);
+				boss_ = new Boss();
+				boss_->Initialize(bossBodyModel_, camera_, { 0.0f, 0.0f, 15.0f }, object3dCom_);
+				boss_->SetPlayer(player_);
+			}
 		}
 	}
 #endif
 
 
-	// if (boss_) boss_->Update();
+	
+	if (boss_)
+	{
+		boss_->Update();
+	
+		if (!boss_->IsActive() && phase_ == Phase::kBoss)
+		{
+			phase_ = Phase::kFadeOut;
+			fade_->Start(Fade::State::kFadeOut, 1.0f);
+		}
+	}
 
 	if (phase_ == Phase::kFadeOut)
 	{
@@ -257,8 +280,7 @@ void GameScene::Draw()
 	}
 	player_->Draw();
 
-
-	// if (boss_) boss_->Draw();
+	if (boss_) boss_->Draw();
 
 
 	if (phase_ == Phase::kFadeOut)
@@ -273,7 +295,7 @@ void GameScene::CheckAllCollisions()
 
 	// バリア群を取得
 	const std::vector<PlayerBarrier*>& barriers = player_->GetBarriers();
-	//敵の弾のリスト: aggregate from all enemies
+	//敵の弾のリスト: aggregate from all enemies + boss
 	std::list<EnemyBullet*> enemyBullets;
 	for (Enemy* enemy : enemies_)
 	{
@@ -282,6 +304,15 @@ void GameScene::CheckAllCollisions()
 		for (EnemyBullet* enemy_Bullet : enemy_Bullets)
 		{
 			enemyBullets.push_back(enemy_Bullet);
+		}
+	}
+	
+	if (boss_)
+	{
+		const std::list<EnemyBullet*>& bossBullets = boss_->GetBullets();
+		for (EnemyBullet* b : bossBullets)
+		{
+			enemyBullets.push_back(b);
 		}
 	}
 
@@ -330,6 +361,26 @@ void GameScene::CheckAllCollisions()
 			}
 		}
 	}
+
+	if (boss_ && boss_->IsActive())
+	{
+		posB = boss_->GetWorldTranslate();
+		for (const PlayerBarrier* barrier : barriers)
+		{
+			if (!barrier) continue;
+			if (!barrier->IsActive()) continue;
+
+			posA = barrier->GetWorldTranslate();
+			float distance = Distance(posA, posB);
+			const float threshold = 2.5f; // bossは大きめ
+			if (distance < threshold)
+			{
+				const_cast<PlayerBarrier*>(barrier)->OnCollision();
+				boss_->OnCollision();
+				break;
+			}
+		}
+	}
 #pragma endregion
 
 #pragma region バリアと敵の弾の当たり判定
@@ -357,6 +408,7 @@ void GameScene::CheckAllCollisions()
 	}
 #pragma endregion
 }
+
 
 
 void GameScene::SpawnWave()
