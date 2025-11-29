@@ -6,6 +6,8 @@
 #include "Object3dCom.h"
 #include "Transform.h"
 
+#include <vector>
+
 class Boss;
 
 /// <summary>
@@ -30,8 +32,12 @@ public:
 private:
     Boss* owner_ = nullptr;
     Camera* camera_ = nullptr;
-    Object3d* model_ = nullptr;
+    // store multiple sub-models to compose the body
+    std::vector<Object3d*> models_;
     Object3dCom* object3dCom_ = nullptr;
+    // local transforms for each sub-model (relative to boss origin)
+    std::vector<Transform> localTransforms_;
+
     Transform worldTransform_ = {};
 
     int hp_ = 100; // 胴体はさらに耐久力が高い

@@ -36,31 +36,40 @@ void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object
         model_->ApplyState(worldTransform_, camera_, true);
     }
 
-    // 部位の初期化（頭・胴体・左右タレット）
-    Vector3 headPos = { 0.0f, 2.0f, 0.0f };
-    Vector3 bodyPos = { 0.0f, 0.5f, 0.0f };
-    Vector3 leftPos = { -1.5f, 1.0f, 0.0f };
-    Vector3 rightPos = { 1.5f, 1.0f, 0.0f };
-    Vector3 leftArmPos = { -0.7f, -1.0f, 0.0f };
-    Vector3 rightArmPos = { 0.7f, -1.0f, 0.0f };
+    // Create a non-humanoid boss composed of many square/block parts arranged in a grid
+    const int gridSizeX = 3;
+    const int gridSizeY = 3;
+    const float spacing = 1.2f; // spacing between blocks
 
-    parts_.push_back(std::make_unique<HeadPart>());
-    parts_.back()->Initialize(this, model_, headPos);
+    // center the grid around origin
+    float offsetX = -(gridSizeX - 1) * 0.5f * spacing;
+    float offsetY = -(gridSizeY - 1) * 0.5f * spacing;
 
-    parts_.push_back(std::make_unique<BodyPart>());
-    parts_.back()->Initialize(this, model_, bodyPos);
+    for (int y = 0; y < gridSizeY; ++y)
+    {
+        for (int x = 0; x < gridSizeX; ++x)
+        {
+            Vector3 partPos = { offsetX + x * spacing, offsetY + y * spacing, 0.0f };
+            parts_.push_back(std::make_unique<BodyPart>());
+            parts_.back()->Initialize(this, model_, partPos);
+        }
+    }
 
-    parts_.push_back(std::make_unique<TurretPart>());
-    parts_.back()->Initialize(this, model_, leftPos);
-
-    parts_.push_back(std::make_unique<TurretPart>());
-    parts_.back()->Initialize(this, model_, rightPos);
-    
-    parts_.push_back(std::make_unique<BodyPart>());
-    parts_.back()->Initialize(this, model_, leftArmPos);
-
-    parts_.push_back(std::make_unique<BodyPart>());
-    parts_.back()->Initialize(this, model_, rightArmPos);
+    // Optionally add a second layer to make it more blocky (stacked in Y)
+    const int layers = 2;
+    for (int l = 1; l < layers; ++l)
+    {
+        float layerHeight = 0.9f * l;
+        for (int y = 0; y < gridSizeY; ++y)
+        {
+            for (int x = 0; x < gridSizeX; ++x)
+            {
+                Vector3 partPos = { offsetX + x * spacing, offsetY + y * spacing, layerHeight };
+                parts_.push_back(std::make_unique<BodyPart>());
+                parts_.back()->Initialize(this, model_, partPos);
+            }
+        }
+    }
 
     isActive_ = true;
 }

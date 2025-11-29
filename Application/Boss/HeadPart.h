@@ -6,6 +6,8 @@
 #include "Object3dCom.h"
 #include "Transform.h"
 
+#include <vector>
+
 class Player;
 class Boss;
 
@@ -28,8 +30,9 @@ public:
 private:
     Boss* owner_ = nullptr;
     Camera* camera_ = nullptr;
-    Object3d* model_ = nullptr;
+    std::vector<Object3d*> models_;
     Object3dCom* object3dCom_ = nullptr;
+    std::vector<Transform> localTransforms_;
     Transform worldTransform_ = {};
 
     int hp_ = 50;
