@@ -5,6 +5,8 @@
 #include"Object3dCom.h"
 #include"Transform.h"
 
+class Player;
+
 class EnemyBullet
 {
 public:
@@ -19,6 +21,18 @@ public:
 	/// 衝突処理
 	/// </summary>
 	void OnCollision();
+
+	// 追従（ホーミング）を有効化
+	void EnableHoming(Player* target, float speed, float turnRate)
+	{
+		target_ = target;
+		speed_ = speed;
+		turnRate_ = turnRate;
+		isHoming_ = (target_ != nullptr);
+	}
+
+	// 寿命（フレーム数）を設定。0 以下なら無制限。
+	void SetLifeDuration(int frames) { lifeDuration_ = frames; lifeTimer_ = 0; }
 
 public:
 	bool IsActive() const { return isActive_; }
@@ -36,6 +50,14 @@ public:
 
 private:
 	Vector3 velocity_ = { 0.0f, 0.0f, -1.0f };
+	float speed_ = 1.0f;
+	float turnRate_ = 0.05f; // 方向の補正係数（0~1）
+	bool isHoming_ = false;
+	Player* target_ = nullptr;
+
+	// 寿命管理
+	int lifeTimer_ = 0;
+	int lifeDuration_ = 0; // 0: 無制限。>0 でそのフレーム数で消滅。
 
 	bool isActive_ = true;
 private:
