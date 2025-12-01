@@ -29,7 +29,6 @@ public:
     const Matrix4x4& GetWorldMatrix() const override;
     Vector3 GetWorldTranslate() const override;
 
-    // spawn animation
     void StartSpawn(const Vector3& startLocal, int duration) override;
     void UpdateSpawn(float progress) override;
 

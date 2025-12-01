@@ -130,6 +130,14 @@ private:
     float phase1BulletSpeed_ = 0.6f;     // 弾速
     int phase1BulletsPerShot_ = 1;       // 1 回につき発射する弾数（将来拡張用）
 
+  
+    void UpdatePhase2();
+    int phase2ShootInterval_ = 25;
+    int phase2BulletsPerShot_ = 1; //弾をいくつ発射するか
+    float phase2BulletSpeed_ = 0.7f;
+    float phase2TurnRate_ = 0.06f; // 追従の曲がりやすさ
+    int phase2BulletLifeFrames_ = 60; // 追従を何フレームするか
+
     float cameraShakeCooldown_ = 0.0f; 
     static constexpr float kCameraShakeCooldownSeconds = 0.25f; 
 

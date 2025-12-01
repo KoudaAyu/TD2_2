@@ -47,7 +47,7 @@ void BodyPart::Initialize(Boss* owner, Object3d* model, const Vector3& localPos)
                 sub->SetModel(new Model(*src));
             }
 
-            // set color slightly varied
+            
             Vector4 col = { 0.6f + 0.05f * i, 0.6f, 0.8f - 0.02f * i, 1.0f };
             sub->SetColor(col);
 

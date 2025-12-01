@@ -314,6 +314,50 @@ void Boss::UpdatePhase1()
 	Shoot();
 }
 
+void Boss::UpdatePhase2()
+{
+	//ホーミング弾を撃つ
+	++ShootTimer_;
+	if (ShootTimer_ < phase2ShootInterval_) return;
+	ShootTimer_ = 0;
+
+	// 生存部位から発射位置を選ぶ
+	std::vector<int> aliveIndices;
+	aliveIndices.reserve(parts_.size());
+	for (size_t i = 0; i < parts_.size(); ++i)
+	{
+		if (parts_[i] && !parts_[i]->IsDestroyed()) aliveIndices.push_back(static_cast<int>(i));
+	}
+
+	for (int i = 0; i < phase2BulletsPerShot_; ++i)
+	{
+		Vector3 spawnPos;
+		if (!aliveIndices.empty())
+		{
+			float r = Random::GeneratorFloat(0.0f, static_cast<float>(aliveIndices.size() - 1));
+			int pick = static_cast<int>(std::floor(r + 0.5f));
+			if (pick < 0) pick = 0;
+			if (pick >= static_cast<int>(aliveIndices.size())) pick = static_cast<int>(aliveIndices.size() - 1);
+			spawnPos = parts_[aliveIndices[pick]]->GetWorldTranslate();
+		}
+		else
+		{
+			spawnPos = worldTransform_.GetTranslate();
+		}
+
+		// 初期方向は -Z
+		Vector3 dir = { 0.0f, 0.0f, -1.0f };
+		Vector3 vel = { dir.x * phase2BulletSpeed_, dir.y * phase2BulletSpeed_, dir.z * phase2BulletSpeed_ };
+
+		EnemyBullet* b = new EnemyBullet();
+		b->Initialize(model_, spawnPos, object3dCom_, vel);
+		// プレイヤーへ追従
+		b->EnableHoming(player_, phase2BulletSpeed_, phase2TurnRate_);
+		b->SetLifeDuration(phase2BulletLifeFrames_);
+		bullets_.push_back(b);
+	}
+}
+
 void Boss::Update()
 {
 	if (!isActive_)
@@ -382,10 +426,14 @@ void Boss::Update()
 		}
 	}
 
-	// Phase1 の行動を実行
+	// Phase の行動を実行
 	if (phase_ == Phase::Phase1)
 	{
 		UpdatePhase1();
+	}
+	else if (phase_ == Phase::Phase2)
+	{
+		UpdatePhase2();
 	}
 
 	for (auto& p : parts_)
