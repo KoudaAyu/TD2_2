@@ -39,6 +39,8 @@ public:
     /// </summary>
     void Shoot();
 
+    void Move();
+
 public:
 
     void SetPlayer(Player* player) { player_ = player; }
@@ -130,4 +132,25 @@ private:
 
     float cameraShakeCooldown_ = 0.0f; 
     static constexpr float kCameraShakeCooldownSeconds = 0.25f; 
+
+    
+   
+    float phase1MoveSpeed_ = 0.01f; // even slower move speed
+    // 上下に揺れるボビング振幅と周波数
+    float phase1BobAmplitude_ = 0.12f; // reduced amplitude
+    float phase1BobFrequency_ = 0.4f; // slower bobbing (Hz)
+    // 内部経過時間（秒）
+    float phase1Time_ = 0.0f;
+
+    // --- 追加: Phase1 の左右上下運動（軌道）パラメータ ---
+    // X/Y 軸の軌道半径
+    float phase1OrbitRadiusX_ = 1.4f; // reduced horizontal radius
+    float phase1OrbitRadiusY_ = 0.5f; // reduced vertical offset
+    // X/Y 軸の軌道速度（角速度的な意味合い）
+    float phase1OrbitSpeedX_ = 0.12f; // much slower orbit speed (Hz)
+    float phase1OrbitSpeedY_ = 0.15f; // much slower orbit speed (Hz)
+
+    // 目標オフセット（軌道で計算される）
+    Vector3 phase1TargetOffset_ = { 0.0f, 0.0f, 0.0f };
+
 };
