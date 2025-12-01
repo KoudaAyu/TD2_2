@@ -24,12 +24,12 @@ void BodyPart::Initialize(Boss* owner, Object3d* model, const Vector3& localPos)
 
     if (model && object3dCom_)
     {
-        // Use a 2x2 arrangement (4 sub-models) per body part
+      
         const int layers = 4;
         models_.reserve(layers);
         localTransforms_.reserve(layers);
 
-        // Smaller scale so the combined 3x3 parts form a clean square
+        
         Vector3 baseScale = { 0.6f, 0.6f, 0.6f };
         Vector3 offsets[4] = {
             { -0.3f, -0.3f, 0.0f },
@@ -133,6 +133,12 @@ void BodyPart::OnDamage(int dmg)
 {
     hp_ -= dmg;
     if (hp_ < 0) hp_ = 0;
+
+    // ボディがダメージを受けたらボスにヒット通知（フェーズ進行用）
+    if (owner_)
+    {
+        owner_->OnHit();
+    }
 }
 
 bool BodyPart::IsDestroyed() const

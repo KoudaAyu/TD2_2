@@ -54,7 +54,6 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 	railCameraController_->SetTarget(player_);
 
 
-	
 	bossBodyModel_ = nullptr;
 	boss_ = nullptr;
 
@@ -169,7 +168,7 @@ void GameScene::Update()
 			{
 				bossBodyModel_ = Object3d::Create(object3dCom_, "bomb.obj", { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,15.0f} }, camera_);
 				boss_ = new Boss();
-				boss_->Initialize(bossBodyModel_, camera_, { 0.0f, 0.0f, 15.0f }, object3dCom_);
+				boss_->Initialize(bossBodyModel_, camera_, { 0.0f, 0.0f, 15.0f }, object3dCom_, spriteCom_);
 				boss_->SetPlayer(player_);
 			}
 		}
@@ -239,7 +238,7 @@ void GameScene::Update()
 			{
 				bossBodyModel_ = Object3d::Create(object3dCom_, "bomb.obj", { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,15.0f} }, camera_);
 				boss_ = new Boss();
-				boss_->Initialize(bossBodyModel_, camera_, { 0.0f, 0.0f, 15.0f }, object3dCom_);
+				boss_->Initialize(bossBodyModel_, camera_, { 0.0f, 0.0f, 15.0f }, object3dCom_, spriteCom_);
 				boss_->SetPlayer(player_);
 			}
 		}
@@ -247,7 +246,6 @@ void GameScene::Update()
 #endif
 
 
-	
 	if (boss_)
 	{
 		boss_->Update();
@@ -376,7 +374,8 @@ void GameScene::CheckAllCollisions()
 			if (distance < threshold)
 			{
 				const_cast<PlayerBarrier*>(barrier)->OnCollision();
-				boss_->OnCollision();
+				// バリアで当たった場合は即死させず、ヒット扱いにする
+				boss_->OnHit();
 				break;
 			}
 		}
@@ -384,28 +383,28 @@ void GameScene::CheckAllCollisions()
 #pragma endregion
 
 #pragma region バリアと敵の弾の当たり判定
-	// すべての弾に対して、任意のアクティブなバリアと衝突したら弾を無効化
-	for (EnemyBullet* bullet : enemyBullets)
-	{
-		if (!bullet->IsActive()) continue;
-		posB = bullet->GetWorldTranslate();
+    // すべての弾に対して、任意のアクティブなバリアと衝突したら弾を無効化
+    for (EnemyBullet* bullet : enemyBullets)
+    {
+        if (!bullet->IsActive()) continue;
+        posB = bullet->GetWorldTranslate();
 
-		for (const PlayerBarrier* barrier : barriers)
-		{
-			if (!barrier) continue;
-			if (!barrier->IsActive()) continue;
+        for (const PlayerBarrier* barrier : barriers)
+        {
+            if (!barrier) continue;
+            if (!barrier->IsActive()) continue;
 
-			posA = barrier->GetWorldTranslate();
+            posA = barrier->GetWorldTranslate();
 
-			float distance = Distance(posA, posB);
-			const float threshold = 1.0f; // バリアのサイズに合わせて調整
-			if (distance < threshold)
-			{
-				bullet->OnCollision();
-				break; // この弾は処理済みなので次の弾へ
-			}
-		}
-	}
+            float distance = Distance(posA, posB);
+            const float threshold = 1.0f; // バリアのサイズに合わせて調整
+            if (distance < threshold)
+            {
+                bullet->OnCollision();
+                break; // この弾は処理済みなので次の弾へ
+            }
+        }
+    }
 #pragma endregion
 }
 

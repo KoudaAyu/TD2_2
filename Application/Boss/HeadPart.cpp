@@ -120,14 +120,20 @@ void HeadPart::Draw()
 
 void HeadPart::OnDamage(int dmg)
 {
+    // ダメージを減じる
     hp_ -= dmg;
+    if (hp_ < 0) hp_ = 0;
+
+    // ダメージ受けたらボスにヒット通知（1発でフェーズ進行させたいので常に通知）
+    if (owner_)
+    {
+        owner_->OnHit();
+    }
+
+    // 従来の振る舞い: 部位が破壊されたら（必要なら）何か行う
     if (hp_ <= 0)
     {
-        hp_ = 0;
-        if (owner_)
-        {
-            owner_->OnCollision();
-        }
+        // ここで部位破壊時の特殊処理を追加可能
     }
 }
 
