@@ -6,6 +6,8 @@
 #include "Object3dCom.h"
 #include "Transform.h"
 
+#include <vector>
+
 class Boss;
 
 /// <summary>
@@ -27,12 +29,27 @@ public:
     const Matrix4x4& GetWorldMatrix() const override;
     Vector3 GetWorldTranslate() const override;
 
+    // spawn animation
+    void StartSpawn(const Vector3& startLocal, int duration) override;
+    void UpdateSpawn(float progress) override;
+
 private:
     Boss* owner_ = nullptr;
     Camera* camera_ = nullptr;
-    Object3d* model_ = nullptr;
+  
+    std::vector<Object3d*> models_;
     Object3dCom* object3dCom_ = nullptr;
+ 
+    std::vector<Transform> localTransforms_;
+
     Transform worldTransform_ = {};
 
     int hp_ = 100; // 胴体はさらに耐久力が高い
+
+   
+    bool isSpawning_ = false;
+    Vector3 spawnStartLocal_ = {0.0f, 0.0f, 0.0f};
+    Vector3 spawnTargetLocal_ = {0.0f, 0.0f, 0.0f};
+    int spawnTimer_ = 0;
+    int spawnDuration_ = 0;
 };

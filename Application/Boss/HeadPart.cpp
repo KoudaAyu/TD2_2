@@ -5,11 +5,11 @@ HeadPart::HeadPart() {}
 
 HeadPart::~HeadPart()
 {
-    if (model_)
+    for (auto m : models_)
     {
-        delete model_;
-        model_ = nullptr;
+        if (m) { delete m; }
     }
+    models_.clear();
 }
 
 void HeadPart::Initialize(Boss* owner, Object3d* model, const Vector3& localPos)
@@ -18,18 +18,73 @@ void HeadPart::Initialize(Boss* owner, Object3d* model, const Vector3& localPos)
     camera_ = owner ? owner->GetCamera() : nullptr;
     object3dCom_ = owner ? owner->GetObject3dCom() : nullptr;
 
-    if (model)
-    {
-        model_ = new Object3d();
-        model_->Initialize(object3dCom_);
-        if (auto* src = model->GetModel())
-        {
-            model_->SetModel(new Model(*src));
-        }
-    }
-
     worldTransform_.Initialize();
     worldTransform_.SetTranslate(localPos);
+    spawnTargetLocal_ = localPos;
+
+    if (model && object3dCom_)
+    {
+         const int parts = 3;
+        models_.reserve(parts);
+        localTransforms_.reserve(parts);
+
+        Vector3 scales[3] = { {1.0f,1.0f,1.0f}, {0.8f,0.8f,0.8f}, {0.6f,0.6f,0.6f} };
+        Vector3 offsets[3] = { {0.0f,0.4f,0.0f}, {0.0f,0.0f,0.0f}, {0.0f,-0.4f,0.0f} };
+
+        for (int i = 0; i < parts; ++i)
+        {
+            Object3d* sub = new Object3d();
+            sub->Initialize(object3dCom_);
+            if (auto* src = model->GetModel())
+            {
+                sub->SetModel(new Model(*src));
+            }
+            Vector4 col = { 0.9f - 0.1f*i, 0.6f, 0.6f, 1.0f };
+            sub->SetColor(col);
+
+            Transform lt;
+            lt.Initialize();
+            lt.SetScale(scales[i]);
+            lt.SetTranslate(offsets[i]);
+
+            models_.push_back(sub);
+            localTransforms_.push_back(lt);
+        }
+    }
+}
+
+void HeadPart::StartSpawn(const Vector3& startLocal, int duration)
+{
+    isSpawning_ = true;
+    spawnStartLocal_ = startLocal;
+    spawnTimer_ = 0;
+    spawnDuration_ = duration;
+
+    worldTransform_.SetTranslate(spawnStartLocal_);
+}
+
+void HeadPart::UpdateSpawn(float progress)
+{
+    if (!isSpawning_) return;
+    if (progress < 0.0f) progress = 0.0f;
+    if (progress > 1.0f) progress = 1.0f;
+
+   
+    float ease = 1.0f - (1.0f - progress) * (1.0f - progress);
+
+    Vector3 cur = {
+        spawnStartLocal_.x + (spawnTargetLocal_.x - spawnStartLocal_.x) * ease,
+        spawnStartLocal_.y + (spawnTargetLocal_.y - spawnStartLocal_.y) * ease,
+        spawnStartLocal_.z + (spawnTargetLocal_.z - spawnStartLocal_.z) * ease
+    };
+    worldTransform_.SetTranslate(cur);
+
+    if (progress >= 1.0f)
+    {
+        isSpawning_ = false;
+       
+        worldTransform_.SetTranslate(spawnTargetLocal_);
+    }
 }
 
 void HeadPart::Update()
@@ -38,33 +93,47 @@ void HeadPart::Update()
 
     if (owner_)
     {
-        Transform t = worldTransform_;
         Vector3 bossPos = owner_->GetWorldTranslate();
-        t.SetTranslate({ t.GetTranslate().x + bossPos.x, t.GetTranslate().y + bossPos.y, t.GetTranslate().z + bossPos.z });
-        t.TransferMatrix();
-        if (model_ && camera_) model_->ApplyState(t, camera_, true);
+
+        for (size_t i = 0; i < models_.size(); ++i)
+        {
+            if (!models_[i]) continue;
+            Transform t = localTransforms_[i];
+            Vector3 lt = t.GetTranslate();
+            t.SetTranslate({ lt.x + bossPos.x + worldTransform_.GetTranslate().x,
+                             lt.y + bossPos.y + worldTransform_.GetTranslate().y,
+                             lt.z + bossPos.z + worldTransform_.GetTranslate().z });
+            t.TransferMatrix();
+            if (camera_) models_[i]->ApplyState(t, camera_, true);
+        }
     }
 }
 
 void HeadPart::Draw()
 {
     if (hp_ <= 0) return;
-    if (model_)
+    for (auto m : models_)
     {
-        model_->Draw();
+        if (m) m->Draw();
     }
 }
 
 void HeadPart::OnDamage(int dmg)
 {
+    // ダメージを減じる
     hp_ -= dmg;
+    if (hp_ < 0) hp_ = 0;
+
+    // ダメージ受けたらボスにヒット通知（1発でフェーズ進行させたいので常に通知）
+    if (owner_)
+    {
+        owner_->OnHit();
+    }
+
+    // 従来の振る舞い: 部位が破壊されたら（必要なら）何か行う
     if (hp_ <= 0)
     {
-        hp_ = 0;
-        if (owner_)
-        {
-            owner_->OnCollision();
-        }
+        // ここで部位破壊時の特殊処理を追加可能
     }
 }
 

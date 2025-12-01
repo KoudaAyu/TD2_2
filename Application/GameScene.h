@@ -8,7 +8,7 @@
 #include"Player.h"
 #include"RailCameraController.h"
 #include"Fade.h"
-//#include "Boss.h"
+#include"Boss.h"
 
 #include <vector>
 
@@ -50,16 +50,16 @@ private:
 	Player* player_ = nullptr;
 	RailCameraController* railCameraController_ = nullptr;
 
-	// Debug boss body model (bomb.obj)
-	// Object3d* bossBodyModel_ = nullptr; 
-	// Boss* boss_ = nullptr; 
+	// Boss objects
+	Object3d* bossBodyModel_ = nullptr;
+	Boss* boss_ = nullptr;
 
 	Fade* fade_ = nullptr;
 
 	
 	SpriteCom* spriteCom_ = nullptr;
 
-	enum class Phase { kMain, kFadeOut };
+	enum class Phase { kMain, kBoss, kFadeOut };
 	Phase phase_ = Phase::kMain;
 
 	

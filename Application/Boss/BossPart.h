@@ -23,4 +23,7 @@ public:
     // ワールド変換取得
     virtual const Matrix4x4& GetWorldMatrix() const = 0;
     virtual Vector3 GetWorldTranslate() const = 0;
+
+    virtual void StartSpawn(const Vector3& startLocal, int duration) { (void)startLocal; (void)duration; }
+    virtual void UpdateSpawn(float progress) { (void)progress; }
 };
