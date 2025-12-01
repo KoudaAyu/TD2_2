@@ -1,9 +1,9 @@
 #pragma once
 #include <string>
-#include <cstdint>      // ← uint32_t
-#include <Windows.h>    // WAVEFORMATEX, BYTE
-#include <wrl.h>        // ← ComPtr
-#include <xaudio2.h>    // ← IXAudio2, IXAudio2MasteringVoice
+#include <cstdint>      
+#include <Windows.h>  
+#include <wrl.h>       
+#include <xaudio2.h>   
 #include <vector>
 
 struct SoundData {

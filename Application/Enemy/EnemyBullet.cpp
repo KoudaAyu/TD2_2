@@ -42,7 +42,6 @@ void EnemyBullet::Initialize(Object3d* model, const Vector3 pos, Object3dCom* ob
 	float vlen = sqrtf(velocity_.x * velocity_.x + velocity_.y * velocity_.y + velocity_.z * velocity_.z);
 	if (vlen > 0.0001f) speed_ = vlen;
 
-	// Apply initial state
 	if (model_)
 	{
 		model_->ApplyState(worldTransform_, camera_, true);

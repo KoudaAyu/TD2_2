@@ -4,9 +4,9 @@
 #include <string>
 
 #include "DirectXCom.h"
-#include "Vector.h" // for Vector2
+#include "Vector.h"
 
-class Sprite; // 前方宣言（循環include回避）
+class Sprite;
 
 class SpriteCom {
 private:

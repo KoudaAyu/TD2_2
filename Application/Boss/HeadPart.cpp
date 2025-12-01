@@ -130,10 +130,9 @@ void HeadPart::OnDamage(int dmg)
         owner_->OnHit();
     }
 
-    // 従来の振る舞い: 部位が破壊されたら（必要なら）何か行う
+   
     if (hp_ <= 0)
     {
-        // ここで部位破壊時の特殊処理を追加可能
     }
 }
 
