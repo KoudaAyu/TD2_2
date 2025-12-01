@@ -3,6 +3,7 @@
 #include "TurretPart.h"
 #include "BodyPart.h"
 #include "Player.h"
+#include "Random.h"
 
 #include <algorithm>
 #include "SpriteCom.h"
@@ -215,19 +216,40 @@ void Boss::Shoot()
 	if (ShootTimer_ < ShootInterval_) return;
 	ShootTimer_ = 0;
 
-	// ボス中心のワールド座標
-	Vector3 bossPos = worldTransform_.GetTranslate();
+	// 生存している部位のインデックスを収集
+	std::vector<int> aliveIndices;
+	aliveIndices.reserve(parts_.size());
+	for (size_t i = 0; i < parts_.size(); ++i)
+	{
+		if (parts_[i] && !parts_[i]->IsDestroyed()) aliveIndices.push_back(static_cast<int>(i));
+	}
 
 	for (int i = 0; i < phase1BulletsPerShot_; ++i)
 	{
-		// 方向: -Z（カメラやプレイヤーが前方にいる想定）。将来的に player_ へ向けることも可能
+		Vector3 spawnPos;
+		if (!aliveIndices.empty())
+		{
+			// aliveIndices の中からランダムに選択
+			float r = Random::GeneratorFloat(0.0f, static_cast<float>(aliveIndices.size() - 1));
+			int pick = static_cast<int>(std::floor(r + 0.5f));
+			if (pick < 0) pick = 0;
+			if (pick >= static_cast<int>(aliveIndices.size())) pick = static_cast<int>(aliveIndices.size() - 1);
+			spawnPos = parts_[aliveIndices[pick]]->GetWorldTranslate();
+		}
+		else
+		{
+			// どの部位も無い（全壊）ならボス中心から出す
+			spawnPos = worldTransform_.GetTranslate();
+		}
+
+		// 方向: -Z（カメラやプレイヤーが前方にいる想定）
 		Vector3 dir = { 0.0f, 0.0f, -1.0f };
 
 		Vector3 vel = { dir.x * phase1BulletSpeed_, dir.y * phase1BulletSpeed_, dir.z * phase1BulletSpeed_ };
 
 		EnemyBullet* b = new EnemyBullet();
 		// model_ を複製して渡す（EnemyBullet が内部でコピーする既存実装に合わせる）
-		b->Initialize(model_, bossPos, object3dCom_, vel);
+		b->Initialize(model_, spawnPos, object3dCom_, vel);
 		bullets_.push_back(b);
 	}
 }
