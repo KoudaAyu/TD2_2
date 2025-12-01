@@ -34,6 +34,13 @@ public:
     // プレイヤーの弾やバリアに当たったときの処理（デバッグ: フェーズ進行）
     void OnHit();
 
+    /// <summary>
+    /// 弾を発射する
+    /// </summary>
+    void Shoot();
+
+public:
+
     void SetPlayer(Player* player) { player_ = player; }
 
     const std::list<EnemyBullet*>& GetBullets() const { return bullets_; }
@@ -114,4 +121,13 @@ private:
     // スプライトの描画位置・スケールは簡単に変更できるようにメンバ化
     Vector2 phaseSpritePosition_ = { 10.0f, 10.0f }; // 画面左上に表示
     Vector2 phaseSpriteScale_ = { 64.0f, 64.0f };   // 表示サイズ
+
+    void UpdatePhase1();
+    int ShootTimer_ = 0;           // フレームカウンタ
+    int ShootInterval_ = 30;       // 発射間隔（フレーム）
+    float phase1BulletSpeed_ = 0.6f;     // 弾速
+    int phase1BulletsPerShot_ = 1;       // 1 回につき発射する弾数（将来拡張用）
+
+    float cameraShakeCooldown_ = 0.0f; 
+    static constexpr float kCameraShakeCooldownSeconds = 0.25f; 
 };

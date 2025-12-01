@@ -318,6 +318,9 @@ void GameScene::CheckAllCollisions()
 	posA = player_->GetWorldTranslate();
 	for (EnemyBullet* bullet : enemyBullets)
 	{
+		// 無効な弾は当たり判定対象外にする
+		if (!bullet || !bullet->IsActive()) continue;
+
 		posB = bullet->GetWorldTranslate();
 
 		// 距離（MathUtl の Distance を使用）

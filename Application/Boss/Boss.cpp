@@ -174,7 +174,10 @@ void Boss::OnHit()
     phase_ = newPhase;
 
     // カメラ揺れ
-    if (camera_) camera_->StartShake(0.2f, 0.2f);
+    if (camera_ && cameraShakeCooldown_ <= 0.0f) {
+        camera_->StartShake(0.2f, 0.2f);
+        cameraShakeCooldown_ = kCameraShakeCooldownSeconds;
+    }
 
     // スプライト更新
     if (spriteCom_)
@@ -203,6 +206,35 @@ void Boss::OnHit()
     }
 }
 
+void Boss::Shoot()
+{
+    // 一定間隔で前方向へ直進弾を発射する
+    ++ShootTimer_;
+    if (ShootTimer_ < ShootInterval_) return;
+    ShootTimer_ = 0;
+
+    // ボス中心のワールド座標
+    Vector3 bossPos = worldTransform_.GetTranslate();
+
+    for (int i = 0; i < phase1BulletsPerShot_; ++i)
+    {
+        // 方向: -Z（カメラやプレイヤーが前方にいる想定）。将来的に player_ へ向けることも可能
+        Vector3 dir = { 0.0f, 0.0f, -1.0f };
+
+        Vector3 vel = { dir.x * phase1BulletSpeed_, dir.y * phase1BulletSpeed_, dir.z * phase1BulletSpeed_ };
+
+        EnemyBullet* b = new EnemyBullet();
+        // model_ を複製して渡す（EnemyBullet が内部でコピーする既存実装に合わせる）
+        b->Initialize(model_, bossPos, object3dCom_, vel);
+        bullets_.push_back(b);
+    }
+}
+
+void Boss::UpdatePhase1()
+{
+    Shoot();
+}
+
 void Boss::Update()
 {
     if (!isActive_)
@@ -216,6 +248,13 @@ void Boss::Update()
 
     // ヒット無敵タイマー更新
     if (hitCooldownTimer_ > 0) --hitCooldownTimer_;
+
+    // カメラシェイクのクールダウン更新
+    const float dt = 1.0f / 60.0f;
+    if (cameraShakeCooldown_ > 0.0f) {
+        cameraShakeCooldown_ -= dt;
+        if (cameraShakeCooldown_ < 0.0f) cameraShakeCooldown_ = 0.0f;
+    }
 
     if (phase_ == Phase::Spawn)
     {
@@ -233,9 +272,10 @@ void Boss::Update()
         {
             phase_ = Phase::Phase1; // スポーン後はフェーズ1 から開始
           
-            if (camera_)
+            if (camera_ && cameraShakeCooldown_ <= 0.0f)
             {
                 camera_->StartShake(0.6f, 0.6f);
+                cameraShakeCooldown_ = kCameraShakeCooldownSeconds;
             }
         }
     }
@@ -260,6 +300,12 @@ void Boss::Update()
             s->SetColor(c);
             s->Update();
         }
+    }
+
+    // Phase1 の行動を実行
+    if (phase_ == Phase::Phase1)
+    {
+        UpdatePhase1();
     }
 
     for (auto& p : parts_)
@@ -339,7 +385,10 @@ void Boss::UpdatePhaseByHP()
         if (newPhase != phase_)
         {
             phase_ = newPhase;
-            if (camera_) camera_->StartShake(0.3f, 0.3f);
+            if (camera_ && cameraShakeCooldown_ <= 0.0f) {
+                camera_->StartShake(0.3f, 0.3f);
+                cameraShakeCooldown_ = kCameraShakeCooldownSeconds;
+            }
         }
         return; // ヒットベース優先なので HP による更新は行わない
     }
@@ -367,7 +416,10 @@ void Boss::UpdatePhaseByHP()
         phase_ = newPhase;
         if (camera_)
         {
-            camera_->StartShake(0.3f, 0.3f);
+            if (cameraShakeCooldown_ <= 0.0f) {
+                camera_->StartShake(0.3f, 0.3f);
+                cameraShakeCooldown_ = kCameraShakeCooldownSeconds;
+            }
         }
     }
 }

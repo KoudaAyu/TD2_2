@@ -32,6 +32,8 @@ private:
 	float shakeTimeElapsed_ = 0.0f; // 経過時間（秒）
 	Vector3 shakeOffset_ = { 0.0f, 0.0f, 0.0f };
 
+	float shakeStartCooldown_ = 0.0f; 
+
 public:
 	/// <summary>
 	/// コンストラクタ
