@@ -76,7 +76,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 
 	ModelManager::GetInstance()->Initialize(dx);
 
-	// Initialize ParticleManager AFTER DirectXCom, SrvManager and Object3dCom are ready
 	ParticleManager::GetInstance()->Initialize(dx, srv, objCom);
 
 	// 入力

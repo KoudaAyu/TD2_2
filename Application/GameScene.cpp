@@ -43,17 +43,16 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 	player_ = new Player();
 	player_->Initialize(model_, camera, { 0.0f,0.0f,0.0f }, object3dCom);
 
-	// Create particle groups: use model texture for sprite particles and model for mesh particles
 	{
 		auto* pm = ParticleManager::GetInstance();
 		if (pm) {
-			// Ensure model's texture path exists
+			
 			if (model_ && model_->GetModel()) {
 				std::string texPath = model_->GetModel()->GetTexturePath();
 				if (!texPath.empty()) {
 					pm->CreateParticleGroup("default", texPath);
 				}
-				// mesh particle group referencing same model file name used to create Object3d
+			
 				pm->CreateParticleGroupFromModel("defaultMesh", "apple.obj");
 			}
 		}
@@ -282,7 +281,7 @@ void GameScene::Update()
 		}
 	}
 
-	// Update particles using current camera view/proj
+	
 	auto* pm = ParticleManager::GetInstance();
 	if (pm) {
 		pm->Update(camera_->GetViewMatrix(), camera_->GetProjectionMatrix());
@@ -302,7 +301,7 @@ void GameScene::Draw()
 
 	if (boss_) boss_->Draw();
 
-	// Draw particles
+	
 	auto* pm = ParticleManager::GetInstance();
 	if (pm) {
 		pm->Draw();

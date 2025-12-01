@@ -340,30 +340,29 @@ void Enemy::LeaveUpdate()
 // 衝突処理の実装
 void Enemy::OnCollision()
 {
-	// Emit mesh particles at current position
 	Vector3 emitCenter = worldTransform_.GetTranslate();
 	auto* pm = ParticleManager::GetInstance();
 	if (pm)
 	{
 		Vector3 emitPos = emitCenter;
-		emitPos.z += 0.5f; // bring slightly forward
-		// Make particles more visible: emit many bright sprite particles
-		pm->Emit("default", emitPos, 24); // larger omni sprite burst
+		emitPos.z += 0.5f; 
+	
+		pm->Emit("default", emitPos, 24); 
 
-		// Stronger rotating mesh burst (bigger scale, longer life, faster radial)
+		
 		pm->EmitBurst8Rotating("defaultMesh", emitPos,
-			0.0f,   // startRadius
-			1.2f,   // life (s)
-			Random::GeneratorFloat(-10.0f, 10.0f), // angularVel
-			1.2f,   // scale (larger visible)
+			0.0f,   
+			1.2f, 
+			Random::GeneratorFloat(-10.0f, 10.0f), 
+			1.2f,  
 			true,
-			1.5f,   // radialSpeed (expand faster)
+			1.5f,   
 			0.0f);
 
-		// Larger outward mesh burst
+	
 		pm->EmitBurst8("defaultMesh", emitPos, 0.35f, 1.2f, 1.2f);
 
-		// Also add a colorful sprite ring to emphasize hit
+		
 		pm->EmitBurst8("default", emitPos, 0.35f, 1.0f, 1.0f);
 	}
 
