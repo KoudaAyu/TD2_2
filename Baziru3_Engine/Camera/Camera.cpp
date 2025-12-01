@@ -33,6 +33,13 @@ void Camera::Initialize()
 void Camera::StartShake(float amplitude, float duration)
 {
 	if (duration <= 0.0f || amplitude <= 0.0f) return;
+
+	if (isShaking_) return;
+
+	
+	const float kMaxShakeDuration = 10.0f;
+	if (duration > kMaxShakeDuration) duration = kMaxShakeDuration;
+
 	isShaking_ = true;
 	shakeAmplitude_ = amplitude;
 	shakeDuration_ = duration;
