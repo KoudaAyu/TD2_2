@@ -92,9 +92,7 @@ private:
     int spawnDuration_ = 180;
 
     // --- HP / フェーズ関連 ---
-    // 最大HP（簡単に変更可能）
     int maxHP_ = 100; // 最大HP（デフォルト）
-    // 現在HP
     int hp_ = 100; // 現在のHP
 
     // フェーズ境界（比率）。降順で指定。0.0f ~ 1.0f の範囲で設定。
@@ -161,4 +159,16 @@ private:
     // 目標オフセット（軌道で計算される）
     Vector3 phase1TargetOffset_ = { 0.0f, 0.0f, 0.0f };
 
+    // --- Phase4 レーザー攻撃 ---
+    void UpdatePhase4();
+    Object3d* laserModel_ = nullptr; // レーザー表示用モデル（弾と同じ元モデルを複製）
+    bool laserActive_ = false;
+    int laserTimer_ = 0;
+    int laserChargeFrames_ = 60;    // チャージ時間
+    int laserFireFrames_ = 120;     // 発射時間
+    int laserCooldownFrames_ = 90;  // クールダウン
+    float laserMaxLength_ = 40.0f;  // 最大長さ(Z方向)
+    float laserWidth_ = 0.6f;       // 幅(X,Y方向スケール)
+    Vector4 laserChargeColor_ = {1.0f, 0.3f, 0.3f, 0.7f};
+    Vector4 laserFireColor_ = {1.0f, 0.9f, 0.2f, 1.0f};
 };

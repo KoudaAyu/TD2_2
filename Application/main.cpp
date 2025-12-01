@@ -16,6 +16,7 @@
 #include"GameScene.h"
 #include "SelectScene.h"
 #include "TutorialScene.h"
+#include "Baziru3_Engine/Particle/ParticleManager.h"
 
 using namespace StringUtility;
 
@@ -74,6 +75,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 	spriteCom->Initialize(dx);
 
 	ModelManager::GetInstance()->Initialize(dx);
+
+	ParticleManager::GetInstance()->Initialize(dx, srv, objCom);
 
 	// 入力
 	KeyInput* keyInput = new KeyInput();
@@ -189,7 +192,7 @@ void ChangePhase()
 	case Scene::kSelect:
 		if (selectScene->IsFinish())
 		{
-		
+			
 			SelectScene::Choice choice = selectScene->GetChoice();
 			delete selectScene;
 			selectScene = nullptr;

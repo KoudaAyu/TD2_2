@@ -1,4 +1,5 @@
 #include "GameScene.h"
+#include "Baziru3_Engine/Particle/ParticleManager.h"
 
 GameScene::~GameScene()
 {
@@ -42,6 +43,20 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 	player_ = new Player();
 	player_->Initialize(model_, camera, { 0.0f,0.0f,0.0f }, object3dCom);
 
+	{
+		auto* pm = ParticleManager::GetInstance();
+		if (pm) {
+			
+			if (model_ && model_->GetModel()) {
+				std::string texPath = model_->GetModel()->GetTexturePath();
+				if (!texPath.empty()) {
+					pm->CreateParticleGroup("default", texPath);
+				}
+			
+				pm->CreateParticleGroupFromModel("defaultMesh", "apple.obj");
+			}
+		}
+	}
 
 	currentWave_ = 0;
 	phase_ = Phase::kMain;
@@ -266,6 +281,12 @@ void GameScene::Update()
 		}
 	}
 
+	
+	auto* pm = ParticleManager::GetInstance();
+	if (pm) {
+		pm->Update(camera_->GetViewMatrix(), camera_->GetProjectionMatrix());
+	}
+
 	CheckAllCollisions();
 }
 
@@ -280,6 +301,11 @@ void GameScene::Draw()
 
 	if (boss_) boss_->Draw();
 
+	
+	auto* pm = ParticleManager::GetInstance();
+	if (pm) {
+		pm->Draw();
+	}
 
 	if (phase_ == Phase::kFadeOut)
 	{

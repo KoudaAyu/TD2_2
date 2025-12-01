@@ -1,7 +1,7 @@
 #include "RailCameraController.h"
-#include "../../Application/Player/Player.h"
+#include "Player.h"
 #include <cmath>
-#include "../MathUtl/Matrix4x4.h"
+#include "Matrix4x4.h"
 
 RailCameraController::RailCameraController()
 {

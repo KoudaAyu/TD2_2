@@ -50,7 +50,7 @@ void Enemy::Update()
 		switch (phase_)
 	{
 			case Phase::Spawn:
-			{
+		{
 				SpawnUpdate();
 				break;
 			}
@@ -325,7 +325,8 @@ void Enemy::LeaveUpdate()
 			// 少し手前に出す
 			emitPos.z += 0.5f;
 			pm->EmitBurst8("default", emitPos, 0.06f, 0.08f, 0.25f);
-			pm->EmitBurst8Rotating("default", emitPos, 0.1f, 0.35f, Random::GeneratorFloat(-12.0f, 12.0f), 0.06f, true, 0.6f);
+			pm->EmitBurst8Rotating("default", emitPos, 0.1f, 0.35f, Random::GeneratorFloat(-12.0f, 12.0f), 0.06f, true, 0.6f, 0.0f);
+			pm->EmitBurst8Rotating("default", emitPos, 0.1f, 0.35f, Random::GeneratorFloat(-12.0f, 12.0f), 0.06f, true, 0.6f, 0.0f);
 		}
 	}
 
@@ -339,6 +340,32 @@ void Enemy::LeaveUpdate()
 // 衝突処理の実装
 void Enemy::OnCollision()
 {
+	Vector3 emitCenter = worldTransform_.GetTranslate();
+	auto* pm = ParticleManager::GetInstance();
+	if (pm)
+	{
+		Vector3 emitPos = emitCenter;
+		emitPos.z += 0.5f; 
+	
+		pm->Emit("default", emitPos, 24); 
+
+		
+		pm->EmitBurst8Rotating("defaultMesh", emitPos,
+			0.0f,   
+			1.2f, 
+			Random::GeneratorFloat(-10.0f, 10.0f), 
+			1.2f,  
+			true,
+			1.5f,   
+			0.0f);
+
+	
+		pm->EmitBurst8("defaultMesh", emitPos, 0.35f, 1.2f, 1.2f);
+
+		
+		pm->EmitBurst8("default", emitPos, 0.35f, 1.0f, 1.0f);
+	}
+
 	// 衝突を受けたら簡単に画面外へ移動させ、保持している弾を無効化する
 	worldTransform_.SetTranslate({ 10000.0f, 10000.0f, 10000.0f });
 	for (EnemyBullet* b : bullets_)
