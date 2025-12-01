@@ -10,6 +10,8 @@
 #include "Sprite.h"
 #include <filesystem>
 #include <cmath>
+// Particle effects
+#include "Baziru3_Engine/Particle/ParticleManager.h"
 
 Boss::Boss() {}
 
@@ -379,24 +381,23 @@ void Boss::UpdatePhase4()
 
     if (laserTimer_ <= laserChargeFrames_)
     {
-        // チャージ中: 徐々に長さを伸ばし、色を変化
+        // チャージ中: レーザー本体は伸ばさず短いチャージ表示のみ行う
+    
         float t = (float)laserTimer_ / (float)laserChargeFrames_;
-        float length = 1.0f + (laserMaxLength_ * 0.2f) * t; // 最初は短く
-        Vector3 scale = { laserWidth_, laserWidth_, length };
+        // パルスアルファでチャージ感を出す
+        float alpha = 0.5f + 0.5f * std::sin(t * 3.14159265f);
+        Vector4 col = laserChargeColor_;
+        col.w = alpha;
+
+        // 常に短く表示（伸ばさない）
+        Vector3 scale = { laserWidth_, laserWidth_, 1.0f };
         laserModel_->SetScale(scale);
 
-        // レーザーの位置を再計算（Z軸スケールの変化に伴う調整）
+        // レーザーの位置はボス前方に固定（長さ変化を考慮しない）
         Vector3 bossPos = worldTransform_.GetTranslate();
-        Vector3 laserPos = bossPos + Vector3{0.0f, 0.0f, -length * 0.5f};
+        Vector3 laserPos = bossPos + Vector3{0.0f, 0.0f, -0.5f};
         laserModel_->SetTranslate(laserPos);
 
-        // 色補間 (charge -> fireColor の手前まで)
-        Vector4 col = {
-            laserChargeColor_.x + (laserFireColor_.x - laserChargeColor_.x) * (t * 0.6f),
-            laserChargeColor_.y + (laserFireColor_.y - laserChargeColor_.y) * (t * 0.6f),
-            laserChargeColor_.z + (laserFireColor_.z - laserChargeColor_.z) * (t * 0.6f),
-            0.7f + 0.3f * t
-        };
         laserModel_->SetColor(col);
     }
     else if (laserTimer_ <= laserChargeFrames_ + laserFireFrames_)
@@ -452,6 +453,33 @@ void Boss::UpdatePhase4()
     else
     {
         // サイクル終了: 次ループまで非表示へ移動
+        auto* pm = ParticleManager::GetInstance();
+        if (pm)
+        {
+          
+            Vector3 lp = laserModel_->GetTranslate();
+            float length = laserModel_->GetScale().z;
+          
+            Vector3 tipPos = { lp.x, lp.y, lp.z - length * 0.5f };
+
+           
+            pm->EmitBurst8("default", tipPos, 0.25f, 0.6f, 0.9f);
+            pm->EmitBurst8("defaultMesh", tipPos, 0.18f, 0.9f, 1.0f);
+
+            
+            Vector3 bossPos = worldTransform_.GetTranslate();
+            pm->EmitBurst8Rotating("default", bossPos, 0.6f, 0.9f, 6.0f, 0.9f, true, 1.2f, 0.6f);
+
+          
+            pm->Emit("default", tipPos, 18);
+        }
+
+      
+        if (camera_)
+        {
+            camera_->StartShake(0.45f, 0.45f);
+        }
+
         laserActive_ = false;
         laserTimer_ = 0;
         laserModel_->SetTranslate({ 10000.0f, 10000.0f, 10000.0f });

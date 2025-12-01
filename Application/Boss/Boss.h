@@ -141,20 +141,20 @@ private:
 
     
    
-    float phase1MoveSpeed_ = 0.01f; // even slower move speed
+    float phase1MoveSpeed_ = 0.01f;
     // 上下に揺れるボビング振幅と周波数
-    float phase1BobAmplitude_ = 0.12f; // reduced amplitude
-    float phase1BobFrequency_ = 0.4f; // slower bobbing (Hz)
+    float phase1BobAmplitude_ = 0.12f; 
+    float phase1BobFrequency_ = 0.4f;
     // 内部経過時間（秒）
     float phase1Time_ = 0.0f;
 
     // --- 追加: Phase1 の左右上下運動（軌道）パラメータ ---
     // X/Y 軸の軌道半径
-    float phase1OrbitRadiusX_ = 1.4f; // reduced horizontal radius
-    float phase1OrbitRadiusY_ = 0.5f; // reduced vertical offset
+    float phase1OrbitRadiusX_ = 1.4f; 
+    float phase1OrbitRadiusY_ = 0.5f; 
     // X/Y 軸の軌道速度（角速度的な意味合い）
-    float phase1OrbitSpeedX_ = 0.12f; // much slower orbit speed (Hz)
-    float phase1OrbitSpeedY_ = 0.15f; // much slower orbit speed (Hz)
+    float phase1OrbitSpeedX_ = 0.12f; 
+    float phase1OrbitSpeedY_ = 0.15f; 
 
     // 目標オフセット（軌道で計算される）
     Vector3 phase1TargetOffset_ = { 0.0f, 0.0f, 0.0f };
@@ -164,7 +164,7 @@ private:
     Object3d* laserModel_ = nullptr; // レーザー表示用モデル（弾と同じ元モデルを複製）
     bool laserActive_ = false;
     int laserTimer_ = 0;
-    int laserChargeFrames_ = 60;    // チャージ時間
+    int laserChargeFrames_ = 120;    // チャージ時間 
     int laserFireFrames_ = 120;     // 発射時間
     int laserCooldownFrames_ = 90;  // クールダウン
     float laserMaxLength_ = 40.0f;  // 最大長さ(Z方向)
