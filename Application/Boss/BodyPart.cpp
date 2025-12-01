@@ -22,18 +22,20 @@ void BodyPart::Initialize(Boss* owner, Object3d* model, const Vector3& localPos)
     worldTransform_.SetTranslate(localPos);
     spawnTargetLocal_ = localPos;
 
-     if (model && object3dCom_)
+    if (model && object3dCom_)
     {
-         const int layers = 4;
+        // Use a 2x2 arrangement (4 sub-models) per body part
+        const int layers = 4;
         models_.reserve(layers);
         localTransforms_.reserve(layers);
 
-        Vector3 baseScale = { 1.2f, 1.2f, 1.2f };
+        // Smaller scale so the combined 3x3 parts form a clean square
+        Vector3 baseScale = { 0.6f, 0.6f, 0.6f };
         Vector3 offsets[4] = {
-            { 0.0f, 0.0f, 0.0f },
-            { 0.0f, 0.6f, 0.0f },
-            { 0.6f, 0.0f, 0.0f },
-            { -0.6f, 0.0f, 0.0f }
+            { -0.3f, -0.3f, 0.0f },
+            { -0.3f,  0.3f, 0.0f },
+            {  0.3f, -0.3f, 0.0f },
+            {  0.3f,  0.3f, 0.0f }
         };
 
         for (int i = 0; i < layers; ++i)
@@ -46,7 +48,7 @@ void BodyPart::Initialize(Boss* owner, Object3d* model, const Vector3& localPos)
             }
 
             // set color slightly varied
-            Vector4 col = { 0.6f + 0.1f * i, 0.6f, 0.8f - 0.05f * i, 1.0f };
+            Vector4 col = { 0.6f + 0.05f * i, 0.6f, 0.8f - 0.02f * i, 1.0f };
             sub->SetColor(col);
 
             Transform lt;
@@ -57,8 +59,6 @@ void BodyPart::Initialize(Boss* owner, Object3d* model, const Vector3& localPos)
             models_.push_back(sub);
             localTransforms_.push_back(lt);
         }
-
-        
     }
 }
 
@@ -102,7 +102,6 @@ void BodyPart::Update()
 
     if (owner_)
     {
-     
         Vector3 bossPos = owner_->GetWorldTranslate();
 
         for (size_t i = 0; i < models_.size(); ++i)
@@ -110,7 +109,7 @@ void BodyPart::Update()
             if (!models_[i]) continue;
 
             Transform t = localTransforms_[i];
-           
+
             Vector3 lt = t.GetTranslate();
             t.SetTranslate({ lt.x + bossPos.x + worldTransform_.GetTranslate().x,
                              lt.y + bossPos.y + worldTransform_.GetTranslate().y,
