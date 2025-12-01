@@ -450,15 +450,15 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 			p.scale = scaleDist(rng_);
 
 			if (name == "default") {
-				// 全方向ランダムに飛ばす
+				// 全方向ランダムに飛ばす（ただし Z 変化させたくないので z=0 に固定）
 				Vector3 dir = randomDirOnSphere();
 				float spd = speedDist(rng_);
-				p.velocity = { dir.x * spd, dir.y * spd, dir.z * spd };
+				p.velocity = { dir.x * spd, dir.y * spd, 0.0f }; // ← z 成分を 0 に固定
 			} else if (name == "defaultMesh") {
-				// 全方向ランダムに飛ばす
+				// 全方向ランダムに飛ばす（ただし Z 変化させたくないので z=0 に固定）
 				Vector3 dir = randomDirOnSphere();
 				float spd = speedDist(rng_);
-				p.velocity = { dir.x * spd, dir.y * spd, dir.z * spd };
+				p.velocity = { dir.x * spd, dir.y * spd, 0.0f }; // ← z 成分を 0 に固定
 			} else {
 				// デフォルト（上向きに飛ぶ）
 				float spd = speedDist(rng_);

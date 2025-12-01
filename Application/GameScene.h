@@ -11,6 +11,7 @@
 #include"Boss.h"
 
 #include <vector>
+#include <string>
 
 class GameScene
 {
@@ -58,6 +59,28 @@ private:
 
 	
 	SpriteCom* spriteCom_ = nullptr;
+
+	// Application-level simple sprite particles for effects that need alpha-fade
+	struct AppParticle {
+		Sprite* sprite = nullptr;
+		float life = 1.0f;
+		float age = 0.0f;
+		Vector2 pos; // screen position
+		Vector2 vel;
+	};
+	std::vector<AppParticle> appParticles_;
+	// texture used for application particles (set during Initialize)
+	std::string particleTexturePath_;
+
+	// Application-level mesh particles (OBJ) that fade over time
+	struct AppMeshParticle {
+		Object3d* obj = nullptr; // owns Object3d
+		Model* model = nullptr;   // owns Model copy
+		float life = 1.0f;
+		float age = 0.0f;
+		Vector3 vel; // world-space velocity
+	};
+	std::vector<AppMeshParticle> appMeshParticles_;
 
 	enum class Phase { kMain, kBoss, kFadeOut };
 	Phase phase_ = Phase::kMain;

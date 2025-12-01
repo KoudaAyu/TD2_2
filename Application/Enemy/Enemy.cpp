@@ -340,39 +340,54 @@ void Enemy::LeaveUpdate()
 // 衝突処理の実装
 void Enemy::OnCollision()
 {
-	Vector3 emitCenter = worldTransform_.GetTranslate();
-	auto* pm = ParticleManager::GetInstance();
-	if (pm)
-	{
-		Vector3 emitPos = emitCenter;
-		emitPos.z += 0.5f; 
-	
-		pm->Emit("default", emitPos, 24); 
+    Vector3 emitCenter = worldTransform_.GetTranslate();
+    auto* pm = ParticleManager::GetInstance();
+    if (pm)
+    {
+        Vector3 emitPos = emitCenter;
+        emitPos.z += 0.5f;
 
-		
-		pm->EmitBurst8Rotating("defaultMesh", emitPos,
-			0.0f,   
-			1.2f, 
-			Random::GeneratorFloat(-10.0f, 10.0f), 
-			1.2f,  
-			true,
-			1.5f,   
-			0.0f);
+        // 中心を強調する少し大きめのオムニバースト（1回）
+        pm->Emit("default", emitPos, 32);
 
-	
-		pm->EmitBurst8("defaultMesh", emitPos, 0.35f, 1.2f, 1.2f);
+        // メッシュ片を回転・外向きに飛ばす（スケールを控えめに）
+        pm->EmitBurst8Rotating("defaultMesh", emitPos,
+            0.0f,   // startRadius
+            1.0f,   // life
+            Random::GeneratorFloat(-8.0f, 8.0f), // angularVel
+            0.9f,   // scale (小さめに)
+            true,
+            1.8f,   // radialSpeed (外へ)
+            0.3f);  // radialAccel
 
-		
-		pm->EmitBurst8("default", emitPos, 0.35f, 1.0f, 1.0f);
-	}
+        // 一度外側に弾けたあと、中心へ収束する内向きの渦（スケールを小さく）
+        pm->EmitBurst8RotatingInward("default", emitPos,
+            3.0f,   // startRadius（外側スタート）
+            0.8f,   // life
+            Random::GeneratorFloat(-5.0f, 5.0f), // angularVel
+            0.6f,   // scale (小さめ)
+            1.6f,   // radialSpeedAbs (収縮の速さ)
+            1.2f);  // radialAccelAbs
 
-	// 衝突を受けたら簡単に画面外へ移動させ、保持している弾を無効化する
-	worldTransform_.SetTranslate({ 10000.0f, 10000.0f, 10000.0f });
-	for (EnemyBullet* b : bullets_)
-	{
-		if (b) b->OnCollision();
-	}
+        // 小さめの光片を散らしてディテールを追加（スケール小）
+        pm->EmitBurst8("default", emitPos, 0.25f, 0.5f, 0.9f);
+        pm->EmitBurst8("defaultMesh", emitPos, 0.28f, 0.45f, 0.95f);
+    }
 
-	// 敵を非アクティブ化
-	isActive_ = false;
+    // カメラの演出（衝撃を強めに）
+    if (camera_)
+    {
+        // 少し長めで強めの揺れ
+        camera_->StartShake(0.8f, 0.6f);
+    }
+
+    // 衝突を受けたら簡単に画面外へ移動させ、保持している弾を無効化する
+    worldTransform_.SetTranslate({ 10000.0f, 10000.0f, 10000.0f });
+    for (EnemyBullet* b : bullets_)
+    {
+        if (b) b->OnCollision();
+    }
+
+    // 敵を非アクティブ化
+    isActive_ = false;
 }

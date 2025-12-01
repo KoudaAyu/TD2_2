@@ -23,6 +23,24 @@ void Object3dCom::ApplyCommonRenderState() {
 }
 
 /// <summary>
+/// 共通描画設定（Frontの向きと透明指定）
+/// </summary>
+void Object3dCom::ApplyCommonRenderState(bool frontCCW, bool transparent) {
+  // RootSignatureを設定
+  directXCom_->GetCommandList()->SetGraphicsRootSignature(rootSignature_.Get());
+  // PSOを選択（透明指定があれば透明用PSOを使う）
+  ID3D12PipelineState* pso = nullptr;
+  if (transparent) {
+    pso = frontCCW ? pipelineTransparentFrontCCW_.Get() : pipelineTransparentFrontCW_.Get();
+  } else {
+    pso = frontCCW ? pipelineFrontCCW_.Get() : pipelineFrontCW_.Get();
+  }
+  directXCom_->GetCommandList()->SetPipelineState(pso);
+  directXCom_->GetCommandList()->IASetPrimitiveTopology(
+      D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
+
+/// <summary>
 /// デフォルトカメラ生成ヘルパー
 /// </summary>
 Camera* Object3dCom::CreateDefaultCamera(const Vector3& translate) {
@@ -116,12 +134,13 @@ void Object3dCom::CreateRootSignature() {
       IID_PPV_ARGS(&rootSignature_));
   assert(SUCCEEDED(hr));
 }
+
 /// <summary>
 /// グラフィックスパイプラインの生成
 /// </summary>
 void Object3dCom::CreateGraphicsPipeline(){
 
-  // ルートシグネクチャの生成
+  // ルートシグネチャの生成
   CreateRootSignature();
 
   // InputLayer
@@ -198,5 +217,38 @@ void Object3dCom::CreateGraphicsPipeline(){
   desc.RasterizerState = rast;
   hr = directXCom_->GetDevice()->CreateGraphicsPipelineState(
       &desc, IID_PPV_ARGS(&pipelineFrontCW_));
+  assert(SUCCEEDED(hr));
+
+  // --- Create transparent variants ---
+  // Blend: alpha blending
+  D3D12_BLEND_DESC blendTrans = {};
+  blendTrans.RenderTarget[0].BlendEnable = TRUE;
+  blendTrans.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+  blendTrans.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+  blendTrans.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+  blendTrans.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+  blendTrans.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+  blendTrans.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+  blendTrans.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+  // Depth: keep depth test but disable depth write for correct translucent sorting
+  D3D12_DEPTH_STENCIL_DESC depthNoWrite = depthStencilDesc;
+  depthNoWrite.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+
+  desc.BlendState = blendTrans;
+  desc.DepthStencilState = depthNoWrite;
+
+  // Transparent CCW
+  rast.FrontCounterClockwise = TRUE;
+  desc.RasterizerState = rast;
+  hr = directXCom_->GetDevice()->CreateGraphicsPipelineState(
+      &desc, IID_PPV_ARGS(&pipelineTransparentFrontCCW_));
+  assert(SUCCEEDED(hr));
+
+  // Transparent CW
+  rast.FrontCounterClockwise = FALSE;
+  desc.RasterizerState = rast;
+  hr = directXCom_->GetDevice()->CreateGraphicsPipelineState(
+      &desc, IID_PPV_ARGS(&pipelineTransparentFrontCW_));
   assert(SUCCEEDED(hr));
 }

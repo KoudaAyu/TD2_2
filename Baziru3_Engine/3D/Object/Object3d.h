@@ -34,13 +34,6 @@ private:
 
 	Vector4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
 
-	/*Transform cameraTransform_;
-
-	float fovY_ = 0.45f;
-	float aspectRatio_ = 1.0f;
-	float nearZ_ = 0.1f;
-	float farZ_ = 100.0f;*/
-
 	/// ==================================
 	/// マテリアルリソース
 	/// ==================================
@@ -76,6 +69,8 @@ public:
 	/// 描画
 	/// </summary>
 	void Draw();
+	// New overload to allow transparent rendering
+	void Draw(bool transparent);
 	// モデルの設定
 	void SetModel(const std::string& filePath);
 	// セッター
