@@ -20,8 +20,7 @@ private:
   Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineFrontCCW_ = nullptr;
   Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineFrontCW_ = nullptr;
 
-  // 追加: 透明用のPSO（DepthWriteDisabled + BlendEnable）
-  Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineTransparentFrontCCW_ = nullptr;
+   Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineTransparentFrontCCW_ = nullptr;
   Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineTransparentFrontCW_ = nullptr;
 
   //カメラ

@@ -136,13 +136,13 @@ void Object3d::Draw() {
 /// 描画 (透明指定あり)
 /// </summary>
 void Object3d::Draw(bool transparent) {
-  // Use transparent or opaque PSO
+
   object3dCom_->ApplyCommonRenderState(true, transparent);
 
   object3dCom_->GetDirectXCom()->GetCommandList()->IASetPrimitiveTopology(
       D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-  // CBV / SRV / Light
+ 
   object3dCom_->GetDirectXCom()
       ->GetCommandList()
       ->SetGraphicsRootConstantBufferView(

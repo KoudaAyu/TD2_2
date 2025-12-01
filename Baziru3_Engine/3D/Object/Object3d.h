@@ -69,7 +69,7 @@ public:
 	/// 描画
 	/// </summary>
 	void Draw();
-	// New overload to allow transparent rendering
+	
 	void Draw(bool transparent);
 	// モデルの設定
 	void SetModel(const std::string& filePath);

@@ -219,8 +219,7 @@ void Object3dCom::CreateGraphicsPipeline(){
       &desc, IID_PPV_ARGS(&pipelineFrontCW_));
   assert(SUCCEEDED(hr));
 
-  // --- Create transparent variants ---
-  // Blend: alpha blending
+ 
   D3D12_BLEND_DESC blendTrans = {};
   blendTrans.RenderTarget[0].BlendEnable = TRUE;
   blendTrans.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
@@ -231,21 +230,20 @@ void Object3dCom::CreateGraphicsPipeline(){
   blendTrans.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
   blendTrans.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
-  // Depth: keep depth test but disable depth write for correct translucent sorting
   D3D12_DEPTH_STENCIL_DESC depthNoWrite = depthStencilDesc;
   depthNoWrite.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 
   desc.BlendState = blendTrans;
   desc.DepthStencilState = depthNoWrite;
 
-  // Transparent CCW
+ 
   rast.FrontCounterClockwise = TRUE;
   desc.RasterizerState = rast;
   hr = directXCom_->GetDevice()->CreateGraphicsPipelineState(
       &desc, IID_PPV_ARGS(&pipelineTransparentFrontCCW_));
   assert(SUCCEEDED(hr));
 
-  // Transparent CW
+ 
   rast.FrontCounterClockwise = FALSE;
   desc.RasterizerState = rast;
   hr = directXCom_->GetDevice()->CreateGraphicsPipelineState(
