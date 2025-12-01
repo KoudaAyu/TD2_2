@@ -108,9 +108,9 @@ void SrvManager::CreateSRVforStructureBuffer(uint32_t srvIndex,
 /// 描画
 /// </summary>
 void SrvManager::PreDraw() {
-  Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap[] = {
-      descriptorHeap_.Get()};
-  directXCom_->GetCommandList()->SetDescriptorHeaps(1, descriptorHeap->GetAddressOf());
+  // Set the descriptor heap(s) using raw ID3D12DescriptorHeap* array as required by D3D12
+  ID3D12DescriptorHeap* heaps[] = { descriptorHeap_.Get() };
+  directXCom_->GetCommandList()->SetDescriptorHeaps(1, heaps);
 }
 
 void SrvManager::SetGraphicsRootDescriptorTable(UINT RootParameterIndex,
