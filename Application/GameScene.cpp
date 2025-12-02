@@ -59,14 +59,24 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 		auto* pm = ParticleManager::GetInstance();
 		if (pm) {
 			if (model_ && model_->GetModel()) {
+				
+				pm->CreateParticleGroupFromModel("default", "apple.obj");
+
+			
 				std::string texPath = model_->GetModel()->GetTexturePath();
 				if (!texPath.empty()) {
-					pm->CreateParticleGroup("default", texPath);
-					// store texture path for application sprite particles
+					pm->CreateParticleGroup("defaultSprite", texPath);
+				
 					particleTexturePath_ = texPath;
 				}
 
+			
 				pm->CreateParticleGroupFromModel("defaultMesh", "apple.obj");
+
+				
+				if (!pm->HasGroup("enemyMesh")) {
+					pm->CreateParticleGroupFromModel("enemyMesh", "wall.obj");
+				}
 			}
 		}
 	}
@@ -570,7 +580,7 @@ void GameScene::CheckAllCollisions()
 						
 						Transform tt; tt.Initialize();
 						tt.SetTranslate(posB);
-						tt.SetScale({0.3f, 0.3f, 0.3f});
+						tt.SetScale({0.12f, 0.12f, 0.12f});
 						o->ApplyState(tt, camera_, true);
 					
 						
