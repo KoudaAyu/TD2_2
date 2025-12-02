@@ -193,4 +193,19 @@ private:
     std::vector<Object3d*> droneObjs_;
     float droneModelScale_ = 0.45f;
 
+
+    void UpdatePhase5();
+    int phase5BurstTimer_ = 0;           // フレームカウント
+    int phase5BurstInterval_ = 30;       // 間隔（フレーム） -- 増やして間隔を開ける
+    int phase5BulletsPerBurst_ = 6;      // 1 バーストあたりの弾数 -- 少なめに (レーン数として利用)
+    float phase5BulletSpeed_ = 0.85f;    // 弾速 -- 少し遅く
+    float phase5SpinRate_ = 0.06f;       // バースト毎の角度進行量 (未使用だが残す)
+    float phase5Angle_ = 0.0f;           // 現在の回転角
+
+ 
+    float phase5LaneSpacing_ = 1.2f;     // レーン間隔
+    bool phase5SweepMode_ = false;       // スイープモード有無（横に流す）
+    float phase5SweepSpeed_ = 0.18f;     // スイープ時の横速度
+    int phase5BurstCount_ = 0;           // バースト発生回数
+
 };

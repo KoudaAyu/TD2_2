@@ -34,6 +34,21 @@ public:
 	// 寿命（フレーム数）を設定。0 以下なら無制限。
 	void SetLifeDuration(int frames) { lifeDuration_ = frames; lifeTimer_ = 0; }
 
+	// 色を変更（描画モデルと内部モデルの色）
+	void SetColor(const Vector4& color);
+	// スケールを変更
+	void SetScale(const Vector3& scale);
+
+	// 横振動移動を有効化
+	void EnableOscillation(float amplitude, float frequency)
+	{
+		isOscillating_ = true;
+		oscAmplitude_ = amplitude;
+		oscFrequency_ = frequency; // Hz
+		ageSeconds_ = 0.0f;
+		spawnX_ = worldTransform_.GetTranslate().x;
+	}
+
 public:
 	bool IsActive() const { return isActive_; }
 
@@ -65,5 +80,12 @@ private:
 	Transform worldTransform_ = {};
 	Object3d* model_ = nullptr;
 	Object3dCom* object3dCom_ = nullptr;
+
+
+	bool isOscillating_ = false;
+	float oscAmplitude_ = 0.0f; // world units
+	float oscFrequency_ = 0.0f; // Hz
+	float ageSeconds_ = 0.0f;
+	float spawnX_ = 0.0f;
 
 };
