@@ -4,7 +4,6 @@
 #include "Model.h"
 #include "Random.h"
 
-// UI
 #include "UIManager.h"
 #include "UIButton.h"
 #include "Logger.h"
@@ -106,7 +105,7 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 	waveDelayTimer_ = 0.0f;
 
 	skydome_ = new Skydome();
-	skydome_->Initialize(object3dCom_, camera_);
+skydome_->Initialize(object3dCom_, camera_);
 }
 
 static Vector2 WorldToScreen(const Vector3& world, Camera* cam, int screenW, int screenH)
@@ -413,6 +412,34 @@ void GameScene::CheckAllCollisions()
 		}
 	}
 
+	// ▼ 弾同士の当たり判定（小さなメッシュパーティクルを出す）
+	{
+		auto* pm = ParticleManager::GetInstance();
+		if (!enemyBullets.empty()) {
+			for (auto it = enemyBullets.begin(); it != enemyBullets.end(); ++it) {
+				EnemyBullet* b1 = *it;
+				if (!b1 || !b1->IsActive()) continue;
+				Vector3 p1 = b1->GetWorldTranslate();
+				auto it2 = it; ++it2;
+				for (; it2 != enemyBullets.end(); ++it2) {
+					EnemyBullet* b2 = *it2;
+					if (!b2 || !b2->IsActive()) continue;
+					Vector3 p2 = b2->GetWorldTranslate();
+					float dist = Distance(p1, p2);
+					const float kBulletCollisionThreshold = 0.6f;
+					if (dist < kBulletCollisionThreshold) {
+						Vector3 mid = { (p1.x + p2.x) * 0.5f, (p1.y + p2.y) * 0.5f, (p1.z + p2.z) * 0.5f };
+						if (pm) {
+							pm->EmitBurst8("defaultMesh", mid, 0.06f, 0.18f, 0.6f);
+						}
+						b1->OnCollision();
+						b2->OnCollision();
+					}
+				}
+			}
+		}
+	}
+
 #pragma region 自キャラと敵の弾の当たり判定
 	posA = player_->GetWorldTranslate();
 	for (EnemyBullet* bullet : enemyBullets)
@@ -486,24 +513,36 @@ void GameScene::CheckAllCollisions()
 
 #pragma region バリアと敵の弾の当たり判定
     // すべての弾に対して、任意のアクティブなバリアと衝突したら弾を無効化
-    for (EnemyBullet* bullet : enemyBullets)
     {
-        if (!bullet->IsActive()) continue;
-        posB = bullet->GetWorldTranslate();
-
-        for (const PlayerBarrier* barrier : barriers)
+        auto* pm = ParticleManager::GetInstance();
+        for (EnemyBullet* bullet : enemyBullets)
         {
-            if (!barrier) continue;
-            if (!barrier->IsActive()) continue;
+            if (!bullet->IsActive()) continue;
+            posB = bullet->GetWorldTranslate();
 
-            posA = barrier->GetWorldTranslate();
-
-            float distance = Distance(posA, posB);
-            const float threshold = 1.0f; // バリアのサイズに合わせて調整
-            if (distance < threshold)
+            for (const PlayerBarrier* barrier : barriers)
             {
-                bullet->OnCollision();
-                break; // この弾は処理済みなので次の弾へ
+                if (!barrier) continue;
+                if (!barrier->IsActive()) continue;
+
+                posA = barrier->GetWorldTranslate();
+
+                float distance = Distance(posA, posB);
+                const float threshold = 1.0f; // バリアのサイズに合わせて調整
+                if (distance < threshold)
+                {
+                    // 視覚演出: 小さなメッシュ / テクスチャパーティクル
+                    if (pm) {
+                        Vector3 emitPos = posB;
+                        emitPos.z += 0.2f; // 少し手前に出す
+                        pm->EmitBurst8("default", emitPos, 0.06f, 0.12f, 0.45f);
+                        pm->EmitBurst8("defaultMesh", emitPos, 0.04f, 0.10f, 0.55f);
+                    }
+
+                    // 弾は無効化する（バリア自体は状態を変えない）
+                    bullet->OnCollision();
+                    break; // この弾は処理済みなので次の弾へ
+                }
             }
         }
     }
