@@ -171,4 +171,26 @@ private:
     float laserWidth_ = 0.6f;       // 幅(X,Y方向スケール)
     Vector4 laserChargeColor_ = {1.0f, 0.3f, 0.3f, 0.7f};
     Vector4 laserFireColor_ = {1.0f, 0.9f, 0.2f, 1.0f};
+
+    // --- Phase3: 周回ドローン + 狭角連射 ---
+    void UpdatePhase3();
+
+    struct Drone {
+        float angle = 0.0f;        
+        float radius = 2.4f;      
+        float orbitSpeed = 0.06f;  
+        int shootTimer = 0;        
+        int shootInterval = 45;    
+        bool active = true;
+    };
+
+    std::vector<Drone> drones_;
+    int phase3DroneCount_ = 4;
+    int phase3Timer_ = 0;
+    float phase3BulletSpeed_ = 0.9f;
+
+   
+    std::vector<Object3d*> droneObjs_;
+    float droneModelScale_ = 0.45f;
+
 };

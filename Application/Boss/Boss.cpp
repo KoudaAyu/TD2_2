@@ -23,6 +23,13 @@ Boss::~Boss()
     }
     bullets_.clear();
 
+    // drone visuals cleanup
+    for (auto* o : droneObjs_)
+    {
+        if (o) { delete o; }
+    }
+    droneObjs_.clear();
+
     // スプライト解放
     for (auto s : phaseSprites_)
     {
@@ -171,6 +178,38 @@ void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object
         // 画面外に退避
         laserModel_->SetTranslate({ 10000.0f, 10000.0f, 10000.0f });
         laserModel_->ApplyState(Transform{ laserModel_->GetScale(), {0,0,0}, laserModel_->GetTranslate() }, camera_, true);
+    }
+
+   
+    drones_.clear();
+    drones_.resize(phase3DroneCount_);
+    droneObjs_.clear();
+
+    const float twoPi = 2.0f * 3.14159265f;
+    for (int i = 0; i < phase3DroneCount_; ++i)
+    {
+        float ang = twoPi * static_cast<float>(i) / static_cast<float>(phase3DroneCount_);
+        drones_[i].angle = ang;
+        drones_[i].radius = 2.4f;
+        drones_[i].orbitSpeed = 1.2f; 
+        drones_[i].shootTimer = 0;
+        drones_[i].shootInterval = 45 + (i * 5); 
+        drones_[i].active = true;
+
+       
+        Object3d* dObj = new Object3d();
+        dObj->Initialize(object3dCom_);
+        if (model_ && model_->GetModel())
+        {
+            dObj->SetModel(new Model(*model_->GetModel()));
+            dObj->SetScale({ droneModelScale_, droneModelScale_, droneModelScale_ });
+           
+            dObj->SetColor({ 0.7f, 0.9f, 1.0f, 1.0f });
+        }
+      
+        dObj->SetTranslate({ 10000.0f, 10000.0f, 10000.0f });
+        dObj->ApplyState(Transform{ dObj->GetScale(), dObj->GetRotate(), dObj->GetTranslate() }, camera_, true);
+        droneObjs_.push_back(dObj);
     }
 }
 
@@ -344,7 +383,6 @@ void Boss::UpdatePhase2()
     }
 }
 
-
 void Boss::UpdatePhase4()
 {
     if (!laserModel_) return;
@@ -453,33 +491,6 @@ void Boss::UpdatePhase4()
     else
     {
         // サイクル終了: 次ループまで非表示へ移動
-        auto* pm = ParticleManager::GetInstance();
-        if (pm)
-        {
-          
-            Vector3 lp = laserModel_->GetTranslate();
-            float length = laserModel_->GetScale().z;
-          
-            Vector3 tipPos = { lp.x, lp.y, lp.z - length * 0.5f };
-
-           
-            pm->EmitBurst8("default", tipPos, 0.25f, 0.6f, 0.9f);
-            pm->EmitBurst8("defaultMesh", tipPos, 0.18f, 0.9f, 1.0f);
-
-            
-            Vector3 bossPos = worldTransform_.GetTranslate();
-            pm->EmitBurst8Rotating("default", bossPos, 0.6f, 0.9f, 6.0f, 0.9f, true, 1.2f, 0.6f);
-
-          
-            pm->Emit("default", tipPos, 18);
-        }
-
-      
-        if (camera_)
-        {
-            camera_->StartShake(0.45f, 0.45f);
-        }
-
         laserActive_ = false;
         laserTimer_ = 0;
         laserModel_->SetTranslate({ 10000.0f, 10000.0f, 10000.0f });
@@ -487,6 +498,101 @@ void Boss::UpdatePhase4()
 
     // 行列反映
     laserModel_->ApplyState(Transform{ laserModel_->GetScale(), laserModel_->GetRotate(), laserModel_->GetTranslate() }, camera_, true);
+}
+
+void Boss::UpdatePhase3()
+{
+    if (!isActive_) return;
+
+    const float dt = 1.0f / 60.0f;
+    const float twoPi = 2.0f * 3.14159265f;
+    Vector3 bossPos = worldTransform_.GetTranslate();
+
+    for (size_t i = 0; i < drones_.size(); ++i)
+    {
+        Drone& d = drones_[i];
+        if (!d.active) continue;
+
+        // advance orbit
+        d.angle += d.orbitSpeed * dt;
+        if (d.angle > twoPi) d.angle -= twoPi;
+
+       
+        Vector3 dronePos = bossPos;
+        dronePos.x += std::cos(d.angle) * d.radius;
+        dronePos.y += std::sin(d.angle) * d.radius;
+        dronePos.z = bossPos.z; 
+
+       
+        if (i < droneObjs_.size() && droneObjs_[i])
+        {
+            Object3d* dobj = droneObjs_[i];
+            dobj->SetTranslate(dronePos);
+            dobj->SetScale({ droneModelScale_, droneModelScale_, droneModelScale_ });
+            dobj->ApplyState(Transform{ dobj->GetScale(), dobj->GetRotate(), dobj->GetTranslate() }, camera_, true);
+        }
+
+       
+        ++d.shootTimer;
+        if (d.shootTimer >= d.shootInterval)
+        {
+            d.shootTimer = 0;
+
+            Vector3 target = GetPlayerWorldTranslate();
+            Vector3 baseDir = { target.x - dronePos.x, target.y - dronePos.y, target.z - dronePos.z };
+           
+            float len = std::sqrt(baseDir.x*baseDir.x + baseDir.y*baseDir.y + baseDir.z*baseDir.z);
+            if (len < 1e-6f) baseDir = { 0.0f, 0.0f, -1.0f };
+            else baseDir = { baseDir.x / len, baseDir.y / len, baseDir.z / len };
+
+          
+            const int coneCount = 3;
+            const float coneAngle = 0.18f; 
+            for (int ci = 0; ci < coneCount; ++ci)
+            {
+                float t = 0.0f;
+                if (coneCount > 1) t = (static_cast<float>(ci) / (coneCount - 1)) - 0.5f; // -0.5..0.5
+                float angOff = t * coneAngle;
+
+         
+                float dx = baseDir.x;
+                float dy = baseDir.y;
+                float dz = baseDir.z;
+                float ca = std::cos(angOff);
+                float sa = std::sin(angOff);
+                Vector3 dir = { ca * dx - sa * dy, sa * dx + ca * dy, dz };
+               
+                float l2 = std::sqrt(dir.x*dir.x + dir.y*dir.y + dir.z*dir.z);
+                if (l2 > 1e-6f) { dir.x /= l2; dir.y /= l2; dir.z /= l2; }
+
+                Vector3 vel = { dir.x * phase3BulletSpeed_, dir.y * phase3BulletSpeed_, dir.z * phase3BulletSpeed_ };
+
+                EnemyBullet* b = new EnemyBullet();
+                b->Initialize(model_, dronePos, object3dCom_, vel);
+                bullets_.push_back(b);
+            }
+
+            
+        }
+    }
+
+   
+    for (EnemyBullet* b : bullets_)
+    {
+        if (b) b->Update();
+    }
+
+   
+    ++phase3Timer_;
+    if (phase3Timer_ > 60)
+    {
+        phase3Timer_ = 0;
+        if (camera_ && cameraShakeCooldown_ <= 0.0f)
+        {
+            camera_->StartShake(0.15f, 0.12f);
+            cameraShakeCooldown_ = kCameraShakeCooldownSeconds;
+        }
+    }
 }
 
 void Boss::Update()
@@ -559,6 +665,10 @@ void Boss::Update()
     {
         UpdatePhase2();
     }
+    else if (phase_ == Phase::Phase3)
+    {
+        UpdatePhase3();
+    }
     else if (phase_ == Phase::Phase4)
     {
         UpdatePhase4();
@@ -602,6 +712,15 @@ void Boss::Draw()
     for (auto& p : parts_)
     {
         if (p) p->Draw();
+    }
+
+   
+    if (phase_ == Phase::Phase3)
+    {
+        for (auto* o : droneObjs_)
+        {
+            if (o) o->Draw();
+        }
     }
 
     if (phase_ == Phase::Phase4 && laserModel_ && laserActive_)
