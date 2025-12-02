@@ -3,6 +3,7 @@
 #include"DebugCamera.h"
 #include"Enemy.h"
 #include"KeyInput.h"
+#include"Skydome.h"
 #include"Object3d.h"
 #include"Object3dCom.h"
 #include"Player.h"
@@ -11,6 +12,11 @@
 #include"Boss.h"
 
 #include <vector>
+#include <string>
+#include <memory>
+
+// UI
+#include "Application/UI/UIManager.h"
 
 class GameScene
 {
@@ -26,6 +32,8 @@ public:
 	/// </summary>
 	void CheckAllCollisions();
 
+	void InitializeUI(SpriteCom* spriteCom);
+
 public:
 	bool IsFinish() const { return isFinish_; }
 
@@ -36,6 +44,9 @@ private:
 
 	//敵の数
 	const int enemyCount = 5;
+
+	// 敵の出現Z位置（
+	float enemySpawnZ_ = 30.0f;
 
 private:
 
@@ -56,15 +67,38 @@ private:
 
 	Fade* fade_ = nullptr;
 
+	Skydome* skydome_ = nullptr;
 	
 	SpriteCom* spriteCom_ = nullptr;
+
+	// Application-level simple sprite particles for effects that need alpha-fade
+	struct AppParticle {
+		Sprite* sprite = nullptr;
+		float life = 1.0f;
+		float age = 0.0f;
+		Vector2 pos; // screen position
+		Vector2 vel;
+	};
+	std::vector<AppParticle> appParticles_;
+	// texture used for application particles (set during Initialize)
+	std::string particleTexturePath_;
+
+	// Application-level mesh particles (OBJ) that fade over time
+	struct AppMeshParticle {
+		Object3d* obj = nullptr; // owns Object3d
+		Model* model = nullptr;   // owns Model copy
+		float life = 1.0f;
+		float age = 0.0f;
+		Vector3 vel; // world-space velocity
+	};
+	std::vector<AppMeshParticle> appMeshParticles_;
 
 	enum class Phase { kMain, kBoss, kFadeOut };
 	Phase phase_ = Phase::kMain;
 
 	
 	int currentWave_ = 0;
-	int maxWaves_ = 2;
+	int maxWaves_ = 4; 
 	void SpawnWave();
 
 	bool isWaitingForNextWave_ = false;
@@ -74,5 +108,8 @@ private:
 #ifdef _DEBUG
 	void ResetScene();
 #endif
+
+	// UI manager for this scene
+	UIManager uiManager_;
 
 };

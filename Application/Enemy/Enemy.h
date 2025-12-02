@@ -1,5 +1,4 @@
 #pragma once
-
 #include<list>
 
 #include"Camera.h"
@@ -21,6 +20,13 @@ public:
 		Leave,//離脱する
 	};;
 
+	// 攻撃パターンを外部から設定できるように追加
+	enum class AttackPattern
+	{
+		Straight, // まっすぐ弾を撃つ
+		Aim,      // プレイヤー狙い
+		Rapid     // 連射・多弾
+	};
 
 public:
 
@@ -91,12 +97,23 @@ public:
 	// 離脱中など当たり判定を無効にする場合に使用
 	bool IsCollidable() const { return collidable_; }
 
+	// 攻撃パターンの設定
+	void SetAttackPattern(AttackPattern p) { attackPattern_ = p; }
+	// 発射間隔を外から上書き（0 でデフォルト）
+	void SetFireInterval(int interval) { fireIntervalOverride_ = interval; }
+	// 弾速を設定
+	void SetBulletSpeed(float sp) { bulletSpeed_ = sp; }
+	// ランダムに初期発射オフセットを作るかどうか
+	void SetRandomizeInitialFire(bool v) { randomizeInitialFireOffset_ = v; }
+	// 初回発射までの個別遅延（フレーム）を設定
+	void SetInitialFireDelay(int frames) { initialFireDelay_ = frames; }
+
 private:
 	
 	//フェーズ
 	Phase phase_ = Phase::Spawn;
 	//接近時の速度
-	Vector3 approachVelocity = { 0.0f, 0.0f, -0.2f };
+	Vector3 approachVelocity = { 0.0f, 0.0f, -0.06f };
 	//離脱時の速度 (初期は0、離脱開始時に設定する)
 	Vector3 leaveVelocity = { 0.0f, 0.0f, -0.2f };
 
@@ -119,9 +136,23 @@ private:
 
 	//弾関係
 	//発射間隔
-	static const int kFireInterval = 20;
+	static const int kFireInterval = 60; 
 	//発射タイマー
 	int32_t fireTimer_ = 0;
+	// 上書き可能な発射間隔
+	int fireIntervalOverride_ = 0;
+
+	// 攻撃パターン
+	AttackPattern attackPattern_ = AttackPattern::Straight;
+
+	// 弾の速さ（外部から変更可）
+	float bulletSpeed_ = 2.0f; 
+
+	// ランダム化フラグ（初期発射オフセットをランダム化する）
+	bool randomizeInitialFireOffset_ = false;
+
+	// 初回発射までの個別遅延（フレーム）。-1なら使用しない
+	int initialFireDelay_ = -1;
 
 private:
 	Camera* camera_ = nullptr;

@@ -50,7 +50,7 @@ void Enemy::Update()
 		switch (phase_)
 	{
 			case Phase::Spawn:
-		{
+			{
 				SpawnUpdate();
 				break;
 			}
@@ -91,31 +91,81 @@ void Enemy::Fire()
 {
 	if (!isActive_) return; // 非アクティブ時は発射しない
 
-	Object3d* bulletModel = new Object3d();
-	bulletModel->Initialize(object3dCom_);
-
-
-	if (model_)
+	// 発射パターンごとに挙動を分ける
+	switch (attackPattern_)
 	{
-		if (auto* src = model_->GetModel())
+		case AttackPattern::Straight:
 		{
+			Object3d* bulletModel = new Object3d();
+			bulletModel->Initialize(object3dCom_);
 
-			bulletModel->SetModel(new Model(*src));
 
-			const Vector4 bulletColor{ 1.0f, 0.2f, 0.2f, 1.0f };
-			bulletModel->GetModel()->SetColor(bulletColor);
-			bulletModel->SetColor(bulletColor);
+			if (model_)
+			{
+				if (auto* src = model_->GetModel())
+				{
+
+					bulletModel->SetModel(new Model(*src));
+
+					const Vector4 bulletColor{ 1.0f, 0.2f, 0.2f, 1.0f };
+					bulletModel->GetModel()->SetColor(bulletColor);
+					bulletModel->SetColor(bulletColor);
+				}
+			}
+
+			EnemyBullet* bullet_ = new EnemyBullet();
+			Vector3 spawnPos = worldTransform_.GetTranslate();
+			spawnPos.z -= 1.0f;
+			Vector3 bulletVelocity{ 0.0f, 0.0f, -bulletSpeed_ };
+			bullet_->Initialize(bulletModel, spawnPos, object3dCom_, bulletVelocity);
+
+			//弾を登録する
+			bullets_.push_back(bullet_);
+			break;
+		}
+		case AttackPattern::Aim:
+		{
+			// プレイヤー狙いの弾を1発
+			AimBullet();
+			break;
+		}
+		case AttackPattern::Rapid:
+		{
+			// 連射モード: 簡易的に3方向にばらまく
+			const float kSpeed = bulletSpeed_ * 1.2f;
+			const int shotCount = 3;
+			const float spread = 0.22f; // 横方向の角度オフセット
+
+			for (int i = 0; i < shotCount; ++i)
+			{
+				float t = (float)i / (shotCount - 1) - 0.5f; // -0.5..0.5
+				float ang = t * spread; // radians approx
+
+				// compute direction rotated around Y axis (horizontal spread)
+				float dx = std::sin(ang);
+				float dz = -std::cos(ang);
+				Vector3 vel = { dx * kSpeed, 0.0f, dz * kSpeed };
+
+				Object3d* bulletModel = new Object3d();
+				bulletModel->Initialize(object3dCom_);
+				if (model_ && model_->GetModel())
+				{
+					bulletModel->SetModel(new Model(*model_->GetModel()));
+					const Vector4 bulletColor{ 1.0f, 0.2f, 0.2f, 1.0f };
+					bulletModel->GetModel()->SetColor(bulletColor);
+					bulletModel->SetColor(bulletColor);
+				}
+
+				EnemyBullet* b = new EnemyBullet();
+				Vector3 spawnPos = worldTransform_.GetTranslate();
+				spawnPos.z -= 1.0f;
+				b->Initialize(bulletModel, spawnPos, object3dCom_, vel);
+				bullets_.push_back(b);
+			}
+
+			break;
 		}
 	}
-
-	EnemyBullet* bullet_ = new EnemyBullet();
-	Vector3 spawnPos = worldTransform_.GetTranslate();
-	spawnPos.z -= 1.0f;
-	Vector3 bulletVelocity{ 0.0f, 0.0f, -1.0f };
-	bullet_->Initialize(bulletModel, spawnPos, object3dCom_, bulletVelocity);
-
-	//弾を登録する
-	bullets_.push_back(bullet_);
 }
 
 void Enemy::AimBullet()
@@ -219,7 +269,23 @@ void Enemy::SpawnUpdate()
 
 void Enemy::ApproachInitialize()
 {
-	fireTimer_ = kFireInterval;
+	// If an explicit initial delay is set, use it for the first shot
+	if (initialFireDelay_ >= 0)
+	{
+		fireTimer_ = initialFireDelay_;
+		return;
+	}
+
+	// fire interval can be overridden by caller (wave settings)
+	int interval = (fireIntervalOverride_ > 0) ? fireIntervalOverride_ : kFireInterval;
+	fireTimer_ = interval;
+
+	// ランダム初期オフセットを有効にしている場合はタイマーを少しずらす
+	if (randomizeInitialFireOffset_)
+	{
+		float r = Random::GeneratorFloat(0.0f, static_cast<float>(fireTimer_));
+		fireTimer_ = static_cast<int>(r);
+	}
 }
 
 void Enemy::ApproachUpdate()
@@ -230,7 +296,9 @@ void Enemy::ApproachUpdate()
 	if (--fireTimer_ <= 0)
 	{
 		Fire();
-		fireTimer_ = kFireInterval;
+		int interval = (fireIntervalOverride_ > 0) ? fireIntervalOverride_ : kFireInterval;
+		fireTimer_ = interval;
+		// if randomize initial offset is active, we only randomized initial timer; normal reset keeps interval
 	}
 
 	if (worldTransform_.GetTranslate().z < 0.0f)
@@ -340,39 +408,54 @@ void Enemy::LeaveUpdate()
 // 衝突処理の実装
 void Enemy::OnCollision()
 {
-	Vector3 emitCenter = worldTransform_.GetTranslate();
-	auto* pm = ParticleManager::GetInstance();
-	if (pm)
-	{
-		Vector3 emitPos = emitCenter;
-		emitPos.z += 0.5f; 
-	
-		pm->Emit("default", emitPos, 24); 
+    Vector3 emitCenter = worldTransform_.GetTranslate();
+    auto* pm = ParticleManager::GetInstance();
+    if (pm)
+    {
+        Vector3 emitPos = emitCenter;
+        emitPos.z += 0.5f;
 
-		
-		pm->EmitBurst8Rotating("defaultMesh", emitPos,
-			0.0f,   
-			1.2f, 
-			Random::GeneratorFloat(-10.0f, 10.0f), 
-			1.2f,  
-			true,
-			1.5f,   
-			0.0f);
+        // 中心を強調する少し大きめのオムニバースト（1回）
+        pm->Emit("default", emitPos, 32);
 
-	
-		pm->EmitBurst8("defaultMesh", emitPos, 0.35f, 1.2f, 1.2f);
+        // メッシュ片を回転・外向きに飛ばす（スケールを控えめに）
+        pm->EmitBurst8Rotating("defaultMesh", emitPos,
+            0.0f,   // startRadius
+            1.0f,   // life
+            Random::GeneratorFloat(-8.0f, 8.0f), // angularVel
+            0.9f,   // scale (小さめに)
+            true,
+            1.8f,   // radialSpeed (外へ)
+            0.3f);  // radialAccel
 
-		
-		pm->EmitBurst8("default", emitPos, 0.35f, 1.0f, 1.0f);
-	}
+        // 一度外側に弾けたあと、中心へ収束する内向きの渦（スケールを小さく）
+        pm->EmitBurst8RotatingInward("default", emitPos,
+            3.0f,   // startRadius（外側スタート）
+            0.8f,   // life
+            Random::GeneratorFloat(-5.0f, 5.0f), // angularVel
+            0.6f,   // scale (小さめ)
+            1.6f,   // radialSpeedAbs (収縮の速さ)
+            1.2f);  // radialAccelAbs
 
-	// 衝突を受けたら簡単に画面外へ移動させ、保持している弾を無効化する
-	worldTransform_.SetTranslate({ 10000.0f, 10000.0f, 10000.0f });
-	for (EnemyBullet* b : bullets_)
-	{
-		if (b) b->OnCollision();
-	}
+        // 小さめの光片を散らしてディテールを追加（スケール小）
+        pm->EmitBurst8("default", emitPos, 0.25f, 0.5f, 0.9f);
+        pm->EmitBurst8("defaultMesh", emitPos, 0.28f, 0.45f, 0.95f);
+    }
 
-	// 敵を非アクティブ化
-	isActive_ = false;
+    // カメラの演出（衝撃を強めに）
+    if (camera_)
+    {
+        // 少し長めで強めの揺れ
+        camera_->StartShake(0.8f, 0.6f);
+    }
+
+    // 衝突を受けたら簡単に画面外へ移動させ、保持している弾を無効化する
+    worldTransform_.SetTranslate({ 10000.0f, 10000.0f, 10000.0f });
+    for (EnemyBullet* b : bullets_)
+    {
+        if (b) b->OnCollision();
+    }
+
+    // 敵を非アクティブ化
+    isActive_ = false;
 }

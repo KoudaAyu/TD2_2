@@ -2,6 +2,7 @@
 #include<algorithm>
 #include<cassert>
 #include "../../Baziru3_Engine/IO/XBox/Controller.h"
+#include "ParticleManager.h"
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
@@ -238,6 +239,16 @@ void Player::OnCollision()
 #ifndef _DEBUG
 	isAlive_ = false;
 #endif
+
+	// 小さなメッシュ(OBJ)パーティクルエフェクトを追加
+	auto* pm = ParticleManager::GetInstance();
+	if (pm)
+	{
+		Vector3 emitPos = worldTransform_.GetTranslate();
+		emitPos.z += 0.5f; // 少し手前に出す
+		// OBJベースの8方向バーストを生成（メッシュグループを使用）
+		pm->EmitBurst8("defaultMesh", emitPos, 0.12f, 0.25f, 0.8f);
+	}
 
 	// カメラがある場合は衝突時にカメラを揺らす
 	if (camera_)

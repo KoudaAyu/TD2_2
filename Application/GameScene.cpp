@@ -1,5 +1,13 @@
 #include "GameScene.h"
-#include "Baziru3_Engine/Particle/ParticleManager.h"
+#include "ParticleManager.h"
+#include "Sprite.h"
+#include "Model.h"
+#include "Random.h"
+
+#include "UIManager.h"
+#include "UIButton.h"
+#include "Logger.h"
+#include <format>
 
 GameScene::~GameScene()
 {
@@ -27,7 +35,10 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 	camera_->Initialize();
 
 	keyInput_ = KeyInput::GetInstance();
-	spriteCom_ = spriteCom;
+	spriteCom_ = spriteCom; 
+
+	InitializeUI(spriteCom);
+	
 
 #ifdef _DEBUG
 	// 画面サイズから DebugCamera を初期化 (幅/高さは DirectXCom 経由で取得する想定)
@@ -37,29 +48,42 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 	debugCamera_->Initialize();
 #endif
 
-	model_ = Object3d::Create(object3dCom_, "apple.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera);
-	Object3d* enemyModelTemplate = Object3d::Create(object3dCom_, "wall.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera);
-
+	model_ = Object3d::Create(object3dCom_, "apple.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera_);
+	Object3d* enemyModelTemplate = Object3d::Create(object3dCom_, "wall.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera_);
+			
 	player_ = new Player();
 	player_->Initialize(model_, camera, { 0.0f,0.0f,0.0f }, object3dCom);
 
 	{
 		auto* pm = ParticleManager::GetInstance();
 		if (pm) {
-			
 			if (model_ && model_->GetModel()) {
+				
+				pm->CreateParticleGroupFromModel("default", "apple.obj");
+
+			
 				std::string texPath = model_->GetModel()->GetTexturePath();
 				if (!texPath.empty()) {
-					pm->CreateParticleGroup("default", texPath);
+					pm->CreateParticleGroup("defaultSprite", texPath);
+				
+					particleTexturePath_ = texPath;
 				}
+
 			
 				pm->CreateParticleGroupFromModel("defaultMesh", "apple.obj");
+
+				
+				if (!pm->HasGroup("enemyMesh")) {
+					pm->CreateParticleGroupFromModel("enemyMesh", "wall.obj");
+				}
 			}
 		}
 	}
 
 	currentWave_ = 0;
 	phase_ = Phase::kMain;
+
+	if (maxWaves_ < 1) maxWaves_ = 4;
 	SpawnWave();
 
 	railCameraController_ = new RailCameraController();
@@ -79,36 +103,32 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 
 	isWaitingForNextWave_ = false;
 	waveDelayTimer_ = 0.0f;
+
+	skydome_ = new Skydome();
+skydome_->Initialize(object3dCom_, camera_);
 }
 
-#ifdef _DEBUG
-void GameScene::ResetScene()
+static Vector2 WorldToScreen(const Vector3& world, Camera* cam, int screenW, int screenH)
 {
-
-	for (Enemy* enemy : enemies_)
-	{
-		delete enemy;
-	}
-	enemies_.clear();
-
-	if (player_) { delete player_; player_ = nullptr; }
-	if (railCameraController_) { delete railCameraController_; railCameraController_ = nullptr; }
-	if (boss_) { delete boss_; boss_ = nullptr; }
-	if (bossBodyModel_) { delete bossBodyModel_; bossBodyModel_ = nullptr; }
-	if (fade_) { delete fade_; fade_ = nullptr; }
-
-
-	currentWave_ = 0;
-
-	isWaitingForNextWave_ = false;
-	waveDelayTimer_ = 0.0f;
-
-	Initialize(camera_, object3dCom_, spriteCom_);
+	const Matrix4x4& vp = cam->GetViewProjectionMatrix();
+	float x = world.x * vp.m[0][0] + world.y * vp.m[1][0] + world.z * vp.m[2][0] + vp.m[3][0];
+	float y = world.x * vp.m[0][1] + world.y * vp.m[1][1] + world.z * vp.m[2][1] + vp.m[3][1];
+	float z = world.x * vp.m[0][2] + world.y * vp.m[1][2] + world.z * vp.m[2][2] + vp.m[3][2];
+	float w = world.x * vp.m[0][3] + world.y * vp.m[1][3] + world.z * vp.m[2][3] + vp.m[3][3];
+	if (w == 0.0f) w = 1e-6f;
+	float nx = x / w;
+	float ny = y / w;
+	// NDC -> screen
+	float sx = (nx * 0.5f + 0.5f) * static_cast<float>(screenW);
+	float sy = (-ny * 0.5f + 0.5f) * static_cast<float>(screenH);
+	return { sx, sy };
 }
-#endif
 
 void GameScene::Update()
 {
+	
+	uiManager_.UpdateAll();
+
 #ifdef _DEBUG
 #ifdef USE_IMGUI
 	// ImGuiフレーム中 (ImGuiManager::Begin() 呼び出し後) にのみUI描画
@@ -153,26 +173,11 @@ void GameScene::Update()
 		if (currentWave_ + 1 < maxWaves_)
 		{
 
-			if (!isWaitingForNextWave_)
-			{
+			for (Enemy* enemy : enemies_) { delete enemy; }
+			enemies_.clear();
+			++currentWave_;
+			SpawnWave();
 
-				for (Enemy* enemy : enemies_) { delete enemy; }
-				enemies_.clear();
-
-				isWaitingForNextWave_ = true;
-				waveDelayTimer_ = waveDelay_;
-			}
-			else
-			{
-				const float dt = 1.0f / 60.0f;
-				waveDelayTimer_ -= dt;
-				if (waveDelayTimer_ <= 0.0f)
-				{
-					isWaitingForNextWave_ = false;
-					++currentWave_;
-					SpawnWave();
-				}
-			}
 		}
 		else
 		{
@@ -225,25 +230,12 @@ void GameScene::Update()
 		if (currentWave_ + 1 < maxWaves_)
 		{
 
-			if (!isWaitingForNextWave_)
-			{
-				for (Enemy* e : enemies_) { delete e; }
-				enemies_.clear();
+			
+			for (Enemy* enemy : enemies_) { delete enemy; }
+			enemies_.clear();
+			++currentWave_;
+			SpawnWave();
 
-				isWaitingForNextWave_ = true;
-				waveDelayTimer_ = waveDelay_;
-			}
-			else
-			{
-				const float dt = 1.0f / 60.0f;
-				waveDelayTimer_ -= dt;
-				if (waveDelayTimer_ <= 0.0f)
-				{
-					isWaitingForNextWave_ = false;
-					++currentWave_;
-					SpawnWave();
-				}
-			}
 		}
 		else
 		{
@@ -287,11 +279,78 @@ void GameScene::Update()
 		pm->Update(camera_->GetViewMatrix(), camera_->GetProjectionMatrix());
 	}
 
+	
+	const float dt = 1.0f / 60.0f;
+	if (!appParticles_.empty()) {
+		int screenW = object3dCom_->GetDirectXCom()->GetClientWidth();
+		int screenH = object3dCom_->GetDirectXCom()->GetClientHeight();
+		for (size_t i = 0; i < appParticles_.size();) {
+			auto &p = appParticles_[i];
+			p.age += dt;
+			if (p.sprite) {
+				
+				p.pos.x += p.vel.x * dt;
+				p.pos.y += p.vel.y * dt;
+				p.sprite->SetPosition(p.pos);
+				
+				float a = 1.0f - (p.age / p.life);
+				if (a < 0.0f) a = 0.0f;
+				Vector4 c = { 1.0f, 1.0f, 1.0f, a };
+				p.sprite->SetColor(c);
+				p.sprite->Update();
+			}
+			if (p.age >= p.life) {
+				if (p.sprite) { delete p.sprite; p.sprite = nullptr; }
+				
+				appParticles_.erase(appParticles_.begin() + i);
+			} else {
+				++i;
+			}
+		}
+	}
+
+
+	if (!appMeshParticles_.empty()) {
+		for (size_t i = 0; i < appMeshParticles_.size();) {
+			auto &mp = appMeshParticles_[i];
+			mp.age += dt;
+			
+			if (mp.obj) {
+				Vector3 cur = mp.obj->GetTranslate();
+				cur.x += mp.vel.x * dt;
+				cur.y += mp.vel.y * dt;
+				cur.z += mp.vel.z * dt;
+				mp.obj->SetTranslate(cur);
+			
+				float a = 1.0f - (mp.age / mp.life);
+				if (a < 0.0f) a = 0.0f;
+				if (mp.model) mp.model->SetColor({1.0f, 1.0f, 1.0f, a});
+				
+				Transform t;
+				t.Initialize();
+				t.SetScale(mp.obj->GetScale());
+				t.SetRotate(mp.obj->GetRotate());
+				t.SetTranslate(cur);
+				mp.obj->ApplyState(t, camera_, true);
+			}
+			if (mp.age >= mp.life) {
+				if (mp.obj) { delete mp.obj; mp.obj = nullptr; }
+				if (mp.model) { delete mp.model; mp.model = nullptr; }
+				appMeshParticles_.erase(appMeshParticles_.begin() + i);
+			} else {
+				++i;
+			}
+		}
+	}
+
+	skydome_->Update();
+
 	CheckAllCollisions();
 }
 
 void GameScene::Draw()
 {
+	skydome_->Draw();
 
 	for (Enemy* enemy : enemies_)
 	{
@@ -301,11 +360,24 @@ void GameScene::Draw()
 
 	if (boss_) boss_->Draw();
 
-	
-	auto* pm = ParticleManager::GetInstance();
+		auto* pm = ParticleManager::GetInstance();
 	if (pm) {
 		pm->Draw();
 	}
+
+	
+	for (auto &p : appParticles_) {
+		if (p.sprite) p.sprite->Draw();
+	}
+	
+	for (auto &mp : appMeshParticles_) {
+		if (mp.obj) {
+			mp.obj->Draw();
+		}
+	}
+
+
+	uiManager_.DrawAll();
 
 	if (phase_ == Phase::kFadeOut)
 	{
@@ -340,6 +412,34 @@ void GameScene::CheckAllCollisions()
 		}
 	}
 
+	// ▼ 弾同士の当たり判定（小さなメッシュパーティクルを出す）
+	{
+		auto* pm = ParticleManager::GetInstance();
+		if (!enemyBullets.empty()) {
+			for (auto it = enemyBullets.begin(); it != enemyBullets.end(); ++it) {
+				EnemyBullet* b1 = *it;
+				if (!b1 || !b1->IsActive()) continue;
+				Vector3 p1 = b1->GetWorldTranslate();
+				auto it2 = it; ++it2;
+				for (; it2 != enemyBullets.end(); ++it2) {
+					EnemyBullet* b2 = *it2;
+					if (!b2 || !b2->IsActive()) continue;
+					Vector3 p2 = b2->GetWorldTranslate();
+					float dist = Distance(p1, p2);
+					const float kBulletCollisionThreshold = 0.6f;
+					if (dist < kBulletCollisionThreshold) {
+						Vector3 mid = { (p1.x + p2.x) * 0.5f, (p1.y + p2.y) * 0.5f, (p1.z + p2.z) * 0.5f };
+						if (pm) {
+							pm->EmitBurst8("defaultMesh", mid, 0.06f, 0.18f, 0.6f);
+						}
+						b1->OnCollision();
+						b2->OnCollision();
+					}
+				}
+			}
+		}
+	}
+
 #pragma region 自キャラと敵の弾の当たり判定
 	posA = player_->GetWorldTranslate();
 	for (EnemyBullet* bullet : enemyBullets)
@@ -367,7 +467,7 @@ void GameScene::CheckAllCollisions()
 	{
 		if (!enemy_) continue;
 		if (!enemy_->IsActive()) continue;
-
+	
 		posB = enemy_->GetWorldTranslate();
 
 		for (const PlayerBarrier* barrier : barriers)
@@ -413,28 +513,179 @@ void GameScene::CheckAllCollisions()
 
 #pragma region バリアと敵の弾の当たり判定
     // すべての弾に対して、任意のアクティブなバリアと衝突したら弾を無効化
-    for (EnemyBullet* bullet : enemyBullets)
     {
-        if (!bullet->IsActive()) continue;
-        posB = bullet->GetWorldTranslate();
-
-        for (const PlayerBarrier* barrier : barriers)
+        auto* pm = ParticleManager::GetInstance();
+        for (EnemyBullet* bullet : enemyBullets)
         {
-            if (!barrier) continue;
-            if (!barrier->IsActive()) continue;
+            if (!bullet->IsActive()) continue;
+            posB = bullet->GetWorldTranslate();
 
-            posA = barrier->GetWorldTranslate();
-
-            float distance = Distance(posA, posB);
-            const float threshold = 1.0f; // バリアのサイズに合わせて調整
-            if (distance < threshold)
+            for (const PlayerBarrier* barrier : barriers)
             {
-                bullet->OnCollision();
-                break; // この弾は処理済みなので次の弾へ
+                if (!barrier) continue;
+                if (!barrier->IsActive()) continue;
+
+                posA = barrier->GetWorldTranslate();
+
+                float distance = Distance(posA, posB);
+                const float threshold = 1.0f; // バリアのサイズに合わせて調整
+                if (distance < threshold)
+                {
+                    // 視覚演出: 小さなメッシュ / テクスチャパーティクル
+                    if (pm) {
+                        Vector3 emitPos = posB;
+                        emitPos.z += 0.2f; // 少し手前に出す
+                        pm->EmitBurst8("default", emitPos, 0.06f, 0.12f, 0.45f);
+                        pm->EmitBurst8("defaultMesh", emitPos, 0.04f, 0.10f, 0.55f);
+                    }
+
+                    // 弾は無効化する（バリア自体は状態を変えない）
+                    bullet->OnCollision();
+                    break; // この弾は処理済みなので次の弾へ
+                }
             }
         }
     }
 #pragma endregion
+
+	for (Enemy* enemy_ : enemies_)
+	{
+		if (!enemy_) continue;
+		if (!enemy_->IsActive()) continue;
+
+		posB = enemy_->GetWorldTranslate();
+
+		for (const PlayerBarrier* barrier : barriers)
+		{
+			if (!barrier) continue;
+			if (!barrier->IsActive()) continue;
+
+			posA = barrier->GetWorldTranslate();
+
+			float distance = Distance(posA, posB);
+			const float threshold = 1.5f; // 判定半径 (必要に応じて調整)
+			if (distance < threshold)
+			{
+				// 衝突発生: バリアと敵に衝突処理を通知
+				const_cast<PlayerBarrier*>(barrier)->OnCollision();
+				enemy_->OnCollision();
+
+				
+				if (spriteCom_ && !particleTexturePath_.empty()) {
+					int count = 24;
+					int screenW = object3dCom_->GetDirectXCom()->GetClientWidth();
+					int screenH = object3dCom_->GetDirectXCom()->GetClientHeight();
+					Vector2 base = WorldToScreen(posB, camera_, screenW, screenH);
+					for (int i = 0; i < count; ++i) {
+						Sprite* s = spriteCom_->CreateSprite(particleTexturePath_, {0.0f,0.0f}, {32.0f,32.0f}, 0.0f, {0.5f,0.5f});
+						AppParticle ap;
+						ap.sprite = s;
+						ap.life = Random::GeneratorFloat(0.6f, 1.2f);
+						ap.age = 0.0f;
+						ap.pos = base;
+						
+						float ang = Random::GeneratorFloat(0.0f, 6.2831853f);
+						float spd = Random::GeneratorFloat(30.0f, 120.0f);
+						ap.vel = { std::cos(ang) * spd, std::sin(ang) * spd };
+					
+						s->SetPosition(ap.pos);
+						s->SetScale({ 24.0f,24.0f });
+						s->SetColor({1.0f,1.0f,1.0f,1.0f});
+						s->Update();
+						appParticles_.push_back(ap);
+					}
+				}
+
+	
+				if (model_ && model_->GetModel()) {
+					Model* src = model_->GetModel();
+					int meshCount = 8;
+					for (int mi = 0; mi < meshCount; ++mi) {
+						Model* mcopy = new Model(*src);
+						Object3d* o = new Object3d();
+						o->Initialize(object3dCom_);
+						o->SetModel(mcopy);
+					
+						
+						float ang = Random::GeneratorFloat(0.0f, 6.2831853f);
+						float r = Random::GeneratorFloat(0.5f, 2.0f);
+						AppMeshParticle mp;
+						mp.obj = o;
+						mp.model = mcopy;
+						mp.life = Random::GeneratorFloat(0.8f, 1.6f);
+						mp.age = 0.0f;
+						mp.vel = { std::cos(ang) * r, std::sin(ang) * r, Random::GeneratorFloat(-0.5f, 0.5f) };
+					
+						
+						Transform tt; tt.Initialize();
+						tt.SetTranslate(posB);
+						tt.SetScale({0.12f, 0.12f, 0.12f});
+						o->ApplyState(tt, camera_, true);
+					
+						
+						mcopy->SetColor({1.0f,1.0f,1.0f,1.0f});
+					
+						appMeshParticles_.push_back(mp);
+					}
+				}
+
+				break; // 敵は一度当たれば十分なのでループを抜ける
+			}
+		}
+	}
+
+	if (boss_ && boss_->IsActive())
+	{
+		posB = boss_->GetWorldTranslate();
+		for (const PlayerBarrier* barrier : barriers)
+		{
+			if (!barrier) continue;
+			if (!barrier->IsActive()) continue;
+
+			posA = barrier->GetWorldTranslate();
+			float distance = Distance(posA, posB);
+			const float threshold = 2.5f; // bossは大きめ
+			if (distance < threshold)
+			{
+				const_cast<PlayerBarrier*>(barrier)->OnCollision();
+				// バリアで当たった場合は即死させず、ヒット扱いにする
+				boss_->OnHit();
+				break;
+			}
+		}
+	}
+#pragma endregion
+
+}
+
+void GameScene::InitializeUI(SpriteCom* spriteCom)
+{
+	{
+		//Anchorを右下に設定
+		auto wasd = std::make_shared<UIButton>();
+		wasd->Initialize(spriteCom, "Resources/UI/WASDUI.png");
+		int sw = object3dCom_->GetDirectXCom()->GetClientWidth();
+		int sh = object3dCom_->GetDirectXCom()->GetClientHeight();
+		wasd->SetScale({ 225.0f, 40.0f });
+		wasd->SetAnchor({ 1.0f, 1.0f });
+		wasd->SetPosition({ static_cast<float>(sw) - 10.0f, static_cast<float>(sh) - 10.0f });
+		wasd->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });
+		uiManager_.Add(wasd);
+	}
+
+	
+	{
+		//Anchorを右下に設定
+		auto space = std::make_shared<UIButton>();
+		space->Initialize(spriteCom, "Resources/UI/SPACEUI.png");
+		int sw = object3dCom_->GetDirectXCom()->GetClientWidth();
+		int sh = object3dCom_->GetDirectXCom()->GetClientHeight();
+		space->SetScale({ 270.0f, 40.0f });
+		space->SetAnchor({ 1.0f, 1.0f });
+		space->SetPosition({ static_cast<float>(sw) - 0.0f, static_cast<float>(sh) - 60.0f });
+		space->SetColor({ 0.2f, 0.8f, 1.0f, 1.0f });
+		uiManager_.Add(space);
+	}
 }
 
 
@@ -445,9 +696,84 @@ void GameScene::SpawnWave()
 	{
 		Object3d* enemyModel = Object3d::Create(object3dCom_, "wall.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera_);
 		Enemy* enemy = new Enemy();
-		Vector3 enemyPos = { static_cast<float>((i - enemyCount / 2) * 2), 0.0f, 10.0f };
+		Vector3 enemyPos = { static_cast<float>((i - enemyCount / 2) * 2), 0.0f, enemySpawnZ_ };
 		enemy->Initialize(enemyModel, camera_, enemyPos, object3dCom_);
 		enemy->SetPlayer(player_);
+
+	
+		if (currentWave_ == 0)
+		{
+		
+			enemy->SetBulletSpeed(0.25f);        
+			enemy->SetFireInterval(60);          
+			enemy->SetAttackPattern(Enemy::AttackPattern::Straight);
+			enemy->SetRandomizeInitialFire(false); 
+
+			const int staggerFrames = 50; 
+			int delay = i * staggerFrames;
+			enemy->SetInitialFireDelay(delay);
+		}
+		else if (currentWave_ == 1)
+		{
+			
+			enemy->SetBulletSpeed(0.9f);
+			enemy->SetFireInterval(28);
+			enemy->SetAttackPattern(Enemy::AttackPattern::Aim);
+			
+		}
+		else if (currentWave_ == 2)
+		{
+			// Third wave: use Aim pattern (player-targeting) with a faster fire rate
+			// to ensure visible bullets even if Rapid had timing/visibility issues.
+			enemy->SetBulletSpeed(1.2f);
+			enemy->SetFireInterval(16);
+			enemy->SetAttackPattern(Enemy::AttackPattern::Aim);
+			// make first shot occur without extra random delay
+			enemy->SetRandomizeInitialFire(false);
+			enemy->SetInitialFireDelay(0);
+		}
+
 		enemies_.push_back(enemy);
 	}
 }
+
+#ifdef _DEBUG
+void GameScene::ResetScene()
+{
+    // delete existing enemies
+    for (Enemy* e : enemies_) { delete e; }
+    enemies_.clear();
+
+    // delete player
+    if (player_) { delete player_; player_ = nullptr; }
+
+    // delete rail camera controller
+    if (railCameraController_) { delete railCameraController_; railCameraController_ = nullptr; }
+
+    // delete boss and models
+    if (boss_) { delete boss_; boss_ = nullptr; }
+    if (bossBodyModel_) { delete bossBodyModel_; bossBodyModel_ = nullptr; }
+
+    // delete fade
+    if (fade_) { delete fade_; fade_ = nullptr; }
+
+    // delete debug camera
+#ifdef _DEBUG
+    if (debugCamera_) { delete debugCamera_; debugCamera_ = nullptr; }
+#endif
+
+   
+    for (auto &p : appParticles_) {
+        if (p.sprite) { delete p.sprite; p.sprite = nullptr; }
+    }
+    appParticles_.clear();
+
+   
+    currentWave_ = 0;
+    isWaitingForNextWave_ = false;
+    waveDelayTimer_ = 0.0f;
+
+ 
+    Initialize(camera_, object3dCom_, spriteCom_);
+}
+#endif

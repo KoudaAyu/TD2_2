@@ -58,6 +58,11 @@
     <ClCompile Include="Application\Boss\BodyPart.cpp" />
     <ClCompile Include="Application\SelectScene.cpp" />
     <ClCompile Include="Application\TutorialScene.cpp" />
+    <ClCompile Include="Application\Skydome\Skydome.cpp" />
+    <ClCompile Include="Baziru3_Engine\2D\UI\UI.cpp" />
+    <ClCompile Include="Application\UI\UIImage.cpp" />
+    <ClCompile Include="Application\UI\UIButton.cpp" />
+    <ClCompile Include="Application\UI\UIManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Baziru3_Engine\Base\D3DResourceLeakChecker.h" />
@@ -113,6 +118,12 @@
     <ClInclude Include="Application\Boss\BodyPart.h" />
     <ClInclude Include="Application\SelectScene.h" />
     <ClInclude Include="Application\TutorialScene.h" />
+    <ClInclude Include="Application\Skydome\Skydome.h" />
+    <ClInclude Include="Baziru3_Engine\2D\UI\UI.h" />
+    <ClInclude Include="Application\UI\UIElement.h" />
+    <ClInclude Include="Application\UI\UIImage.h" />
+    <ClInclude Include="Application\UI\UIButton.h" />
+    <ClInclude Include="Application\UI\UIManager.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\shaders\Object3d.hlsli" />

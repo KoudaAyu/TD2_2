@@ -132,6 +132,31 @@ void Object3d::Draw() {
   }
 }
 
+/// <summary>
+/// 描画 (透明指定あり)
+/// </summary>
+void Object3d::Draw(bool transparent) {
+
+  object3dCom_->ApplyCommonRenderState(true, transparent);
+
+  object3dCom_->GetDirectXCom()->GetCommandList()->IASetPrimitiveTopology(
+      D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+ 
+  object3dCom_->GetDirectXCom()
+      ->GetCommandList()
+      ->SetGraphicsRootConstantBufferView(
+          1, transformationMatrixResource_->GetGPUVirtualAddress());
+  object3dCom_->GetDirectXCom()
+      ->GetCommandList()
+      ->SetGraphicsRootConstantBufferView(
+          3, directionalLightResource_->GetGPUVirtualAddress());
+
+  if (model_) {
+    model_->Draw(object3dCom_->GetDirectXCom()->GetCommandList());
+  }
+}
+
 void Object3d::SetModel(const std::string &filePath) {
   // モデルを検索してセットする
   model_ = ModelManager::GetInstance()->FindModel(filePath);

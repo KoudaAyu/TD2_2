@@ -20,6 +20,9 @@ private:
   Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineFrontCCW_ = nullptr;
   Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineFrontCW_ = nullptr;
 
+   Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineTransparentFrontCCW_ = nullptr;
+  Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineTransparentFrontCW_ = nullptr;
+
   //カメラ
   Camera *defaultCamera_ = nullptr;
 
@@ -46,6 +49,11 @@ public:
     directXCom_->GetCommandList()->IASetPrimitiveTopology(
         D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
   }
+
+  /// <summary>
+  /// 共通描画設定（Frontの向きと透明指定）
+  /// </summary>
+  void ApplyCommonRenderState(bool frontCCW, bool transparent);
 
   DirectXCom *GetDirectXCom() { return directXCom_; }
 

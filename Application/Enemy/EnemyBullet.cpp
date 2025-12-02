@@ -16,6 +16,8 @@ void EnemyBullet::Initialize(Object3d* model, const Vector3 pos, Object3dCom* ob
 	worldTransform_.SetTranslate(pos);
 
 
+	spawnX_ = pos.x;
+
 	model_ = new Object3d();
 	model_->Initialize(object3dCom_);
 
@@ -48,6 +50,23 @@ void EnemyBullet::Initialize(Object3d* model, const Vector3 pos, Object3dCom* ob
 	}
 }
 
+void EnemyBullet::SetColor(const Vector4& color)
+{
+	if (model_)
+	{
+		model_->SetColor(color);
+		if (model_->GetModel()) model_->GetModel()->SetColor(color);
+	}
+}
+
+void EnemyBullet::SetScale(const Vector3& scale)
+{
+	if (model_)
+	{
+		model_->SetScale(scale);
+	}
+}
+
 void EnemyBullet::Update()
 {
 	if (!isActive_)
@@ -66,6 +85,7 @@ void EnemyBullet::Update()
 		}
 	}
 
+	const float dt = 1.0f / 60.0f;
 	// ホーミング処理
 	if (isHoming_ && target_)
 	{
@@ -96,7 +116,22 @@ void EnemyBullet::Update()
 		}
 	}
 
-	worldTransform_ += velocity_;
+	// オシレーション処理
+	if (isOscillating_)
+	{
+		ageSeconds_ += dt;
+		float x = spawnX_ + oscAmplitude_ * std::sin(2.0f * 3.14159265f * oscFrequency_ * ageSeconds_);
+		Vector3 pos = worldTransform_.GetTranslate();
+		pos.x = x;
+		worldTransform_.SetTranslate(pos);
+		// 前進は velocity による Z 移動のみで行う
+		worldTransform_ += Vector3{ 0.0f, 0.0f, velocity_.z };
+	}
+	else
+	{
+		worldTransform_ += velocity_;
+	}
+
 	worldTransform_.TransferMatrix();
 	if (model_)
 	{

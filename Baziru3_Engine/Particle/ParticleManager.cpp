@@ -102,6 +102,9 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 				p.current += dt;
 				if (p.current >= p.lifeTime) { it = group.particles.erase(it); continue; }
 
+				// 回転更新（メッシュ粒子にも自転を追加）
+				p.rotation += p.angularVel * dt;
+
 				// ★ 公転モードなら角度→位置で更新。そうでなければ従来の力学
 				if (p.orbiting) {
 					// 角度更新
@@ -254,12 +257,12 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 				const D3D12_GPU_VIRTUAL_ADDRESS gpuAddr =
 					meshTransformCB_->GetGPUVirtualAddress() +
 					static_cast<UINT64>(AlignedCBSize) * meshCBWriteIndex_;
-				auto* slot = reinterpret_cast<TransformationMatrix*>(
-					meshTransformCBBase_ + static_cast<size_t>(AlignedCBSize) * meshCBWriteIndex_);
-
+			auto* slot = reinterpret_cast<TransformationMatrix*>(
+				meshTransformCBBase_ + static_cast<size_t>(AlignedCBSize) * meshCBWriteIndex_);
 				Matrix4x4 S = MakeScaleMatrix({ p.scale, p.scale, p.scale });
+				Matrix4x4 R = MakeRotateZMatrix(p.rotation); // apply self-rotation
 				Matrix4x4 T = MakeTranslateMatrix(p.position);
-				Matrix4x4 world = Multiply(S, T);
+				Matrix4x4 world = Multiply(Multiply(S, R), T);
 				slot->World = world;
 				slot->WVP = Multiply(world, viewProj_);
 
@@ -419,6 +422,8 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 		std::uniform_real_distribution<float> scaleDist(0.10f, 0.20f);
 		std::uniform_real_distribution<float> lifeDist(1.0f, 2.0f);
 
+		std::uniform_real_distribution<float> angVelDist(-6.0f, 6.0f);
+
 		// ★ omni用のチューニング（出す間隔を長くしたいので寿命も長め）
 		if (name == "default") {
 			speedDist = std::uniform_real_distribution<float>{ 0.01f, 0.10f }; // 速く
@@ -449,16 +454,23 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 			p.color = { 1,1,1,0.1f };
 			p.scale = scaleDist(rng_);
 
+			
+			if (group.useMesh) {
+				p.angularVel = angVelDist(rng_);
+			} else {
+				p.angularVel = 0.0f;
+			}
+
 			if (name == "default") {
-				// 全方向ランダムに飛ばす
+				// 全方向ランダムに飛ばす（ただし Z 変化させたくないので z=0 に固定）
 				Vector3 dir = randomDirOnSphere();
 				float spd = speedDist(rng_);
-				p.velocity = { dir.x * spd, dir.y * spd, dir.z * spd };
+				p.velocity = { dir.x * spd, dir.y * spd, 0.0f }; // ← z 成分を 0 に固定
 			} else if (name == "defaultMesh") {
-				// 全方向ランダムに飛ばす
+				// 全方向ランダムに飛ばす（ただし Z 変化させたくないので z=0 に固定）
 				Vector3 dir = randomDirOnSphere();
 				float spd = speedDist(rng_);
-				p.velocity = { dir.x * spd, dir.y * spd, dir.z * spd };
+				p.velocity = { dir.x * spd, dir.y * spd, 0.0f }; // ← z 成分を 0 に固定
 			} else {
 				// デフォルト（上向きに飛ぶ）
 				float spd = speedDist(rng_);
@@ -539,6 +551,7 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 		if (it == particleGroups.end()) return; // silently ignore missing group
 		ParticleGroup& group = it->second;
 
+		std::uniform_real_distribution<float> angVelDist(-6.0f, 6.0f);
 		// 8方向（45度ごと）
 		for (int i = 0; i < 8; ++i) {
 			float angle = DirectX::XM_2PI / 8.0f * i;
@@ -564,6 +577,10 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 			// 公転は使わない
 			p.orbiting = false;
 
+			
+			if (group.useMesh) p.angularVel = angVelDist(rng_);
+			else p.angularVel = 0.0f;
+
 			group.particles.push_back(p);
 		}
 	}
@@ -587,6 +604,7 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 		if (it == particleGroups.end()) return; // silently ignore missing group
 		ParticleGroup& group = it->second;
 
+		std::uniform_real_distribution<float> angVelDist(-6.0f, 6.0f);
 		constexpr int kCount = 8;
 		const float step = 2.0f * 3.14159265358979323846f / float(kCount);
 
@@ -605,8 +623,8 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 			const float c = std::cos(p.orbitAngle);
 			const float s = std::sin(p.orbitAngle);
 			p.position = { center.x + c * p.orbitRadius,
-							center.y + s * p.orbitRadius,
-							center.z };
+					center.y + s * p.orbitRadius,
+					center.z };
 
 			// そのほか
 			p.velocity = { 0,0,0 };          // 公転で位置制御するので未使用
@@ -617,6 +635,9 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 			p.lifeTime = life;
 			p.current = 0.0f;
 			p.orbiting = true;
+
+		
+			if (group.useMesh) p.angularVel = angVelDist(rng_);
 
 			group.particles.push_back(p);
 		}
@@ -637,6 +658,7 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 		if (it == particleGroups.end()) return; // silently ignore missing group
 		ParticleGroup& group = it->second;
 
+		std::uniform_real_distribution<float> angVelDist(-6.0f, 6.0f);
 		constexpr int kCount = 8;
 		const float step = 2.0f * 3.14159265358979323846f / float(kCount);
 
@@ -662,8 +684,8 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 			const float c = std::cos(p.orbitAngle);
 			const float s = std::sin(p.orbitAngle);
 			p.position = { center.x + c * p.orbitRadius,
-						   center.y + s * p.orbitRadius,
-						   center.z };
+					   center.y + s * p.orbitRadius,
+					   center.z };
 
 			// 自走速度は未使用（公転で位置を決定）
 			p.velocity = { 0.0f, 0.0f, 0.0f };
@@ -676,8 +698,11 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 			p.lifeTime = life;
 			p.current = 0.0f;
 
-			// ※ スプライトの向きは Update で「接線方向」に自動で揃えます
-			//   （p.rotation は Update で orbitAngle ± π/2 に上書き）
+		
+			if (group.useMesh) p.angularVel = angVelDist(rng_);
+
+		
+		
 
 			group.particles.push_back(p);
 		}

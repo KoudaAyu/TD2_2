@@ -10,6 +10,8 @@
 #include "Sprite.h"
 #include <filesystem>
 #include <cmath>
+// Particle effects
+#include "Baziru3_Engine/Particle/ParticleManager.h"
 
 Boss::Boss() {}
 
@@ -20,6 +22,13 @@ Boss::~Boss()
         delete b;
     }
     bullets_.clear();
+
+    // drone visuals cleanup
+    for (auto* o : droneObjs_)
+    {
+        if (o) { delete o; }
+    }
+    droneObjs_.clear();
 
     // スプライト解放
     for (auto s : phaseSprites_)
@@ -169,6 +178,38 @@ void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object
         // 画面外に退避
         laserModel_->SetTranslate({ 10000.0f, 10000.0f, 10000.0f });
         laserModel_->ApplyState(Transform{ laserModel_->GetScale(), {0,0,0}, laserModel_->GetTranslate() }, camera_, true);
+    }
+
+   
+    drones_.clear();
+    drones_.resize(phase3DroneCount_);
+    droneObjs_.clear();
+
+    const float twoPi = 2.0f * 3.14159265f;
+    for (int i = 0; i < phase3DroneCount_; ++i)
+    {
+        float ang = twoPi * static_cast<float>(i) / static_cast<float>(phase3DroneCount_);
+        drones_[i].angle = ang;
+        drones_[i].radius = 2.4f;
+        drones_[i].orbitSpeed = 1.2f; 
+        drones_[i].shootTimer = 0;
+        drones_[i].shootInterval = 45 + (i * 5); 
+        drones_[i].active = true;
+
+       
+        Object3d* dObj = new Object3d();
+        dObj->Initialize(object3dCom_);
+        if (model_ && model_->GetModel())
+        {
+            dObj->SetModel(new Model(*model_->GetModel()));
+            dObj->SetScale({ droneModelScale_, droneModelScale_, droneModelScale_ });
+           
+            dObj->SetColor({ 0.7f, 0.9f, 1.0f, 1.0f });
+        }
+      
+        dObj->SetTranslate({ 10000.0f, 10000.0f, 10000.0f });
+        dObj->ApplyState(Transform{ dObj->GetScale(), dObj->GetRotate(), dObj->GetTranslate() }, camera_, true);
+        droneObjs_.push_back(dObj);
     }
 }
 
@@ -342,6 +383,91 @@ void Boss::UpdatePhase2()
     }
 }
 
+void Boss::UpdatePhase3()
+{
+    if (!isActive_) return;
+
+    const float dt = 1.0f / 60.0f;
+    const float twoPi = 2.0f * 3.14159265f;
+    Vector3 bossPos = worldTransform_.GetTranslate();
+
+    for (size_t i = 0; i < drones_.size(); ++i)
+    {
+        Drone& d = drones_[i];
+        if (!d.active) continue;
+
+        // advance orbit
+        d.angle += d.orbitSpeed * dt;
+        if (d.angle > twoPi) d.angle -= twoPi;
+
+        Vector3 dronePos = bossPos;
+        dronePos.x += std::cos(d.angle) * d.radius;
+        dronePos.y += std::sin(d.angle) * d.radius;
+        dronePos.z = bossPos.z; 
+
+        if (i < droneObjs_.size() && droneObjs_[i])
+        {
+            Object3d* dobj = droneObjs_[i];
+            dobj->SetTranslate(dronePos);
+            dobj->SetScale({ droneModelScale_, droneModelScale_, droneModelScale_ });
+            dobj->ApplyState(Transform{ dobj->GetScale(), dobj->GetRotate(), dobj->GetTranslate() }, camera_, true);
+        }
+
+        ++d.shootTimer;
+        if (d.shootTimer >= d.shootInterval)
+        {
+            d.shootTimer = 0;
+
+            Vector3 target = GetPlayerWorldTranslate();
+            Vector3 baseDir = { target.x - dronePos.x, target.y - dronePos.y, target.z - dronePos.z };
+
+            float len = std::sqrt(baseDir.x*baseDir.x + baseDir.y*baseDir.y + baseDir.z*baseDir.z);
+            if (len < 1e-6f) baseDir = { 0.0f, 0.0f, -1.0f };
+            else baseDir = { baseDir.x / len, baseDir.y / len, baseDir.z / len };
+
+            const int coneCount = 3;
+            const float coneAngle = 0.18f; 
+            for (int ci = 0; ci < coneCount; ++ci)
+            {
+                float t = 0.0f;
+                if (coneCount > 1) t = (static_cast<float>(ci) / (coneCount - 1)) - 0.5f; // -0.5..0.5
+                float angOff = t * coneAngle;
+
+                float dx = baseDir.x;
+                float dy = baseDir.y;
+                float dz = baseDir.z;
+                float ca = std::cos(angOff);
+                float sa = std::sin(angOff);
+                Vector3 dir = { ca * dx - sa * dy, sa * dx + ca * dy, dz };
+
+                float l2 = std::sqrt(dir.x*dir.x + dir.y*dir.y + dir.z*dir.z);
+                if (l2 > 1e-6f) { dir.x /= l2; dir.y /= l2; dir.z /= l2; }
+
+                Vector3 vel = { dir.x * phase3BulletSpeed_, dir.y * phase3BulletSpeed_, dir.z * phase3BulletSpeed_ };
+
+                EnemyBullet* b = new EnemyBullet();
+                b->Initialize(model_, dronePos, object3dCom_, vel);
+                bullets_.push_back(b);
+            }
+        }
+    }
+
+    for (EnemyBullet* b : bullets_)
+    {
+        if (b) b->Update();
+    }
+
+    ++phase3Timer_;
+    if (phase3Timer_ > 60)
+    {
+        phase3Timer_ = 0;
+        if (camera_ && cameraShakeCooldown_ <= 0.0f)
+        {
+            camera_->StartShake(0.15f, 0.12f);
+            cameraShakeCooldown_ = kCameraShakeCooldownSeconds;
+        }
+    }
+}
 
 void Boss::UpdatePhase4()
 {
@@ -379,24 +505,23 @@ void Boss::UpdatePhase4()
 
     if (laserTimer_ <= laserChargeFrames_)
     {
-        // チャージ中: 徐々に長さを伸ばし、色を変化
+        // チャージ中: レーザー本体は伸ばさず短いチャージ表示のみ行う
+    
         float t = (float)laserTimer_ / (float)laserChargeFrames_;
-        float length = 1.0f + (laserMaxLength_ * 0.2f) * t; // 最初は短く
-        Vector3 scale = { laserWidth_, laserWidth_, length };
+        // パルスアルファでチャージ感を出す
+        float alpha = 0.5f + 0.5f * std::sin(t * 3.14159265f);
+        Vector4 col = laserChargeColor_;
+        col.w = alpha;
+
+        // 常に短く表示（伸ばさない）
+        Vector3 scale = { laserWidth_, laserWidth_, 1.0f };
         laserModel_->SetScale(scale);
 
-        // レーザーの位置を再計算（Z軸スケールの変化に伴う調整）
+        // レーザーの位置はボス前方に固定（長さ変化を考慮しない）
         Vector3 bossPos = worldTransform_.GetTranslate();
-        Vector3 laserPos = bossPos + Vector3{0.0f, 0.0f, -length * 0.5f};
+        Vector3 laserPos = bossPos + Vector3{0.0f, 0.0f, -0.5f};
         laserModel_->SetTranslate(laserPos);
 
-        // 色補間 (charge -> fireColor の手前まで)
-        Vector4 col = {
-            laserChargeColor_.x + (laserFireColor_.x - laserChargeColor_.x) * (t * 0.6f),
-            laserChargeColor_.y + (laserFireColor_.y - laserChargeColor_.y) * (t * 0.6f),
-            laserChargeColor_.z + (laserFireColor_.z - laserChargeColor_.z) * (t * 0.6f),
-            0.7f + 0.3f * t
-        };
         laserModel_->SetColor(col);
     }
     else if (laserTimer_ <= laserChargeFrames_ + laserFireFrames_)
@@ -459,6 +584,80 @@ void Boss::UpdatePhase4()
 
     // 行列反映
     laserModel_->ApplyState(Transform{ laserModel_->GetScale(), laserModel_->GetRotate(), laserModel_->GetTranslate() }, camera_, true);
+}
+
+// --- Phase5: スパイラル / ラジアル攻撃の実装 ---
+void Boss::UpdatePhase5()
+{
+    if (!isActive_) return;
+
+    ++phase5BurstTimer_;
+
+    // 毎 interval フレームごとにバースト（レール）を生成
+    if (phase5BurstTimer_ >= phase5BurstInterval_)
+    {
+        phase5BurstTimer_ = 0;
+        ++phase5BurstCount_;
+
+        Vector3 bossPos = worldTransform_.GetTranslate();
+
+        int lanes = phase5BulletsPerBurst_;
+        float half = (static_cast<float>(lanes - 1) * 0.5f);
+
+        // スイープ方向の変化量（振幅 -1..1）
+        float sweepOsc = std::sin(phase5Angle_);
+
+        for (int i = 0; i < lanes; ++i)
+        {
+            float laneOffset = (static_cast<float>(i) - half) * phase5LaneSpacing_;
+            Vector3 spawnPos = bossPos + Vector3{ laneOffset, 0.0f, -1.0f };
+
+            // 基本はまっすぐ手前へ進む
+            Vector3 vel = { 0.0f, 0.0f, -phase5BulletSpeed_ };
+
+            if (phase5SweepMode_)
+            {
+                // スイープモード: 弾全体が横に流れる（レールゲームでの横スクロールのような見た目）
+                vel.x = sweepOsc * phase5SweepSpeed_;
+            }
+            else
+            {
+                // 非スイープ: 各レーンの弾をプレイヤー方向に少し寄せることで狙い感を出す
+                if (player_)
+                {
+                    Vector3 p = player_->GetWorldTranslate();
+                    float dx = p.x - spawnPos.x;
+                    // 横成分を弱めに反映（プレイヤーの軸にゆっくり寄る）
+                    vel.x = dx * 0.08f;
+                    // 制限をかける
+                    if (vel.x > phase5SweepSpeed_) vel.x = phase5SweepSpeed_;
+                    if (vel.x < -phase5SweepSpeed_) vel.x = -phase5SweepSpeed_;
+                }
+            }
+
+            EnemyBullet* b = new EnemyBullet();
+            b->Initialize(model_, spawnPos, object3dCom_, vel);
+            bullets_.push_back(b);
+        }
+
+        // 次のスイープ位相を進める
+        phase5Angle_ += phase5SpinRate_;
+        const float twoPiF = 2.0f * 3.14159265f;
+        if (phase5Angle_ > twoPiF) phase5Angle_ -= twoPiF;
+
+        // 発射時に軽いカメラ振動を入れて演出
+        if (camera_ && cameraShakeCooldown_ <= 0.0f)
+        {
+            camera_->StartShake(0.12f, 0.12f);
+            cameraShakeCooldown_ = kCameraShakeCooldownSeconds;
+        }
+    }
+
+    // ここで弾の更新（Update でも二重更新されるが他フェーズに合わせて維持）
+    for (EnemyBullet* b : bullets_)
+    {
+        if (b) b->Update();
+    }
 }
 
 void Boss::Update()
@@ -531,9 +730,17 @@ void Boss::Update()
     {
         UpdatePhase2();
     }
+    else if (phase_ == Phase::Phase3)
+    {
+        UpdatePhase3();
+    }
     else if (phase_ == Phase::Phase4)
     {
         UpdatePhase4();
+    }
+    else if (phase_ == Phase::Phase5)
+    {
+        UpdatePhase5();
     }
 
     for (auto& p : parts_)
@@ -574,6 +781,15 @@ void Boss::Draw()
     for (auto& p : parts_)
     {
         if (p) p->Draw();
+    }
+
+   
+    if (phase_ == Phase::Phase3)
+    {
+        for (auto* o : droneObjs_)
+        {
+            if (o) o->Draw();
+        }
     }
 
     if (phase_ == Phase::Phase4 && laserModel_ && laserActive_)
