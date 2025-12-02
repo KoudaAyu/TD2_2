@@ -153,7 +153,6 @@ void GameScene::Update()
 		if (currentWave_ + 1 < maxWaves_)
 		{
 
-			// Immediately advance to next wave when the current wave has been cleared
 			for (Enemy* enemy : enemies_) { delete enemy; }
 			enemies_.clear();
 			++currentWave_;
@@ -211,7 +210,7 @@ void GameScene::Update()
 		if (currentWave_ + 1 < maxWaves_)
 		{
 
-			// Immediately advance to next wave when the current wave has been cleared
+	
 			for (Enemy* enemy : enemies_) { delete enemy; }
 			enemies_.clear();
 			++currentWave_;
