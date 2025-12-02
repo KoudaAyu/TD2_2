@@ -723,10 +723,14 @@ void GameScene::SpawnWave()
 		}
 		else if (currentWave_ == 2)
 		{
-			
-			enemy->SetBulletSpeed(1.0f);
-			enemy->SetFireInterval(20);
-			enemy->SetAttackPattern(Enemy::AttackPattern::Rapid);
+			// Third wave: use Aim pattern (player-targeting) with a faster fire rate
+			// to ensure visible bullets even if Rapid had timing/visibility issues.
+			enemy->SetBulletSpeed(1.2f);
+			enemy->SetFireInterval(16);
+			enemy->SetAttackPattern(Enemy::AttackPattern::Aim);
+			// make first shot occur without extra random delay
+			enemy->SetRandomizeInitialFire(false);
+			enemy->SetInitialFireDelay(0);
 		}
 
 		enemies_.push_back(enemy);
