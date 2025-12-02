@@ -58,6 +58,7 @@
     <ClCompile Include="Application\Boss\BodyPart.cpp" />
     <ClCompile Include="Application\SelectScene.cpp" />
     <ClCompile Include="Application\TutorialScene.cpp" />
+    <ClCompile Include="Application\Skydome\Skydome.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Baziru3_Engine\Base\D3DResourceLeakChecker.h" />
@@ -113,6 +114,7 @@
     <ClInclude Include="Application\Boss\BodyPart.h" />
     <ClInclude Include="Application\SelectScene.h" />
     <ClInclude Include="Application\TutorialScene.h" />
+    <ClInclude Include="Application\Skydome\Skydome.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\shaders\Object3d.hlsli" />

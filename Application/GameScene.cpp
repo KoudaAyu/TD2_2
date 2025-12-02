@@ -1,7 +1,7 @@
 #include "GameScene.h"
-#include "Baziru3_Engine/Particle/ParticleManager.h"
-#include "Baziru3_Engine/2D/Sprite/Sprite.h"
-#include "Baziru3_Engine/3D/Model/Model.h"
+#include "ParticleManager.h"
+#include "Sprite.h"
+#include "Model.h"
 #include "Random.h"
 
 GameScene::~GameScene()
@@ -83,6 +83,9 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 
 	isWaitingForNextWave_ = false;
 	waveDelayTimer_ = 0.0f;
+
+	skydome_ = new Skydome();
+	skydome_->Initialize(object3dCom_, camera_);
 }
 
 // Helper: world -> screen (pixels)
@@ -346,11 +349,15 @@ void GameScene::Update()
 		}
 	}
 
+	skydome_->Update();
+
 	CheckAllCollisions();
 }
 
 void GameScene::Draw()
 {
+
+	skydome_->Draw();
 
 	for (Enemy* enemy : enemies_)
 	{

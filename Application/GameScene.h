@@ -3,6 +3,7 @@
 #include"DebugCamera.h"
 #include"Enemy.h"
 #include"KeyInput.h"
+#include"Skydome.h"
 #include"Object3d.h"
 #include"Object3dCom.h"
 #include"Player.h"
@@ -57,6 +58,7 @@ private:
 
 	Fade* fade_ = nullptr;
 
+	Skydome* skydome_ = nullptr;
 	
 	SpriteCom* spriteCom_ = nullptr;
 

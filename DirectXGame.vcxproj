@@ -22,6 +22,7 @@
     <ClCompile Include="Application\GameScene.cpp" />
     <ClCompile Include="Application\Player\Player.cpp" />
     <ClCompile Include="Application\SelectScene.cpp" />
+    <ClCompile Include="Application\Skydome\Skydome.cpp" />
     <ClCompile Include="Application\TitleScene.cpp" />
     <ClCompile Include="Application\TutorialScene.cpp" />
     <ClCompile Include="Baziru3_Engine\Camera\RailCameraController.cpp" />
@@ -102,6 +103,7 @@
     <ClInclude Include="Application\GameScene.h" />
     <ClInclude Include="Application\Player\Player.h" />
     <ClInclude Include="Application\SelectScene.h" />
+    <ClInclude Include="Application\Skydome\Skydome.h" />
     <ClInclude Include="Application\TitleScene.h" />
     <ClInclude Include="Application\TutorialScene.h" />
     <ClInclude Include="Baziru3_Engine\Camera\RailCameraController.h" />
@@ -209,7 +211,7 @@
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <TreatWarningAsError>true</TreatWarningAsError>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Application;$(ProjectDir)Baziru3_Engine\2D\Sprite;$(ProjectDir)Baziru3_Engine\2D\Texture;$(ProjectDir)Baziru3_Engine\3D\Light;$(ProjectDir)Baziru3_Engine\3D\Model;$(ProjectDir)Baziru3_Engine\3D\Object;$(ProjectDir)Baziru3_Engine\Audio;$(ProjectDir)Baziru3_Engine\Base\ImGui;$(ProjectDir)Baziru3_Engine\Base\Window;$(ProjectDir)Baziru3_Engine\Base;$(ProjectDir)Baziru3_Engine\Camera;$(ProjectDir)Baziru3_Engine\IO\KeyInput;$(ProjectDir)Baziru3_Engine\MapChip;$(ProjectDir)Baziru3_Engine\MathUtl;$(ProjectDir)Baziru3_Engine\Particle;$(ProjectDir)Application\Enemy;$(ProjectDir)Application\Player;$(ProjectDir)Baziru3_Engine\IO\XBox;$(ProjectDir)Application\Boss;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Application;$(ProjectDir)Baziru3_Engine\2D\Sprite;$(ProjectDir)Baziru3_Engine\2D\Texture;$(ProjectDir)Baziru3_Engine\3D\Light;$(ProjectDir)Baziru3_Engine\3D\Model;$(ProjectDir)Baziru3_Engine\3D\Object;$(ProjectDir)Baziru3_Engine\Audio;$(ProjectDir)Baziru3_Engine\Base\ImGui;$(ProjectDir)Baziru3_Engine\Base\Window;$(ProjectDir)Baziru3_Engine\Base;$(ProjectDir)Baziru3_Engine\Camera;$(ProjectDir)Baziru3_Engine\IO\KeyInput;$(ProjectDir)Baziru3_Engine\MapChip;$(ProjectDir)Baziru3_Engine\MathUtl;$(ProjectDir)Baziru3_Engine\Particle;$(ProjectDir)Application\Enemy;$(ProjectDir)Application\Player;$(ProjectDir)Baziru3_Engine\IO\XBox;$(ProjectDir)Application\Boss;$(ProjectDir)Application\Skydome;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -234,7 +236,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <Optimization>MaxSpeed</Optimization>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Application;$(ProjectDir)Baziru3_Engine\2D\Sprite;$(ProjectDir)Baziru3_Engine\2D\Texture;$(ProjectDir)Baziru3_Engine\3D\Light;$(ProjectDir)Baziru3_Engine\3D\Model;$(ProjectDir)Baziru3_Engine\3D\Object;$(ProjectDir)Baziru3_Engine\Audio;$(ProjectDir)Baziru3_Engine\Base\ImGui;$(ProjectDir)Baziru3_Engine\Base\Window;$(ProjectDir)Baziru3_Engine\Base;$(ProjectDir)Baziru3_Engine\Camera;$(ProjectDir)Baziru3_Engine\IO\KeyInput;$(ProjectDir)Baziru3_Engine\MapChip;$(ProjectDir)Baziru3_Engine\MathUtl;$(ProjectDir)Baziru3_Engine\Particle;$(ProjectDir)Application\Enemy;$(ProjectDir)Application\Player;$(ProjectDir)Baziru3_Engine\IO\XBox;$(ProjectDir)Application\Boss;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Application;$(ProjectDir)Baziru3_Engine\2D\Sprite;$(ProjectDir)Baziru3_Engine\2D\Texture;$(ProjectDir)Baziru3_Engine\3D\Light;$(ProjectDir)Baziru3_Engine\3D\Model;$(ProjectDir)Baziru3_Engine\3D\Object;$(ProjectDir)Baziru3_Engine\Audio;$(ProjectDir)Baziru3_Engine\Base\ImGui;$(ProjectDir)Baziru3_Engine\Base\Window;$(ProjectDir)Baziru3_Engine\Base;$(ProjectDir)Baziru3_Engine\Camera;$(ProjectDir)Baziru3_Engine\IO\KeyInput;$(ProjectDir)Baziru3_Engine\MapChip;$(ProjectDir)Baziru3_Engine\MathUtl;$(ProjectDir)Baziru3_Engine\Particle;$(ProjectDir)Application\Enemy;$(ProjectDir)Application\Player;$(ProjectDir)Baziru3_Engine\IO\XBox;$(ProjectDir)Application\Boss;$(ProjectDir)Application\Skydome;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
