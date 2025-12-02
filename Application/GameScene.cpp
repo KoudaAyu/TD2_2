@@ -40,9 +40,9 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 	debugCamera_->Initialize();
 #endif
 
-	model_ = Object3d::Create(object3dCom_, "apple.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera);
-	Object3d* enemyModelTemplate = Object3d::Create(object3dCom_, "wall.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera);
-
+	model_ = Object3d::Create(object3dCom_, "apple.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera_);
+	Object3d* enemyModelTemplate = Object3d::Create(object3dCom_, "wall.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera_);
+				
 	player_ = new Player();
 	player_->Initialize(model_, camera, { 0.0f,0.0f,0.0f }, object3dCom);
 
@@ -64,6 +64,8 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 
 	currentWave_ = 0;
 	phase_ = Phase::kMain;
+	// ensure maxWaves_ at least 1
+	if (maxWaves_ < 1) maxWaves_ = 4;
 	SpawnWave();
 
 	railCameraController_ = new RailCameraController();
@@ -151,26 +153,12 @@ void GameScene::Update()
 		if (currentWave_ + 1 < maxWaves_)
 		{
 
-			if (!isWaitingForNextWave_)
-			{
+			// Immediately advance to next wave when the current wave has been cleared
+			for (Enemy* enemy : enemies_) { delete enemy; }
+			enemies_.clear();
+			++currentWave_;
+			SpawnWave();
 
-				for (Enemy* enemy : enemies_) { delete enemy; }
-				enemies_.clear();
-
-				isWaitingForNextWave_ = true;
-				waveDelayTimer_ = waveDelay_;
-			}
-			else
-			{
-				const float dt = 1.0f / 60.0f;
-				waveDelayTimer_ -= dt;
-				if (waveDelayTimer_ <= 0.0f)
-				{
-					isWaitingForNextWave_ = false;
-					++currentWave_;
-					SpawnWave();
-				}
-			}
 		}
 		else
 		{
@@ -223,25 +211,12 @@ void GameScene::Update()
 		if (currentWave_ + 1 < maxWaves_)
 		{
 
-			if (!isWaitingForNextWave_)
-			{
-				for (Enemy* e : enemies_) { delete e; }
-				enemies_.clear();
+			// Immediately advance to next wave when the current wave has been cleared
+			for (Enemy* enemy : enemies_) { delete enemy; }
+			enemies_.clear();
+			++currentWave_;
+			SpawnWave();
 
-				isWaitingForNextWave_ = true;
-				waveDelayTimer_ = waveDelay_;
-			}
-			else
-			{
-				const float dt = 1.0f / 60.0f;
-				waveDelayTimer_ -= dt;
-				if (waveDelayTimer_ <= 0.0f)
-				{
-					isWaitingForNextWave_ = false;
-					++currentWave_;
-					SpawnWave();
-				}
-			}
 		}
 		else
 		{
@@ -570,7 +545,7 @@ void GameScene::CheckAllCollisions()
 						Object3d* o = new Object3d();
 						o->Initialize(object3dCom_);
 						o->SetModel(mcopy);
-
+					
 						// small random velocity in world space
 						float ang = Random::GeneratorFloat(0.0f, 6.2831853f);
 						float r = Random::GeneratorFloat(0.5f, 2.0f);
@@ -580,16 +555,16 @@ void GameScene::CheckAllCollisions()
 						mp.life = Random::GeneratorFloat(0.8f, 1.6f);
 						mp.age = 0.0f;
 						mp.vel = { std::cos(ang) * r, std::sin(ang) * r, Random::GeneratorFloat(-0.5f, 0.5f) };
-
+					
 						// set initial transform at world pos
 						Transform tt; tt.Initialize();
 						tt.SetTranslate(posB);
 						tt.SetScale({0.3f, 0.3f, 0.3f});
 						o->ApplyState(tt, camera_, true);
-
+					
 						// ensure initial color alpha 1
 						mcopy->SetColor({1.0f,1.0f,1.0f,1.0f});
-
+					
 						appMeshParticles_.push_back(mp);
 					}
 				}
@@ -620,6 +595,7 @@ void GameScene::CheckAllCollisions()
 		}
 	}
 #pragma endregion
+
 }
 
 
@@ -630,9 +606,42 @@ void GameScene::SpawnWave()
 	{
 		Object3d* enemyModel = Object3d::Create(object3dCom_, "wall.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera_);
 		Enemy* enemy = new Enemy();
-		Vector3 enemyPos = { static_cast<float>((i - enemyCount / 2) * 2), 0.0f, 10.0f };
+		Vector3 enemyPos = { static_cast<float>((i - enemyCount / 2) * 2), 0.0f, enemySpawnZ_ };
 		enemy->Initialize(enemyModel, camera_, enemyPos, object3dCom_);
 		enemy->SetPlayer(player_);
+
+		// Wave-specific behavior
+		if (currentWave_ == 0)
+		{
+			// Wave1: much slower bullets, staggered one-by-one fire
+			enemy->SetBulletSpeed(0.25f);         // much slower bullets
+			enemy->SetFireInterval(60);           // longer firing interval between shots
+			enemy->SetAttackPattern(Enemy::AttackPattern::Straight);
+			enemy->SetRandomizeInitialFire(false); // use deterministic staggering instead of random offsets
+
+			// Stagger initial fire so enemies fire one-by-one.
+			// first enemy fires after 0 frames, next after (staggerFrames), etc.
+			const int staggerFrames = 50; // increase to make the gap longer between consecutive enemies
+			int delay = i * staggerFrames;
+			enemy->SetInitialFireDelay(delay);
+		}
+		else if (currentWave_ == 1)
+		{
+			// Wave2: aim shots
+			enemy->SetBulletSpeed(0.9f);
+			enemy->SetFireInterval(28);
+			enemy->SetAttackPattern(Enemy::AttackPattern::Aim);
+			// keep deterministic fire timing for this wave
+			// no special initial staggering
+		}
+		else if (currentWave_ == 2)
+		{
+			// Wave3: more aggressive / rapid
+			enemy->SetBulletSpeed(1.0f);
+			enemy->SetFireInterval(20);
+			enemy->SetAttackPattern(Enemy::AttackPattern::Rapid);
+		}
+
 		enemies_.push_back(enemy);
 	}
 }

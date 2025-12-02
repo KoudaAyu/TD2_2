@@ -39,6 +39,9 @@ private:
 	//敵の数
 	const int enemyCount = 5;
 
+	// 敵の出現Z位置（
+	float enemySpawnZ_ = 30.0f;
+
 private:
 
 	Camera* camera_ = nullptr;
@@ -89,7 +92,7 @@ private:
 
 	
 	int currentWave_ = 0;
-	int maxWaves_ = 2;
+	int maxWaves_ = 4; 
 	void SpawnWave();
 
 	bool isWaitingForNextWave_ = false;
