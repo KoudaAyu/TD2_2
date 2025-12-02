@@ -4,6 +4,12 @@
 #include "Model.h"
 #include "Random.h"
 
+// UI
+#include "UIManager.h"
+#include "UIButton.h"
+#include "Logger.h"
+#include <format>
+
 GameScene::~GameScene()
 {
 	for (Enemy* enemy : enemies_)
@@ -30,7 +36,10 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 	camera_->Initialize();
 
 	keyInput_ = KeyInput::GetInstance();
-	spriteCom_ = spriteCom; // store for App particles
+	spriteCom_ = spriteCom; 
+
+	InitializeUI(spriteCom);
+	
 
 #ifdef _DEBUG
 	// 画面サイズから DebugCamera を初期化 (幅/高さは DirectXCom 経由で取得する想定)
@@ -42,7 +51,7 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 
 	model_ = Object3d::Create(object3dCom_, "apple.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera_);
 	Object3d* enemyModelTemplate = Object3d::Create(object3dCom_, "wall.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera_);
-				
+			
 	player_ = new Player();
 	player_->Initialize(model_, camera, { 0.0f,0.0f,0.0f }, object3dCom);
 
@@ -64,7 +73,7 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 
 	currentWave_ = 0;
 	phase_ = Phase::kMain;
-	// ensure maxWaves_ at least 1
+
 	if (maxWaves_ < 1) maxWaves_ = 4;
 	SpawnWave();
 
@@ -90,7 +99,6 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 	skydome_->Initialize(object3dCom_, camera_);
 }
 
-// Helper: world -> screen (pixels)
 static Vector2 WorldToScreen(const Vector3& world, Camera* cam, int screenW, int screenH)
 {
 	const Matrix4x4& vp = cam->GetViewProjectionMatrix();
@@ -109,6 +117,9 @@ static Vector2 WorldToScreen(const Vector3& world, Camera* cam, int screenW, int
 
 void GameScene::Update()
 {
+	
+	uiManager_.UpdateAll();
+
 #ifdef _DEBUG
 #ifdef USE_IMGUI
 	// ImGuiフレーム中 (ImGuiManager::Begin() 呼び出し後) にのみUI描画
@@ -210,7 +221,7 @@ void GameScene::Update()
 		if (currentWave_ + 1 < maxWaves_)
 		{
 
-	
+			
 			for (Enemy* enemy : enemies_) { delete enemy; }
 			enemies_.clear();
 			++currentWave_;
@@ -259,7 +270,7 @@ void GameScene::Update()
 		pm->Update(camera_->GetViewMatrix(), camera_->GetProjectionMatrix());
 	}
 
-	// --- Application sprite particles update ---
+	
 	const float dt = 1.0f / 60.0f;
 	if (!appParticles_.empty()) {
 		int screenW = object3dCom_->GetDirectXCom()->GetClientWidth();
@@ -268,11 +279,11 @@ void GameScene::Update()
 			auto &p = appParticles_[i];
 			p.age += dt;
 			if (p.sprite) {
-				// move
+				
 				p.pos.x += p.vel.x * dt;
 				p.pos.y += p.vel.y * dt;
 				p.sprite->SetPosition(p.pos);
-				// fade alpha
+				
 				float a = 1.0f - (p.age / p.life);
 				if (a < 0.0f) a = 0.0f;
 				Vector4 c = { 1.0f, 1.0f, 1.0f, a };
@@ -281,7 +292,7 @@ void GameScene::Update()
 			}
 			if (p.age >= p.life) {
 				if (p.sprite) { delete p.sprite; p.sprite = nullptr; }
-				// remove
+				
 				appParticles_.erase(appParticles_.begin() + i);
 			} else {
 				++i;
@@ -289,23 +300,23 @@ void GameScene::Update()
 		}
 	}
 
-	// --- Application mesh (OBJ) particles update ---
+
 	if (!appMeshParticles_.empty()) {
 		for (size_t i = 0; i < appMeshParticles_.size();) {
 			auto &mp = appMeshParticles_[i];
 			mp.age += dt;
-			// move in world
+			
 			if (mp.obj) {
 				Vector3 cur = mp.obj->GetTranslate();
 				cur.x += mp.vel.x * dt;
 				cur.y += mp.vel.y * dt;
 				cur.z += mp.vel.z * dt;
 				mp.obj->SetTranslate(cur);
-				// fade alpha on model
+			
 				float a = 1.0f - (mp.age / mp.life);
 				if (a < 0.0f) a = 0.0f;
 				if (mp.model) mp.model->SetColor({1.0f, 1.0f, 1.0f, a});
-				// apply transform so it is drawn correctly
+				
 				Transform t;
 				t.Initialize();
 				t.SetScale(mp.obj->GetScale());
@@ -330,7 +341,6 @@ void GameScene::Update()
 
 void GameScene::Draw()
 {
-
 	skydome_->Draw();
 
 	for (Enemy* enemy : enemies_)
@@ -346,17 +356,19 @@ void GameScene::Draw()
 		pm->Draw();
 	}
 
-	// draw application sprite particles
+	
 	for (auto &p : appParticles_) {
 		if (p.sprite) p.sprite->Draw();
 	}
-
-	// draw application mesh particles
+	
 	for (auto &mp : appMeshParticles_) {
 		if (mp.obj) {
 			mp.obj->Draw();
 		}
 	}
+
+
+	uiManager_.DrawAll();
 
 	if (phase_ == Phase::kFadeOut)
 	{
@@ -418,7 +430,7 @@ void GameScene::CheckAllCollisions()
 	{
 		if (!enemy_) continue;
 		if (!enemy_->IsActive()) continue;
-
+	
 		posB = enemy_->GetWorldTranslate();
 
 		for (const PlayerBarrier* barrier : barriers)
@@ -509,7 +521,7 @@ void GameScene::CheckAllCollisions()
 				const_cast<PlayerBarrier*>(barrier)->OnCollision();
 				enemy_->OnCollision();
 
-				// Spawn application sprite particles for fade-out effect
+				
 				if (spriteCom_ && !particleTexturePath_.empty()) {
 					int count = 24;
 					int screenW = object3dCom_->GetDirectXCom()->GetClientWidth();
@@ -522,11 +534,11 @@ void GameScene::CheckAllCollisions()
 						ap.life = Random::GeneratorFloat(0.6f, 1.2f);
 						ap.age = 0.0f;
 						ap.pos = base;
-						// random velocity in screen space
+						
 						float ang = Random::GeneratorFloat(0.0f, 6.2831853f);
-						float spd = Random::GeneratorFloat(30.0f, 120.0f); // pixels/sec
+						float spd = Random::GeneratorFloat(30.0f, 120.0f);
 						ap.vel = { std::cos(ang) * spd, std::sin(ang) * spd };
-						// initial color
+					
 						s->SetPosition(ap.pos);
 						s->SetScale({ 24.0f,24.0f });
 						s->SetColor({1.0f,1.0f,1.0f,1.0f});
@@ -535,7 +547,7 @@ void GameScene::CheckAllCollisions()
 					}
 				}
 
-				// Spawn application mesh particles (OBJ) that fade over time
+	
 				if (model_ && model_->GetModel()) {
 					Model* src = model_->GetModel();
 					int meshCount = 8;
@@ -545,7 +557,7 @@ void GameScene::CheckAllCollisions()
 						o->Initialize(object3dCom_);
 						o->SetModel(mcopy);
 					
-						// small random velocity in world space
+						
 						float ang = Random::GeneratorFloat(0.0f, 6.2831853f);
 						float r = Random::GeneratorFloat(0.5f, 2.0f);
 						AppMeshParticle mp;
@@ -555,13 +567,13 @@ void GameScene::CheckAllCollisions()
 						mp.age = 0.0f;
 						mp.vel = { std::cos(ang) * r, std::sin(ang) * r, Random::GeneratorFloat(-0.5f, 0.5f) };
 					
-						// set initial transform at world pos
+						
 						Transform tt; tt.Initialize();
 						tt.SetTranslate(posB);
 						tt.SetScale({0.3f, 0.3f, 0.3f});
 						o->ApplyState(tt, camera_, true);
 					
-						// ensure initial color alpha 1
+						
 						mcopy->SetColor({1.0f,1.0f,1.0f,1.0f});
 					
 						appMeshParticles_.push_back(mp);
@@ -597,6 +609,36 @@ void GameScene::CheckAllCollisions()
 
 }
 
+void GameScene::InitializeUI(SpriteCom* spriteCom)
+{
+	{
+		//Anchorを右下に設定
+		auto wasd = std::make_shared<UIButton>();
+		wasd->Initialize(spriteCom, "Resources/UI/WASDUI.png");
+		int sw = object3dCom_->GetDirectXCom()->GetClientWidth();
+		int sh = object3dCom_->GetDirectXCom()->GetClientHeight();
+		wasd->SetScale({ 225.0f, 40.0f });
+		wasd->SetAnchor({ 1.0f, 1.0f });
+		wasd->SetPosition({ static_cast<float>(sw) - 10.0f, static_cast<float>(sh) - 10.0f });
+		wasd->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });
+		uiManager_.Add(wasd);
+	}
+
+	
+	{
+		//Anchorを右下に設定
+		auto space = std::make_shared<UIButton>();
+		space->Initialize(spriteCom, "Resources/UI/SPACEUI.png");
+		int sw = object3dCom_->GetDirectXCom()->GetClientWidth();
+		int sh = object3dCom_->GetDirectXCom()->GetClientHeight();
+		space->SetScale({ 270.0f, 40.0f });
+		space->SetAnchor({ 1.0f, 1.0f });
+		space->SetPosition({ static_cast<float>(sw) - 0.0f, static_cast<float>(sh) - 60.0f });
+		space->SetColor({ 0.2f, 0.8f, 1.0f, 1.0f });
+		uiManager_.Add(space);
+	}
+}
+
 
 
 void GameScene::SpawnWave()
@@ -609,33 +651,30 @@ void GameScene::SpawnWave()
 		enemy->Initialize(enemyModel, camera_, enemyPos, object3dCom_);
 		enemy->SetPlayer(player_);
 
-		// Wave-specific behavior
+	
 		if (currentWave_ == 0)
 		{
-			// Wave1: much slower bullets, staggered one-by-one fire
-			enemy->SetBulletSpeed(0.25f);         // much slower bullets
-			enemy->SetFireInterval(60);           // longer firing interval between shots
+		
+			enemy->SetBulletSpeed(0.25f);        
+			enemy->SetFireInterval(60);          
 			enemy->SetAttackPattern(Enemy::AttackPattern::Straight);
-			enemy->SetRandomizeInitialFire(false); // use deterministic staggering instead of random offsets
+			enemy->SetRandomizeInitialFire(false); 
 
-			// Stagger initial fire so enemies fire one-by-one.
-			// first enemy fires after 0 frames, next after (staggerFrames), etc.
-			const int staggerFrames = 50; // increase to make the gap longer between consecutive enemies
+			const int staggerFrames = 50; 
 			int delay = i * staggerFrames;
 			enemy->SetInitialFireDelay(delay);
 		}
 		else if (currentWave_ == 1)
 		{
-			// Wave2: aim shots
+			
 			enemy->SetBulletSpeed(0.9f);
 			enemy->SetFireInterval(28);
 			enemy->SetAttackPattern(Enemy::AttackPattern::Aim);
-			// keep deterministic fire timing for this wave
-			// no special initial staggering
+			
 		}
 		else if (currentWave_ == 2)
 		{
-			// Wave3: more aggressive / rapid
+			
 			enemy->SetBulletSpeed(1.0f);
 			enemy->SetFireInterval(20);
 			enemy->SetAttackPattern(Enemy::AttackPattern::Rapid);
@@ -670,18 +709,18 @@ void GameScene::ResetScene()
     if (debugCamera_) { delete debugCamera_; debugCamera_ = nullptr; }
 #endif
 
-    // clear application particles
+   
     for (auto &p : appParticles_) {
         if (p.sprite) { delete p.sprite; p.sprite = nullptr; }
     }
     appParticles_.clear();
 
-    // reset wave state
+   
     currentWave_ = 0;
     isWaitingForNextWave_ = false;
     waveDelayTimer_ = 0.0f;
 
-    // Reinitialize the scene using stored pointers
+ 
     Initialize(camera_, object3dCom_, spriteCom_);
 }
 #endif

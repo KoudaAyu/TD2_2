@@ -13,6 +13,10 @@
 
 #include <vector>
 #include <string>
+#include <memory>
+
+// UI
+#include "Application/UI/UIManager.h"
 
 class GameScene
 {
@@ -27,6 +31,8 @@ public:
 	/// 衝突判定と衝突処理の実行
 	/// </summary>
 	void CheckAllCollisions();
+
+	void InitializeUI(SpriteCom* spriteCom);
 
 public:
 	bool IsFinish() const { return isFinish_; }
@@ -102,5 +108,8 @@ private:
 #ifdef _DEBUG
 	void ResetScene();
 #endif
+
+	// UI manager for this scene
+	UIManager uiManager_;
 
 };
