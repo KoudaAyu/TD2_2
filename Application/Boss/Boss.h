@@ -42,7 +42,7 @@ public:
     void Move();
 
 public:
-    // --- Polymorphic motion interface (public so external implementations can subclass) ---
+ 
     struct Motion {
         virtual ~Motion() {}
         virtual void Start(Boss* owner) = 0;
@@ -50,7 +50,7 @@ public:
         virtual bool IsFinished() const = 0;
     };
 
-    // Accessors used by Motion implementations
+   
     Object3d* GetModel() const { return model_; }
     Object3d* GetLaserModel() const { return laserModel_; }
     Camera* GetCamera() const { return camera_; }

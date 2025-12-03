@@ -40,7 +40,7 @@ public:
 private:
 	bool isFinish_ = false;
 	bool isDebugCameraActive_ = false;
-	bool isPaused_ = false; // Pause flag
+	bool isPaused_ = false; 
 
 	//敵の数
 	const int enemyCount = 5;

@@ -9,6 +9,9 @@
 #include "Logger.h"
 #include <format>
 
+// フェード開始フラグ
+static bool gFadeStarted = false;
+
 GameScene::~GameScene()
 {
 	for (Enemy* enemy : enemies_)
@@ -61,18 +64,14 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 				
 				pm->CreateParticleGroupFromModel("default", "apple.obj");
 
-			
 				std::string texPath = model_->GetModel()->GetTexturePath();
 				if (!texPath.empty()) {
 					pm->CreateParticleGroup("defaultSprite", texPath);
-				
 					particleTexturePath_ = texPath;
 				}
 
-			
 				pm->CreateParticleGroupFromModel("defaultMesh", "apple.obj");
 
-				
 				if (!pm->HasGroup("enemyMesh")) {
 					pm->CreateParticleGroupFromModel("enemyMesh", "wall.obj");
 				}
@@ -88,24 +87,22 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 
 	railCameraController_ = new RailCameraController();
 	railCameraController_->SetCamera(camera_);
-	railCameraController_->Initialize({ 0.0f, 5.0f, -10.0f }, { 20.0f, 0.0f, 0.0f });
-
-	railCameraController_->SetTarget(player_);
-
-
+	railCameraController_->Initialize({ 0.0f, 5.0f, -10.0f }, { 20.0f, 0.0f, 0.0f });	railCameraController_->SetTarget(player_);
 	bossBodyModel_ = nullptr;
 	boss_ = nullptr;
 
 	fade_ = new Fade();
 	fade_->Initialize(spriteCom);
-	fade_->Start(Fade::State::kNone, 1.0f);
+	// SelectScene から遷移直後は画面が黒の可能性があるためフェードインを開始
+	fade_->Start(Fade::State::kFadeIn, 0.5f);
 
+	gFadeStarted = false; // シーン初期化時にフェード開始フラグをリセット
 
 	isWaitingForNextWave_ = false;
 	waveDelayTimer_ = 0.0f;
 
 	skydome_ = new Skydome();
-skydome_->Initialize(object3dCom_, camera_);
+	skydome_->Initialize(object3dCom_, camera_);
 }
 
 static Vector2 WorldToScreen(const Vector3& world, Camera* cam, int screenW, int screenH)
@@ -141,8 +138,9 @@ void GameScene::Update()
     if (isPaused_) {
         
         uiManager_.UpdateAll();
+        // 常にフェードを更新（アクティブ時のみ内部で進行）
+        if (fade_) { fade_->Update(); }
         if (phase_ == Phase::kFadeOut && fade_) {
-            fade_->Update();
             if (fade_->IsFinished()) { isFinish_ = true; }
         }
         
@@ -224,7 +222,7 @@ void GameScene::Update()
 	}
 	else
 	{
-		// 通常のレールカメラ更新（player の更新後に行う）
+		// 通常のレールカメラ更新（player の更新後に行う）　
 		railCameraController_->Update();
 	}
 #else
@@ -282,18 +280,24 @@ void GameScene::Update()
 		if (!boss_->IsActive() && phase_ == Phase::kBoss)
 		{
 			phase_ = Phase::kFadeOut;
-			fade_->Start(Fade::State::kFadeOut, 1.0f);
+			// フェードアウト開始が一度だけ行われるようにガード
+			if (fade_ && !gFadeStarted)
+			{
+				fade_->Start(Fade::State::kFadeOut, 1.0f);
+				gFadeStarted = true;
+			}
 		}
 	}
 
-	if (phase_ == Phase::kFadeOut)
-	{
-		fade_->Update();
-		if (fade_->IsFinished())
-		{
-			isFinish_ = true;
-		}
-	}
+    // フェードは常に更新（必要なときのみ内部で進行）
+    if (fade_)
+    {
+        fade_->Update();
+        if (phase_ == Phase::kFadeOut && fade_->IsFinished())
+        {
+            isFinish_ = true;
+        }
+    }
 
 	
 	auto* pm = ParticleManager::GetInstance();
@@ -372,15 +376,15 @@ void GameScene::Update()
 
 void GameScene::Draw()
 {
-	skydome_->Draw();
+    skydome_->Draw();
 
-	for (Enemy* enemy : enemies_)
-	{
-		if (enemy) enemy->Draw();
-	}
-	player_->Draw();
+    for (Enemy* enemy : enemies_)
+    {
+        if (enemy) enemy->Draw();
+    }
+    player_->Draw();
 
-	if (boss_) boss_->Draw();
+    if (boss_) boss_->Draw();
 
         auto* pm = ParticleManager::GetInstance();
     if (pm) {
@@ -408,10 +412,8 @@ void GameScene::Draw()
         pauseSprite_->Draw();
     }
 
-    if (phase_ == Phase::kFadeOut)
-	{
-		fade_->Draw();
-	}
+    // フェードは常に描画（内部色で非表示管理）
+    if (fade_) { fade_->Draw(); }
 }
 
 void GameScene::CheckAllCollisions()
@@ -743,6 +745,7 @@ void GameScene::SpawnWave()
 		enemy->Initialize(enemyModel, camera_, enemyPos, object3dCom_);
 		enemy->SetPlayer(player_);
 
+
 	
 		if (currentWave_ == 0)
 		{
@@ -783,40 +786,39 @@ void GameScene::SpawnWave()
 #ifdef _DEBUG
 void GameScene::ResetScene()
 {
-    // delete existing enemies
-    for (Enemy* e : enemies_) { delete e; }
-    enemies_.clear();
+	// delete existing enemies
+	for (Enemy* e : enemies_) { delete e; }
+	enemies_.clear();
 
-    // delete player
-    if (player_) { delete player_; player_ = nullptr; }
+	// delete player
+	if (player_) { delete player_; player_ = nullptr; }
 
-    // delete rail camera controller
-    if (railCameraController_) { delete railCameraController_; railCameraController_ = nullptr; }
+	// delete rail camera controller
+	if (railCameraController_) { delete railCameraController_; railCameraController_ = nullptr; }
 
-    // delete boss and models
-    if (boss_) { delete boss_; boss_ = nullptr; }
-    if (bossBodyModel_) { delete bossBodyModel_; bossBodyModel_ = nullptr; }
+	// delete boss and models
+	if (boss_) { delete boss_; boss_ = nullptr; }
+	if (bossBodyModel_) { delete bossBodyModel_; bossBodyModel_ = nullptr; }
 
-    // delete fade
-    if (fade_) { delete fade_; fade_ = nullptr; }
+	// delete fade
+	if (fade_) { delete fade_; fade_ = nullptr; }
 
-    // delete debug camera
+	// delete debug camera
 #ifdef _DEBUG
-    if (debugCamera_) { delete debugCamera_; debugCamera_ = nullptr; }
+	if (debugCamera_) { delete debugCamera_; debugCamera_ = nullptr; }
 #endif
 
-   
-    for (auto &p : appParticles_) {
-        if (p.sprite) { delete p.sprite; p.sprite = nullptr; }
-    }
-    appParticles_.clear();
+	for (auto &p : appParticles_) {
+		if (p.sprite) { delete p.sprite; p.sprite = nullptr; }
+	}
+	appParticles_.clear();
 
-   
-    currentWave_ = 0;
-    isWaitingForNextWave_ = false;
-    waveDelayTimer_ = 0.0f;
+	currentWave_ = 0;
+	isWaitingForNextWave_ = false;
+	waveDelayTimer_ = 0.0f;
 
- 
-    Initialize(camera_, object3dCom_, spriteCom_);
+	gFadeStarted = false; // リセット時にもフェード開始フラグをクリア
+
+	Initialize(camera_, object3dCom_, spriteCom_);
 }
 #endif
