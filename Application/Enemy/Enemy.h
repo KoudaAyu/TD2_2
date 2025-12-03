@@ -107,6 +107,11 @@ public:
 	void SetRandomizeInitialFire(bool v) { randomizeInitialFireOffset_ = v; }
 	// 初回発射までの個別遅延（フレーム）を設定
 	void SetInitialFireDelay(int frames) { initialFireDelay_ = frames; }
+	// 離脱で非アクティブ化する Z と半径のしきい値を設定
+	void SetLeaveDeactivateZ(float z) { leaveDeactivateZ_ = z; }
+	void SetLeaveDeactivateRadius(float r) { leaveDeactivateRadius_ = r; }
+	// 離脱フェーズのパーティクルを出すかどうか
+	void SetLeaveEmitParticles(bool v) { leaveEmitParticles_ = v; }
 
 private:
 	
@@ -127,6 +132,7 @@ private:
 	// 離脱時のパーティクル発生 (秒)
 	float leaveParticleTimer_ = 0.0f;
 	float leaveParticleInterval_ = 0.08f; // 0.08s 間隔で小さなバースト
+	bool leaveEmitParticles_ = false; // 離脱時のパーティクル無効化（初期は出さない）
 
 	// 出現モーション用
 	Vector3 spawnStartPos_ = { 0.0f, 5.0f, 15.0f };
@@ -153,6 +159,10 @@ private:
 
 	// 初回発射までの個別遅延（フレーム）。-1なら使用しない
 	int initialFireDelay_ = -1;
+
+	// 離脱フェーズで非アクティブ化するしきい値（調整用）
+	float leaveDeactivateZ_ = -60.0f;      // 画面奥に十分行ってから
+	float leaveDeactivateRadius_ = 140.0f; // スパイラルが十分広がってから
 
 private:
 	Camera* camera_ = nullptr;
