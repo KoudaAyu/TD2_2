@@ -18,7 +18,7 @@ public:
 		Spawn, // 出現モーション
 		Approach,//接近する
 		Leave,//離脱する
-	};;
+	};
 
 	// 攻撃パターンを外部から設定できるように追加
 	enum class AttackPattern
@@ -134,6 +134,11 @@ private:
 	float leaveParticleInterval_ = 0.08f; // 0.08s 間隔で小さなバースト
 	bool leaveEmitParticles_ = false; // 離脱時のパーティクル無効化（初期は出さない）
 
+	// 派手に逃がす（エスケープ）演出用
+	float leaveEscapeTimer_ = 0.0f;       // 経過秒
+	float leaveEscapeDuration_ = 0.6f;    // エスケープ演出の長さ（秒）
+	bool leaveEscapeStarted_ = false;     // エスケープ演出中フラグ
+
 	// 出現モーション用
 	Vector3 spawnStartPos_ = { 0.0f, 5.0f, 15.0f };
 	Vector3 spawnTargetPos_ = { 0.0f, 0.0f, 10.0f };
@@ -163,6 +168,10 @@ private:
 	// 離脱フェーズで非アクティブ化するしきい値（調整用）
 	float leaveDeactivateZ_ = -60.0f;      // 画面奥に十分行ってから
 	float leaveDeactivateRadius_ = 140.0f; // スパイラルが十分広がってから
+
+	// エスケープ時の開始スケールと色（フェード用）
+	Vector3 leaveStartScale_ = {1.0f, 1.0f, 1.0f};
+	Vector4 leaveStartColor_ = {1.0f, 1.0f, 1.0f, 1.0f};
 
 private:
 	Camera* camera_ = nullptr;
