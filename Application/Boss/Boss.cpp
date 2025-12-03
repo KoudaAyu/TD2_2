@@ -12,6 +12,8 @@
 #include <cmath>
 // Particle effects
 #include "Baziru3_Engine/Particle/ParticleManager.h"
+// AABB collision
+#include "Baziru3_Engine/MathUtl/AABB.h"
 
 Boss::Boss() {}
 
@@ -619,19 +621,15 @@ void Boss::UpdatePhase4()
         {
             Vector3 p = player_->GetWorldTranslate();
             Vector3 lp = laserModel_->GetTranslate();
-
-            
             Vector3 laserHalf = { (laserWidth_ * 0.5f) + laserPlayerHitPaddingXY_, (laserWidth_ * 0.5f) + laserPlayerHitPaddingXY_, (length * 0.5f) + laserPlayerHitPaddingZ_ };
-
-          
             Vector3 playerHalf = { playerHitHalfSizeXY_, playerHitHalfSizeXY_, playerHitHalfSizeZ_ };
 
-          
-            bool overlapX = std::fabs(p.x - lp.x) <= (laserHalf.x + playerHalf.x);
-            bool overlapY = std::fabs(p.y - lp.y) <= (laserHalf.y + playerHalf.y);
-            bool overlapZ = std::fabs(p.z - lp.z) <= (laserHalf.z + playerHalf.z);
+            AABB laserBox{ { lp.x - laserHalf.x, lp.y - laserHalf.y, lp.z - laserHalf.z },
+                           { lp.x + laserHalf.x, lp.y + laserHalf.y, lp.z + laserHalf.z } };
+            AABB playerBox{ { p.x - playerHalf.x, p.y - playerHalf.y, p.z - playerHalf.z },
+                            { p.x + playerHalf.x, p.y + playerHalf.y, p.z + playerHalf.z } };
 
-            if (overlapX && overlapY && overlapZ)
+            if (IsCollisionAABBAABB(laserBox, playerBox))
             {
                 player_->OnCollision();
                 if (camera_) { camera_->StartShake(0.6f, 0.45f); }
@@ -646,15 +644,32 @@ void Boss::UpdatePhase4()
         float length = laserMaxLength_ * (1.0f - t);
         if (length < 1.0f) length = 1.0f;
         laserModel_->SetScale({ laserWidth_, laserWidth_, length });
-
-        // レーザーの位置を再計算（Z軸スケールの変化に伴う調整）
         Vector3 bossPos = worldTransform_.GetTranslate();
         Vector3 laserPos = bossPos + Vector3{0.0f, 0.0f, -length * 0.5f};
         laserModel_->SetTranslate(laserPos);
-
         Vector4 col = laserFireColor_;
         col.w = 1.0f - t; // フェードアウト
         laserModel_->SetColor(col);
+
+        // 回収中も AABB 当たり判定を維持
+        if (player_ && player_->IsAlive())
+        {
+            Vector3 p = player_->GetWorldTranslate();
+            Vector3 lp = laserModel_->GetTranslate();
+            Vector3 laserHalf = { (laserWidth_ * 0.5f) + laserPlayerHitPaddingXY_, (laserWidth_ * 0.5f) + laserPlayerHitPaddingXY_, (length * 0.5f) + laserPlayerHitPaddingZ_ };
+            Vector3 playerHalf = { playerHitHalfSizeXY_, playerHitHalfSizeXY_, playerHitHalfSizeZ_ };
+
+            AABB laserBox{ { lp.x - laserHalf.x, lp.y - laserHalf.y, lp.z - laserHalf.z },
+                           { lp.x + laserHalf.x, lp.y + laserHalf.y, lp.z + laserHalf.z } };
+            AABB playerBox{ { p.x - playerHalf.x, p.y - playerHalf.y, p.z - playerHalf.z },
+                            { p.x + playerHalf.x, p.y + playerHalf.y, p.z + playerHalf.z } };
+
+            if (IsCollisionAABBAABB(laserBox, playerBox))
+            {
+                player_->OnCollision();
+                if (camera_) { camera_->StartShake(0.45f, 0.35f); }
+            }
+        }
     }
     else
     {
