@@ -442,6 +442,8 @@ void GameScene::CheckAllCollisions()
 	}
 
 	// ▼ 弾同士の当たり判定（小さなメッシュパーティクルを出す）
+	// 敵弾 vs 敵弾 は通常無効化。必要になったらこのブロックのコメントを外してください。
+	/*
 	{
 		auto* pm = ParticleManager::GetInstance();
 		if (!enemyBullets.empty()) {
@@ -468,6 +470,7 @@ void GameScene::CheckAllCollisions()
 			}
 		}
 	}
+	*/
 
 #pragma region 自キャラと敵の弾の当たり判定
 	posA = player_->GetWorldTranslate();

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "UIElement.h"
-#include "../../Baziru3_Engine/2D/Sprite/Sprite.h"
+#include "Sprite.h"
 #include <string>
 #include <memory>
 

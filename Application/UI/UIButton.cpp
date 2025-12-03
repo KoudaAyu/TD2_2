@@ -1,6 +1,6 @@
 #include "UIButton.h"
-#include "../../Baziru3_Engine/Base/Window/WinApp.h"
-#include "../../Baziru3_Engine/IO/KeyInput/KeyInput.h"
+#include "WinApp.h"
+#include "KeyInput.h"
 
 // simple mouse helper
 static Vector2 GetMousePosInClient() {

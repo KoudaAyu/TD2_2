@@ -607,33 +607,34 @@ void Boss::UpdatePhase4()
     }
     else if (laserTimer_ <= laserChargeFrames_ + laserFireFrames_)
     {
-        // 発射中: 最大長さ、発射色
         float length = laserMaxLength_;
         laserModel_->SetScale({ laserWidth_, laserWidth_, length });
-
-        // レーザーの位置を再計算（Z軸スケールの変化に伴う調整）
         Vector3 bossPos = worldTransform_.GetTranslate();
         Vector3 laserPos = bossPos + Vector3{0.0f, 0.0f, -length * 0.5f};
         laserModel_->SetTranslate(laserPos);
-
         laserModel_->SetColor(laserFireColor_);
 
-        // プレイヤーへの当たり判定（簡易AABB）
-        if (player_)
+        // AABB vs AABB collision
+        if (player_ && player_->IsAlive())
         {
             Vector3 p = player_->GetWorldTranslate();
             Vector3 lp = laserModel_->GetTranslate();
-            // レーザーの方向に伸びると仮定: lp.z から lp.z - length まで
-            float zStart = lp.z;
-            float zEnd = lp.z - length;
-            float halfW = laserWidth_ * 0.5f;
-            float halfH = laserWidth_ * 0.5f;
-            bool inX = std::fabs(p.x - lp.x) <= halfW;
-            bool inY = std::fabs(p.y - lp.y) <= halfH;
-            bool inZ = (p.z <= zStart) && (p.z >= zEnd);
-            if (inX && inY && inZ)
+
+            
+            Vector3 laserHalf = { (laserWidth_ * 0.5f) + laserPlayerHitPaddingXY_, (laserWidth_ * 0.5f) + laserPlayerHitPaddingXY_, (length * 0.5f) + laserPlayerHitPaddingZ_ };
+
+          
+            Vector3 playerHalf = { playerHitHalfSizeXY_, playerHitHalfSizeXY_, playerHitHalfSizeZ_ };
+
+          
+            bool overlapX = std::fabs(p.x - lp.x) <= (laserHalf.x + playerHalf.x);
+            bool overlapY = std::fabs(p.y - lp.y) <= (laserHalf.y + playerHalf.y);
+            bool overlapZ = std::fabs(p.z - lp.z) <= (laserHalf.z + playerHalf.z);
+
+            if (overlapX && overlapY && overlapZ)
             {
                 player_->OnCollision();
+                if (camera_) { camera_->StartShake(0.6f, 0.45f); }
             }
         }
     }

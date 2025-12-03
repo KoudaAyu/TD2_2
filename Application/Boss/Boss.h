@@ -185,6 +185,13 @@ private:
     float laserWidth_ = 0.6f;       // 幅(X,Y方向スケール)
     Vector4 laserChargeColor_ = {1.0f, 0.3f, 0.3f, 0.7f};
     Vector4 laserFireColor_ = {1.0f, 0.9f, 0.2f, 1.0f};
+    // プレイヤー判定のパディング（プレイヤーの見た目に合わせて幅を加算）
+    float laserPlayerHitPaddingXY_ = 0.4f; // X/Y方向の追加半径
+    // Z方向の判定補正（深さ方向の猶予）
+    float laserPlayerHitPaddingZ_ = 0.6f; // Z方向の追加半径
+    // プレイヤーAABB半径（モデルに依存しない簡易当たり判定用）
+    float playerHitHalfSizeXY_ = 0.4f;
+    float playerHitHalfSizeZ_ = 0.4f;
 
     // --- Phase3: 周回ドローン + 狭角連射 ---
     void UpdatePhase3();
