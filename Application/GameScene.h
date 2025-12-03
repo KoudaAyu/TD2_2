@@ -38,9 +38,9 @@ public:
 	bool IsFinish() const { return isFinish_; }
 
 private:
-
 	bool isFinish_ = false;
 	bool isDebugCameraActive_ = false;
+	bool isPaused_ = false; // Pause flag
 
 	//敵の数
 	const int enemyCount = 5;
@@ -112,4 +112,8 @@ private:
 	// UI manager for this scene
 	UIManager uiManager_;
 
+	// Pause overlay sprite
+	Sprite* pauseSprite_ = nullptr;
+	Sprite* wasdSprite_ = nullptr;
+	Sprite* spaceSprite_ = nullptr;
 };

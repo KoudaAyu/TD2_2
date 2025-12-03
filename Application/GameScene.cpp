@@ -126,8 +126,31 @@ static Vector2 WorldToScreen(const Vector3& world, Camera* cam, int screenW, int
 
 void GameScene::Update()
 {
-	
-	uiManager_.UpdateAll();
+    
+    if (keyInput_ && keyInput_->TriggerKey(DIK_0)) {
+        isPaused_ = !isPaused_;
+       
+        if (pauseSprite_) {
+            Vector4 c = pauseSprite_->GetColor();
+            c.w = isPaused_ ? 1.0f : 0.0f;
+            pauseSprite_->SetColor(c);
+            pauseSprite_->Update();
+        }
+    }
+
+    if (isPaused_) {
+        
+        uiManager_.UpdateAll();
+        if (phase_ == Phase::kFadeOut && fade_) {
+            fade_->Update();
+            if (fade_->IsFinished()) { isFinish_ = true; }
+        }
+        
+        skydome_->Update();
+        return;
+    }
+
+    uiManager_.UpdateAll();
 
 #ifdef _DEBUG
 #ifdef USE_IMGUI
@@ -139,7 +162,6 @@ void GameScene::Update()
 	{
 		isDebugCameraActive_ = !isDebugCameraActive_;
 	}
-
 
 #ifdef _DEBUG
 	if (keyInput_->TriggerKey(DIK_R))
@@ -360,26 +382,33 @@ void GameScene::Draw()
 
 	if (boss_) boss_->Draw();
 
-		auto* pm = ParticleManager::GetInstance();
-	if (pm) {
-		pm->Draw();
-	}
+        auto* pm = ParticleManager::GetInstance();
+    if (pm) {
+        pm->Draw();
+    }
 
-	
-	for (auto &p : appParticles_) {
-		if (p.sprite) p.sprite->Draw();
-	}
-	
-	for (auto &mp : appMeshParticles_) {
-		if (mp.obj) {
-			mp.obj->Draw();
-		}
-	}
+    for (auto &p : appParticles_) {
+        if (p.sprite) p.sprite->Draw();
+    }
+    
+    for (auto &mp : appMeshParticles_) {
+        if (mp.obj) {
+            mp.obj->Draw();
+        }
+    }
 
+    // Draw UI sprites
+    if (wasdSprite_) wasdSprite_->Draw();
+    if (spaceSprite_) spaceSprite_->Draw();
 
-	uiManager_.DrawAll();
+    // Existing UI manager draw can remain for other elements
+    uiManager_.DrawAll();
 
-	if (phase_ == Phase::kFadeOut)
+    if (isPaused_ && pauseSprite_) {
+        pauseSprite_->Draw();
+    }
+
+    if (phase_ == Phase::kFadeOut)
 	{
 		fade_->Draw();
 	}
@@ -660,32 +689,43 @@ void GameScene::CheckAllCollisions()
 
 void GameScene::InitializeUI(SpriteCom* spriteCom)
 {
-	{
-		//Anchorを右下に設定
-		auto wasd = std::make_shared<UIButton>();
-		wasd->Initialize(spriteCom, "Resources/UI/WASDUI.png");
-		int sw = object3dCom_->GetDirectXCom()->GetClientWidth();
-		int sh = object3dCom_->GetDirectXCom()->GetClientHeight();
-		wasd->SetScale({ 225.0f, 40.0f });
-		wasd->SetAnchor({ 1.0f, 1.0f });
-		wasd->SetPosition({ static_cast<float>(sw) - 10.0f, static_cast<float>(sh) - 10.0f });
-		wasd->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });
-		uiManager_.Add(wasd);
-	}
+    int sw = object3dCom_->GetDirectXCom()->GetClientWidth();
+    int sh = object3dCom_->GetDirectXCom()->GetClientHeight();
 
-	
-	{
-		//Anchorを右下に設定
-		auto space = std::make_shared<UIButton>();
-		space->Initialize(spriteCom, "Resources/UI/SPACEUI.png");
-		int sw = object3dCom_->GetDirectXCom()->GetClientWidth();
-		int sh = object3dCom_->GetDirectXCom()->GetClientHeight();
-		space->SetScale({ 270.0f, 40.0f });
-		space->SetAnchor({ 1.0f, 1.0f });
-		space->SetPosition({ static_cast<float>(sw) - 0.0f, static_cast<float>(sh) - 60.0f });
-		space->SetColor({ 0.2f, 0.8f, 1.0f, 1.0f });
-		uiManager_.Add(space);
-	}
+ 
+    {
+        wasdSprite_ = spriteCom->CreateSprite("Resources/UI/WASDUI.png",
+            { static_cast<float>(sw) - 10.0f, static_cast<float>(sh) - 10.0f },
+            { 225.0f, 40.0f }, 0.0f, {1.0f, 1.0f});
+        if (wasdSprite_) {
+            wasdSprite_->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });
+            wasdSprite_->Update();
+        }
+    }
+
+  
+    {
+        spaceSprite_ = spriteCom->CreateSprite("Resources/UI/SPACEUI.png",
+            { static_cast<float>(sw) - 0.0f, static_cast<float>(sh) - 60.0f },
+            { 270.0f, 40.0f }, 0.0f, {1.0f, 1.0f});
+        if (spaceSprite_) {
+            spaceSprite_->SetColor({ 0.2f, 0.8f, 1.0f, 1.0f });
+            spaceSprite_->Update();
+        }
+    }
+
+   
+    {
+        pauseSprite_ = spriteCom->CreateSprite("Resources/UI/Pose.png",
+            { static_cast<float>(sw) * 0.5f, static_cast<float>(sh) * 0.5f },
+            { 600.0f, 400.0f }, 0.0f, {0.5f, 0.5f});
+        if (pauseSprite_) {
+            Vector4 c = pauseSprite_->GetColor();
+            c.w = 0.0f; 
+            pauseSprite_->SetColor(c);
+            pauseSprite_->Update();
+        }
+    }
 }
 
 
