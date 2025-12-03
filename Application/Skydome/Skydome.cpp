@@ -10,7 +10,7 @@ void Skydome::Initialize(Object3dCom* object3dCom, Camera* camera)
 {
 	object3dCom_ = object3dCom;
 	camera_ = camera;
-	model_ = Object3d::Create(object3dCom_, "skydome.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera_);
+	model_ = Object3d::Create(object3dCom_, "skydome/skydome.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera_);
 
 	worldTransform_.Initialize();
 	

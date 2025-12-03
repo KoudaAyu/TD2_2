@@ -52,6 +52,14 @@ void ModelManager::LoadModel(const std::string& filePath)
     if (pos != std::string::npos) {
         directory = filePath.substr(0, pos);
         filename = filePath.substr(pos + 1);
+        // If the directory is a relative path and does not start with Resources, prefix it
+        // Allow absolute paths (e.g., starting with a drive letter or slash) to pass through
+        bool startsWithResources = (directory.rfind("Resources", 0) == 0);
+        bool isAbsoluteWin = (directory.size() > 1 && std::isalpha(static_cast<unsigned char>(directory[0])) && directory[1] == ':');
+        bool isAbsoluteUnix = (!directory.empty() && (directory[0] == '/' || directory[0] == '\\'));
+        if (!startsWithResources && !isAbsoluteWin && !isAbsoluteUnix) {
+            directory = std::string("Resources/") + directory;
+        }
     }
 
     // モデルの生成とファイル読み込み、初期化

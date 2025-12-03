@@ -380,28 +380,34 @@ void Enemy::LeaveUpdate()
 
 	worldTransform_.SetTranslate(newPos);
 
-	// パーティクル発生タイマー更新（秒）
-	leaveParticleTimer_ += (1.0f/60.0f);
-	if (leaveParticleTimer_ >= leaveParticleInterval_)
-	{
-		leaveParticleTimer_ = 0.0f;
-
-		// パーティクル生成：小さなバーストと回転バーストを交互に呼ぶ
-		auto* pm = ParticleManager::GetInstance();
-		if (pm) {
-			Vector3 emitPos = newPos;
-			// 少し手前に出す
-			emitPos.z += 0.5f;
-			pm->EmitBurst8("default", emitPos, 0.06f, 0.08f, 0.25f);
-			pm->EmitBurst8Rotating("default", emitPos, 0.1f, 0.35f, Random::GeneratorFloat(-12.0f, 12.0f), 0.06f, true, 0.6f, 0.0f);
-			pm->EmitBurst8Rotating("default", emitPos, 0.1f, 0.35f, Random::GeneratorFloat(-12.0f, 12.0f), 0.06f, true, 0.6f, 0.0f);
-		}
-	}
-
-	if (newPos.z < -20.0f || leaveRadius_ > 80.0f)
+	// まず非アクティブ化のしきい値を判定し、該当するならパーティクルを出さずに終了
+	if (newPos.z < leaveDeactivateZ_ || leaveRadius_ > leaveDeactivateRadius_)
 	{
 		isActive_ = false;
 		worldTransform_.SetTranslate({ 10000.0f, 10000.0f, 10000.0f });
+		return;
+	}
+
+	// 離脱フェーズのパーティクル生成はフラグで制御
+	if (leaveEmitParticles_)
+	{
+		// パーティクル発生タイマー更新（秒）
+		leaveParticleTimer_ += (1.0f/60.0f);
+		if (leaveParticleTimer_ >= leaveParticleInterval_)
+		{
+			leaveParticleTimer_ = 0.0f;
+
+			// パーティクル生成：小さなバーストと回転バーストを交互に呼ぶ
+			auto* pm = ParticleManager::GetInstance();
+			if (pm) {
+				Vector3 emitPos = newPos;
+				// 少し手前に出す
+				emitPos.z += 0.5f;
+				pm->EmitBurst8("default", emitPos, 0.06f, 0.08f, 0.25f);
+				pm->EmitBurst8Rotating("default", emitPos, 0.1f, 0.35f, Random::GeneratorFloat(-12.0f, 12.0f), 0.06f, true, 0.6f, 0.0f);
+				pm->EmitBurst8Rotating("default", emitPos, 0.1f, 0.35f, Random::GeneratorFloat(-12.0f, 12.0f), 0.06f, true, 0.6f, 0.0f);
+			}
+		}
 	}
 }
 
