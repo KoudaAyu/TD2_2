@@ -208,10 +208,25 @@ void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object
         Vector3 bossPos = worldTransform_.GetTranslate();
         Vector3 localTarget = { targetLocal.x - bossPos.x, targetLocal.y - bossPos.y, targetLocal.z - bossPos.z };
 
-        float scatterScale = 4.0f;
-        Vector3 startLocal = { localTarget.x * scatterScale, localTarget.y * scatterScale + 6.0f, localTarget.z + 12.0f };
+        
+        float idx = static_cast<float>(i);
+        float rings = 3.0f; 
+        float angleStep = 0.8f; 
+        float radiusBase = 10.0f;
+        float radiusVar = 6.0f;  
+        float angle = idx * angleStep;
+        float ring = std::fmod(idx, rings);
+        float radius = radiusBase + radiusVar * ring;
 
-        int dur = spawnDuration_;
+        
+        Vector3 startLocal = {
+            std::cos(angle) * radius,
+            std::sin(angle) * radius * 0.6f + 6.0f,
+            localTarget.z + 18.0f + ring * 4.0f
+        };
+
+       
+        int dur = spawnDuration_ + static_cast<int>((idx * 6.0f));
         p->StartSpawn(startLocal, dur);
     }
 
@@ -616,7 +631,7 @@ void Boss::UpdatePhase4()
         laserModel_->SetTranslate(laserPos);
         laserModel_->SetColor(laserFireColor_);
 
-        // AABB vs AABB collision
+        
         if (player_ && player_->IsAlive())
         {
             Vector3 p = player_->GetWorldTranslate();
@@ -825,7 +840,6 @@ void Boss::Update()
         }
     }
 
-    // If a motion is active, update it and skip running phase-specific logic for Phase4 until finished.
     if (currentMotion_)
     {
         currentMotion_->Update(this, dt);
@@ -849,7 +863,6 @@ void Boss::Update()
     }
     else if (phase_ == Phase::Phase4)
     {
-        // Only run UpdatePhase4 if no pre-motion is active; UpdatePhase4 will initialize laserActive_
         if (!currentMotion_)
         {
             UpdatePhase4();

@@ -37,6 +37,10 @@ public:
 public:
 	bool IsFinish() const { return isFinish_; }
 
+	// デバッグ用: ボスから開始するフラグを設定（Initialize前に設定しておく）
+	void SetStartAtBoss(bool enable) { startAtBoss_ = enable; }
+	bool GetStartAtBoss() const { return startAtBoss_; }
+
 private:
 	bool isFinish_ = false;
 	bool isDebugCameraActive_ = false;
@@ -116,4 +120,7 @@ private:
 	Sprite* pauseSprite_ = nullptr;
 	Sprite* wasdSprite_ = nullptr;
 	Sprite* spaceSprite_ = nullptr;
+
+	// デバッグ用: 起動時にボスフェーズから開始するかどうか
+	bool startAtBoss_ = false;
 };

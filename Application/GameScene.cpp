@@ -82,14 +82,28 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 	currentWave_ = 0;
 	phase_ = Phase::kMain;
 
-	if (maxWaves_ < 1) maxWaves_ = 4;
-	SpawnWave();
+#ifdef _DEBUG
+	// デバッグフラグでボスから開始（DEBUG限定）
+	if (startAtBoss_) {
+		phase_ = Phase::kBoss;
+		for (Enemy* e : enemies_) { delete e; }
+		enemies_.clear();
+		bossBodyModel_ = Object3d::Create(object3dCom_, "bomb.obj", { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,15.0f} }, camera_);
+		boss_ = new Boss();
+		boss_->Initialize(bossBodyModel_, camera_, { 0.0f, 0.0f, 15.0f }, object3dCom_, spriteCom_);
+		boss_->SetPlayer(player_);
+	} else
+#endif
+	{
+		if (maxWaves_ < 1) maxWaves_ = 4;
+		SpawnWave();
+	}
 
 	railCameraController_ = new RailCameraController();
 	railCameraController_->SetCamera(camera_);
 	railCameraController_->Initialize({ 0.0f, 5.0f, -10.0f }, { 20.0f, 0.0f, 0.0f });	railCameraController_->SetTarget(player_);
-	bossBodyModel_ = nullptr;
-	boss_ = nullptr;
+	bossBodyModel_ = bossBodyModel_;
+	boss_ = boss_;
 
 	fade_ = new Fade();
 	fade_->Initialize(spriteCom);
@@ -134,6 +148,13 @@ void GameScene::Update()
             pauseSprite_->Update();
         }
     }
+
+#ifdef _DEBUG
+	// 実行中に F2 でボス開始フラグをトグル（次の ResetScene/Initialize で反映）
+	if (keyInput_ && keyInput_->TriggerKey(DIK_9)) {
+		startAtBoss_ = !startAtBoss_;
+	}
+#endif
 
     if (isPaused_) {
         
@@ -631,7 +652,7 @@ void GameScene::CheckAllCollisions()
 					}
 				}
 
-	
+				
 				if (model_ && model_->GetModel()) {
 					Model* src = model_->GetModel();
 					int meshCount = 8;
