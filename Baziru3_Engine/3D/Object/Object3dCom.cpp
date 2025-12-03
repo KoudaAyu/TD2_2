@@ -206,7 +206,8 @@ void Object3dCom::CreateGraphicsPipeline(){
   rast.DepthClipEnable = TRUE;
 
   // 1) Front = CCW
-  rast.FrontCounterClockwise = TRUE;
+  //rast.FrontCounterClockwise = TRUE;
+  //消すか検討
   desc.RasterizerState = rast;
   hr = directXCom_->GetDevice()->CreateGraphicsPipelineState(
       &desc, IID_PPV_ARGS(&pipelineFrontCCW_));

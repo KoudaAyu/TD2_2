@@ -257,7 +257,7 @@ private:
 
   // フェンス
   uint64_t fenceValue_ = 0;
-  HANDLE fenceEvent_;
+  HANDLE fenceEvent_ = nullptr;
 
   // 記録時間(FPS固定用)
   std::chrono::steady_clock::time_point refrence_;

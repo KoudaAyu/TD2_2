@@ -68,6 +68,87 @@ static std::string FindNumberTexturePath(const std::string& fileName)
     return std::string();
 }
 
+// --- Pre-laser motion implementation (polymorphic) ---
+namespace {
+    struct PreLaserMotionImpl : public Boss::Motion {
+        int timer = 0;
+        int duration = 90; // frames (~1.5s at 60fps)
+        Vector3 origBossScale = {1.0f,1.0f,1.0f};
+        Vector3 origLaserScale = {1.0f,1.0f,1.0f};
+        bool finished = false;
+
+        void Start(Boss* owner) override
+        {
+            timer = 0;
+            finished = false;
+            if (owner->GetModel())
+            {
+                origBossScale = owner->GetModel()->GetScale();
+            }
+            if (owner->GetLaserModel())
+            {
+                origLaserScale = owner->GetLaserModel()->GetScale();
+            }
+        }
+
+        void Update(Boss* owner, float /*dt*/) override
+        {
+            if (finished) return;
+            ++timer;
+
+            float t = static_cast<float>(timer) / static_cast<float>(duration);
+            if (t > 1.0f) t = 1.0f;
+
+            // Boss pulse: scale up then return
+            float pulse = 1.0f + 0.25f * std::sin(t * 3.14159265f * 2.0f);
+            if (owner->GetModel())
+            {
+                Object3d* m = owner->GetModel();
+                Vector3 s = { origBossScale.x * pulse, origBossScale.y * pulse, origBossScale.z * (1.0f + 0.2f * t) };
+                m->SetScale(s);
+
+                // slight tint toward red as charge progresses (no getter for color, so set directly)
+                Vector4 c = { 1.0f * (1.0f - 0.4f * t) + 1.0f * (0.4f * t), 1.0f * (1.0f - 0.2f * t), 1.0f * (1.0f - 0.2f * t), 1.0f };
+                m->SetColor(c);
+
+                m->ApplyState(Transform{ m->GetScale(), m->GetRotate(), m->GetTranslate() }, owner->GetCamera(), true);
+            }
+
+            // Laser visual pre-appearance: fade in short beam
+            if (owner->GetLaserModel())
+            {
+                Object3d* lm = owner->GetLaserModel();
+                float laserAlpha = t; // from 0 to 1
+                Vector4 lc = { 1.0f, 0.3f, 0.3f, laserAlpha };
+                lm->SetColor(lc);
+
+                // small Z scale to hint beam growing
+                Vector3 ls = { owner->GetLaserWidth(), owner->GetLaserWidth(), 1.0f + owner->GetLaserMaxLength() * 0.2f * t };
+                lm->SetScale(ls);
+
+                // position it in front of boss
+                Vector3 bossPos = owner->GetWorldTranslatePublic();
+                Vector3 laserPos = bossPos + Vector3{0.0f, 0.0f, -ls.z * 0.5f};
+                lm->SetTranslate(laserPos);
+                lm->ApplyState(Transform{ lm->GetScale(), lm->GetRotate(), lm->GetTranslate() }, owner->GetCamera(), true);
+            }
+
+            if (timer >= duration)
+            {
+                finished = true;
+            }
+        }
+
+        bool IsFinished() const override { return finished; }
+    };
+}
+
+void Boss::StartLaserPreMotion()
+{
+    currentMotion_ = std::make_unique<PreLaserMotionImpl>();
+    if (currentMotion_) currentMotion_->Start(this);
+}
+
 void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object3dCom* object3dCom, SpriteCom* spriteCom)
 {
     model_ = model;
@@ -704,6 +785,12 @@ void Boss::Update()
 
     UpdatePhaseByHP();
 
+    // if entering Phase4 start pre-motion
+    if (phase_ == Phase::Phase4 && lastPhase_ != Phase::Phase4 && !currentMotion_)
+    {
+        StartLaserPreMotion();
+    }
+
     if (spriteCom_)
     {
         for (int i = 0; i < 5; ++i)
@@ -722,6 +809,16 @@ void Boss::Update()
         }
     }
 
+    // If a motion is active, update it and skip running phase-specific logic for Phase4 until finished.
+    if (currentMotion_)
+    {
+        currentMotion_->Update(this, dt);
+        if (currentMotion_->IsFinished())
+        {
+            currentMotion_.reset();
+        }
+    }
+
     if (phase_ == Phase::Phase1)
     {
         UpdatePhase1();
@@ -736,7 +833,11 @@ void Boss::Update()
     }
     else if (phase_ == Phase::Phase4)
     {
-        UpdatePhase4();
+        // Only run UpdatePhase4 if no pre-motion is active; UpdatePhase4 will initialize laserActive_
+        if (!currentMotion_)
+        {
+            UpdatePhase4();
+        }
     }
     else if (phase_ == Phase::Phase5)
     {
@@ -769,6 +870,8 @@ void Boss::Update()
     {
         isActive_ = false;
     }
+
+    lastPhase_ = phase_;
 }
 
 void Boss::Draw()

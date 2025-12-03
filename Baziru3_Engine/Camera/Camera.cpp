@@ -10,7 +10,7 @@ Camera::Camera()
 	: transform_({ {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} }),
 	fovY_(0.45f),
 	aspectRatio_(1.0f), // 実際のサイズに応じてInitializeで設定
-	nearZ_(0.1f), farZ_(100.0f),
+	nearZ_(0.1f), farZ_(10000.0f),
 	worldMatrix_(MakeAffineMatrix(transform_.GetScale(), transform_.GetRotate(),
 		transform_.GetTranslate())),
 	viewMatrix_(Inverse(worldMatrix_)),
