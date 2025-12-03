@@ -13,7 +13,7 @@ void Skydome::Initialize(Object3dCom* object3dCom, Camera* camera)
 	model_ = Object3d::Create(object3dCom_, "skydome.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera_);
 
 	worldTransform_.Initialize();
-	worldTransform_.SetScale({ -30.0f, 30.0f, 30.0f });
+	
 	if (camera_) {
 		worldTransform_.SetTranslate(camera_->GetTranslate());
 	}

@@ -42,6 +42,21 @@ public:
     void Move();
 
 public:
+    // --- Polymorphic motion interface (public so external implementations can subclass) ---
+    struct Motion {
+        virtual ~Motion() {}
+        virtual void Start(Boss* owner) = 0;
+        virtual void Update(Boss* owner, float dt) = 0;
+        virtual bool IsFinished() const = 0;
+    };
+
+    // Accessors used by Motion implementations
+    Object3d* GetModel() const { return model_; }
+    Object3d* GetLaserModel() const { return laserModel_; }
+    Camera* GetCamera() const { return camera_; }
+    Vector3 GetWorldTranslatePublic() const { return worldTransform_.GetTranslate(); }
+    float GetLaserWidth() const { return laserWidth_; }
+    float GetLaserMaxLength() const { return laserMaxLength_; }
 
     void SetPlayer(Player* player) { player_ = player; }
 
@@ -50,7 +65,6 @@ public:
 
     void RegisterBullet(EnemyBullet* b) { bullets_.push_back(b); }
 
-    Camera* GetCamera() const { return camera_; }
     Object3dCom* GetObject3dCom() const { return object3dCom_; }
     Player* GetPlayer() const { return player_; }
 
@@ -207,5 +221,10 @@ private:
     bool phase5SweepMode_ = false;       // スイープモード有無（横に流す）
     float phase5SweepSpeed_ = 0.18f;     // スイープ時の横速度
     int phase5BurstCount_ = 0;           // バースト発生回数
+
+    std::unique_ptr<Motion> currentMotion_ = nullptr;
+    Phase lastPhase_ = Phase::Spawn;
+
+    void StartLaserPreMotion();
 
 };

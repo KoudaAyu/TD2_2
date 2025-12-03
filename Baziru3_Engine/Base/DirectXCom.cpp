@@ -17,7 +17,7 @@ using namespace StringUtility;
 /// <summary>
 /// デストラクタ
 /// </summary>
-DirectXCom::~DirectXCom() { CloseHandle(fenceEvent_); }
+DirectXCom::~DirectXCom() { if (fenceEvent_) { CloseHandle(fenceEvent_); fenceEvent_ = nullptr; } }
 /// <summary>
 /// 初期化
 /// </summary>
@@ -503,7 +503,8 @@ void DirectXCom::PreDraw() {
       dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
   commandList->OMSetRenderTargets(1, &rtvHandles_[backBufferIndex], false,
                                   &dsvHandle);
-  float clearColor[] = {0.1f, 0.25f, 0.5f, 1.0f}; // RGBAの値。青っぽい色
+  ///exeの色
+  float clearColor[] = {1.0f,1.0f,1.0f, 1.0f}; // RGBAの値。青っぽい色
   commandList->ClearRenderTargetView(rtvHandles_[backBufferIndex], clearColor,
                                      0, nullptr);
 

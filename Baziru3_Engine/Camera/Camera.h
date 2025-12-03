@@ -17,7 +17,7 @@ private:
 	//ニアクリップ距離
 	float nearZ_ = 0.1f;
 	//ファークリップ距離
-	float farZ_ = 100.0f;
+	float farZ_;
 
 	// 回転
 	Vector3 rotation_ = { 0.0f, 0.0f, 0.0f };
