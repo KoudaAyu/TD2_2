@@ -16,6 +16,7 @@
 #include"GameScene.h"
 #include "SelectScene.h"
 #include "TutorialScene.h"
+#include "ClearScene.h"
 #include "Baziru3_Engine/Particle/ParticleManager.h"
 
 using namespace StringUtility;
@@ -24,6 +25,7 @@ GameScene* gameScene = nullptr;
 TitleScene* titleScene = nullptr;
 SelectScene* selectScene = nullptr;
 TutorialScene* tutorialScene = nullptr;
+ClearScene* clearScene = nullptr;
 
 enum class Scene
 {
@@ -33,6 +35,7 @@ enum class Scene
 	kSelect,
 	kGame,
 	kTutorial,
+	kClear,
 };
 
 
@@ -216,9 +219,9 @@ void ChangePhase()
 		{
 			delete gameScene;
 			gameScene = nullptr;
-			scene = Scene::kTitle;
-			titleScene = new TitleScene();
-			titleScene->Initialize(spriteCom);
+			scene = Scene::kClear;
+			clearScene = new ClearScene();
+			clearScene->Initialize(spriteCom);
 		}
 
 		break;
@@ -228,6 +231,17 @@ void ChangePhase()
 		{
 			delete tutorialScene;
 			tutorialScene = nullptr;
+			scene = Scene::kTitle;
+			titleScene = new TitleScene();
+			titleScene->Initialize(spriteCom);
+		}
+
+		break;
+
+	case Scene::kClear:
+		if (clearScene->IsFinish()) {
+			delete clearScene;
+			clearScene = nullptr;
 			scene = Scene::kTitle;
 			titleScene = new TitleScene();
 			titleScene->Initialize(spriteCom);
@@ -253,7 +267,9 @@ void UpdateScene()
 	case Scene::kTutorial:
 		tutorialScene->Update();
 		break;
-
+	case Scene::kClear:
+		clearScene->Update();
+		break;
 	}
 }
 
@@ -272,6 +288,9 @@ void DrawScene()
 		break;
 	case Scene::kTutorial:
 		tutorialScene->Draw();
+		break;
+	case Scene::kClear:
+		clearScene->Draw();
 		break;
 	}
 }
