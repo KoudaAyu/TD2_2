@@ -114,4 +114,12 @@ private:
 	// whether player is allowed to fire barriers
 	bool canFire_ = true;
 
+	// --- controller vibration on damage ---
+	// duration in seconds for controller vibration when player is hit
+	static constexpr float kCollisionVibrationDuration = 0.4f; // seconds
+	// motor amplitude (0..1)
+	static constexpr float kCollisionVibrationAmplitude = 0.7f;
+	// remaining vibration timer (seconds)
+	float controllerVibrationTimer_ = 0.0f;
+
 };

@@ -100,6 +100,29 @@ void Player::Update()
 		}
 		++it;
 	}
+
+	// update controller vibration timer and apply vibration if needed
+	if (controllerVibrationTimer_ > 0.0f)
+	{
+		controllerVibrationTimer_ -= 1.0f / 60.0f; // assume 60fps
+		if (controllerVibrationTimer_ <= 0.0f)
+		{
+			// stop vibration
+			if (controller_ && controller_->IsConnected())
+			{
+				controller_->SetVibration(0.0f, 0.0f);
+			}
+			controllerVibrationTimer_ = 0.0f;
+		}
+		else
+		{
+			// maintain vibration
+			if (controller_ && controller_->IsConnected())
+			{
+				controller_->SetVibration(kCollisionVibrationAmplitude, kCollisionVibrationAmplitude);
+			}
+		}
+	}
 }
 
 void Player::Draw()
@@ -259,6 +282,13 @@ void Player::OnCollision()
 		emitPos.z += 0.5f; // 少し手前に出す
 		// OBJベースの8方向バーストを生成（メッシュグループを使用）
 		pm->EmitBurst8("defaultMesh", emitPos, 0.12f, 0.25f, 0.8f);
+	}
+
+	// コントローラ振動を開始
+	if (controller_ && controller_->IsConnected())
+	{
+		controllerVibrationTimer_ = kCollisionVibrationDuration;
+		controller_->SetVibration(kCollisionVibrationAmplitude, kCollisionVibrationAmplitude);
 	}
 
 	// カメラがある場合は衝突時にカメラを揺らす
