@@ -128,4 +128,10 @@ private:
 	// remaining vibration timer (seconds)
 	float controllerVibrationTimer_ = 0.0f;
 
+	// --- model tilt when moving vertically ---
+	// maximum tilt angle (radians) applied when moving fully up/down
+	static constexpr float kMaxTiltAngle = 0.18f; // ~10 degrees
+	// smoothing factor for tilting (0..1)
+	static constexpr float kTiltSmoothing = 0.15f;
+
 };

@@ -73,6 +73,37 @@ void Player::Update()
 	// 回転処理を追加
 	Rotate();
 
+	// モデルを上下移動に応じて傾ける（ピッチ）
+	{
+		// 垂直入力の取得（キーボード+コントローラー）
+		float verticalInput = 0.0f;
+		float horizontalInput = 0.0f;
+		if (keyInput_->PushKey(DIK_W)) verticalInput += 1.0f;
+		if (keyInput_->PushKey(DIK_S)) verticalInput -= 1.0f;
+		if (keyInput_->PushKey(DIK_A)) horizontalInput -= 1.0f;
+		if (keyInput_->PushKey(DIK_D)) horizontalInput += 1.0f;
+		if (controller_ && controller_->IsConnected()) {
+			Controller::Stick ls = controller_->GetLeftStick();
+			verticalInput += ls.y; // 左スティックのYを加算
+			horizontalInput += ls.x; // 左スティックのXを加算
+		}
+		// clamp
+		verticalInput = std::clamp(verticalInput, -1.0f, 1.0f);
+		horizontalInput = std::clamp(horizontalInput, -1.0f, 1.0f);
+
+		// 目標ピッチ角度（上移動で少し上に傾ける）。負号は向き合わせの調整
+		float targetPitch = -verticalInput * kMaxTiltAngle;
+		// 目標ロール角度（右移動で右へ傾ける）
+		// 横入力の符号を反転して左右の傾きを修正
+		float targetRoll = -horizontalInput * kMaxTiltAngle;
+
+		// 現在の回転を取得して滑らかに補間（ピッチ=X, ヨー=Y, ロール=Z）
+		Vector3 rot = worldTransform_.GetRotate();
+		rot.x += (targetPitch - rot.x) * kTiltSmoothing;
+		rot.z += (targetRoll - rot.z) * kTiltSmoothing;
+		worldTransform_.SetRotate(rot);
+	}
+
 	Barrier();
 
 

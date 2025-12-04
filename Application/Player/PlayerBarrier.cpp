@@ -1,5 +1,6 @@
 #include "PlayerBarrier.h"
 #include <cassert>
+#include "ModelManager.h"
 
 PlayerBarrier::~PlayerBarrier()
 {
@@ -29,9 +30,9 @@ void PlayerBarrier::Initialize(Object3d* model, const Vector3 pos, Object3dCom* 
     barrierModel_->Initialize(object3dCom_);
 
     
-    if (auto* src = model_->GetModel()) {
+    if (Model* apple = ModelManager::GetInstance()->LoadAndGetModel("apple.obj")) {
         const Vector4 barrierColor{0.0f, 0.7f, 1.0f, 1.0f};
-        barrierModel_->SetModel(new Model(*src));          // コピーを作成して設定
+        barrierModel_->SetModel(new Model(*apple));          // コピーを作成して設定
         barrierModel_->GetModel()->SetColor(barrierColor); // モデル内部の色
         barrierModel_->SetColor(barrierColor);             // Object3d の色
     }
