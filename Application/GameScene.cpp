@@ -685,7 +685,7 @@ void GameScene::CheckAllCollisions()
 					}
 				}
 
-				break; // 敵は一度当たれば十分なのでループを抜ける
+				break; // 敵は一度当たれば充分なのでループを抜ける
 			}
 		}
 	}
@@ -791,14 +791,27 @@ void GameScene::SpawnWave()
 		}
 		else if (currentWave_ == 2)
 		{
-			// Third wave: use Aim pattern (player-targeting) with a faster fire rate
-			// to ensure visible bullets even if Rapid had timing/visibility issues.
-			enemy->SetBulletSpeed(1.2f);
-			enemy->SetFireInterval(16);
-			enemy->SetAttackPattern(Enemy::AttackPattern::Aim);
-			// make first shot occur without extra random delay
-			enemy->SetRandomizeInitialFire(false);
-			enemy->SetInitialFireDelay(0);
+			// Wave3: center enemy fires a slow, wide Rapid spread (visually distinct but easier to dodge)
+			// side enemies fire slower Aim shots to keep pressure but reduce difficulty.
+			int centerIndex = enemyCount / 2;
+			if (i == centerIndex) {
+				// center: wide, slow spread
+				enemy->SetBulletSpeed(0.8f);
+				enemy->SetFireInterval(36); // slower interval to give player room
+				enemy->SetAttackPattern(Enemy::AttackPattern::Rapid);
+				enemy->SetRapidShotCount(5); // more bullets but slower
+				enemy->SetRapidSpread(1.1f); // wide spread
+				enemy->SetRandomizeInitialFire(true);
+			} else {
+				// sides: aim at player but fire less frequently
+				enemy->SetBulletSpeed(0.9f);
+				enemy->SetFireInterval(40);
+				enemy->SetAttackPattern(Enemy::AttackPattern::Aim);
+				// stagger initial fire based on distance from center
+				int offset = (i < centerIndex) ? (centerIndex - i) : (i - centerIndex);
+				enemy->SetInitialFireDelay(offset * 6);
+				enemy->SetRandomizeInitialFire(false);
+			}
 		}
 
 		enemies_.push_back(enemy);

@@ -132,15 +132,19 @@ void Enemy::Fire()
 		}
 		case AttackPattern::Rapid:
 		{
-			// 連射モード: 簡易的に3方向にばらまく
-			const float kSpeed = bulletSpeed_ * 1.2f;
-			const int shotCount = 3;
-			const float spread = 0.22f; // 横方向の角度オフセット
+			// Rapid: configurable shot count and spread, slightly slower for easier dodge
+			const float kSpeed = bulletSpeed_ * 0.85f; // a bit slower for easier dodge
+			int shotCount = rapidShotCount_;
+			float spread = rapidSpread_;
+
+			if (shotCount <= 1) shotCount = 1;
 
 			for (int i = 0; i < shotCount; ++i)
 			{
-				float t = (float)i / (shotCount - 1) - 0.5f; // -0.5..0.5
-				float ang = t * spread; // radians approx
+				float t = (float)i / (shotCount - 1);
+				// map 0..1 -> -0.5..0.5
+				float offset = (t - 0.5f);
+				float ang = offset * spread; // radians approx
 
 				// compute direction rotated around Y axis (horizontal spread)
 				float dx = std::sin(ang);
@@ -316,6 +320,14 @@ void Enemy::SpawnUpdate()
 
 void Enemy::ApproachInitialize()
 {
+	// reset charge flag for pre-fire particle
+	chargeEmitted_ = false;
+	chargeTimer_ = 0;
+    // store base visual state
+    approachBaseScale_ = worldTransform_.GetScale();
+    // Model/Object3d don't provide a getter for color; use white as default base
+    approachBaseColor_ = {1.0f, 1.0f, 1.0f, 1.0f};
+
 	// If an explicit initial delay is set, use it for the first shot
 	if (initialFireDelay_ >= 0)
 	{
@@ -339,10 +351,35 @@ void Enemy::ApproachUpdate()
 {
 	worldTransform_ += approachVelocity;
 
+	// Pre-fire charge: emit a noticeable particle a few frames before firing
+	// Remove the pre-fire particle emission, but keep the visual pulse (scale/color)
+	if (!chargeEmitted_ && fireTimer_ <= kChargeFrames && fireTimer_ > 0)
+	{
+		chargeEmitted_ = true;
+		// start visual hold timer
+		chargeVisualTimer_ = kChargeVisualFrames;
+		// visual pulse: slightly enlarge & tint model
+		if (model_) {
+			Vector3 s = worldTransform_.GetScale();
+			s.x *= 1.18f; s.y *= 1.18f; s.z *= 1.18f;
+			worldTransform_.SetScale(s);
+			Vector4 c = approachBaseColor_;
+			c.x = 1.0f; c.y = 0.6f; c.z = 0.2f; c.w = 1.0f;
+			model_->SetColor(c);
+			if (model_->GetModel()) model_->GetModel()->SetColor(c);
+		}
+	}
+
 	// 発射タイマーをデクリメントし、0以下になったら発射してリセット
 	if (--fireTimer_ <= 0)
 	{
 		Fire();
+		// reset charge flag for next cycle
+		chargeEmitted_ = false;
+		// restore visuals immediately on fire
+		chargeVisualTimer_ = 0;
+		worldTransform_.SetScale(approachBaseScale_);
+		if (model_) { model_->SetColor(approachBaseColor_); if (model_->GetModel()) model_->GetModel()->SetColor(approachBaseColor_); }
 		int interval = (fireIntervalOverride_ > 0) ? fireIntervalOverride_ : kFireInterval;
 		fireTimer_ = interval;
 		// if randomize initial offset is active, we only randomized initial timer; normal reset keeps interval
@@ -352,6 +389,14 @@ void Enemy::ApproachUpdate()
 	{
 		phase_ = Phase::Leave;
 		LeaveInitialize();
+	}
+	// If visual hold timer is active, decrement and restore visuals when expired
+	if (chargeVisualTimer_ > 0) {
+		--chargeVisualTimer_;
+		if (chargeVisualTimer_ == 0) {
+			worldTransform_.SetScale(approachBaseScale_);
+			if (model_) { model_->SetColor(approachBaseColor_); if (model_->GetModel()) model_->GetModel()->SetColor(approachBaseColor_); }
+		}
 	}
 }
 

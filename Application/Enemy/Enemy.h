@@ -113,6 +113,10 @@ public:
 	// 離脱フェーズのパーティクルを出すかどうか
 	void SetLeaveEmitParticles(bool v) { leaveEmitParticles_ = v; }
 
+	// Rapid パラメータの調整
+	void SetRapidSpread(float s) { rapidSpread_ = s; }
+	void SetRapidShotCount(int c) { rapidShotCount_ = c; }
+
 private:
 	
 	//フェーズ
@@ -172,6 +176,23 @@ private:
 	// エスケープ時の開始スケールと色（フェード用）
 	Vector3 leaveStartScale_ = {1.0f, 1.0f, 1.0f};
 	Vector4 leaveStartColor_ = {1.0f, 1.0f, 1.0f, 1.0f};
+
+	// Rapid 設定（デフォルトは既存挙動）
+	float rapidSpread_ = 0.22f;
+	int rapidShotCount_ = 3;
+
+	// 発射前のチャージ表現フラグ
+	bool chargeEmitted_ = false;
+	static constexpr int kChargeFrames = 8; // 発射前の予告フレーム数
+	int chargeTimer_ = 0;
+
+	// Approach phase visual base state (for pulsing charge)
+	Vector3 approachBaseScale_ = {1.0f, 1.0f, 1.0f};
+	Vector4 approachBaseColor_ = {1.0f, 1.0f, 1.0f, 1.0f};
+
+	// How long the visual tint/pulse remains (frames) after charge
+	static constexpr int kChargeVisualFrames = 20; // default hold frames
+	int chargeVisualTimer_ = 0;
 
 private:
 	Camera* camera_ = nullptr;
