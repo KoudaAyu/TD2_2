@@ -171,6 +171,9 @@ void GameScene::Update()
 
     uiManager_.UpdateAll();
 
+	// Always advance fade state each frame so scenes relying on fade completion progress.
+	if (fade_) { fade_->Update(); }
+
 #ifdef _DEBUG
 #ifdef USE_IMGUI
 	// ImGuiフレーム中 (ImGuiManager::Begin() 呼び出し後) にのみUI描画
@@ -206,9 +209,6 @@ void GameScene::Update()
                 }
             }
         }
-
-		// Advance fade state before deciding player movement
-		if (fade_) { fade_->Update(); }
 
 		// Disable player movement while fade is active (only while fading)
 		if (player_) {

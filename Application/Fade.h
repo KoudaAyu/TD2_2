@@ -2,6 +2,7 @@
 
 #include"Sprite.h"
 #include"SpriteCom.h"
+#include <vector>
 
 class Fade
 {
@@ -65,8 +66,36 @@ private:
 	float counter_ = 0.0f;
 
 private:
-	Sprite* fadeSprite_ = nullptr;
+	Sprite* fadeSprite_ = nullptr; // dark overlay
+	Sprite* flashSprite_ = nullptr; // white flash used for cinematic cut
+	Sprite* scanline_ = nullptr; // moving scanline for Eva-like effect
 	SpriteCom* spriteCom_ = nullptr;
 
 	State status_ = State::kNone;
+
+	// ----- Evangelion-ish effect members -----
+	// vertical bars used to create the Eva-style wipe effect
+	std::vector<Sprite*> bars_;
+	std::vector<Sprite*> barEdges_; // thin darker edge to simulate separation
+	std::vector<Sprite*> barHighlights_; // moving highlights that sweep across
+	int barCount_ = 12; // number of vertical bars
+	float barGapDelay_ = 0.03f; // delay multiplier between bars
+	Vector4 barColor_ = { 0.75f, 0.05f, 0.1f, 1.0f }; // dark red tint
+	Vector4 edgeColor_ = { 0.1f, 0.02f, 0.02f, 1.0f };
+	
+	// per-bar phase/random offset for nicer motion
+	std::vector<float> barPhase_;
+
+	// highlights parameters
+	float highlightWidthRatio_ = 0.12f; // width relative to bar width
+	Vector4 highlightColor_ = { 1.0f, 0.85f, 0.6f, 0.85f };
+
+	// scanline parameters
+	float scanlineSpeed_ = 2200.0f; // px/sec
+	Vector4 scanlineColor_ = { 1.0f, 0.2f, 0.2f, 0.25f };
+
+	// helper state
+	float screenW_ = 1280.0f;
+	float screenH_ = 720.0f;
+	
 };
