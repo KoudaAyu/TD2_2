@@ -1,12 +1,11 @@
 #include "Player.h"
 #include<algorithm>
 #include<cassert>
-#include "../../Baziru3_Engine/IO/XBox/Controller.h"
+#include "Controller.h"
 #include "ParticleManager.h"
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
-
 Player::~Player()
 {
 	keyInput_ = nullptr;
@@ -17,7 +16,7 @@ Player::~Player()
 	for (auto b : barriers_)
 	{
 		if (b) delete b;
-		}
+	}
 	barriers_.clear();
 
 	if (controller_)
@@ -48,6 +47,15 @@ void Player::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Obje
 
 	// コントローラー初期化（左スティックを移動に使用）
 	controller_ = new Controller(0);
+
+	soundManager_ = SoundManager::GetInstance();
+
+	shotBarrierSoundData_ = soundManager_->SoundLoadWave("Resources/Audio/SE/Shot.wav");
+
+	// ensure invincibility starts off
+	invincible_ = false;
+	invincibleTimer_ = 0.0f;
+
 }
 
 
@@ -82,7 +90,8 @@ void Player::Update()
 		if (keyInput_->PushKey(DIK_S)) verticalInput -= 1.0f;
 		if (keyInput_->PushKey(DIK_A)) horizontalInput -= 1.0f;
 		if (keyInput_->PushKey(DIK_D)) horizontalInput += 1.0f;
-		if (controller_ && controller_->IsConnected()) {
+		if (controller_ && controller_->IsConnected())
+		{
 			Controller::Stick ls = controller_->GetLeftStick();
 			verticalInput += ls.y; // 左スティックのYを加算
 			horizontalInput += ls.x; // 左スティックのXを加算
@@ -119,11 +128,14 @@ void Player::Update()
 	}
 
 	// Update barriers and remove inactive
-	for (auto it = barriers_.begin(); it != barriers_.end();) {
+	for (auto it = barriers_.begin(); it != barriers_.end();)
+	{
 		PlayerBarrier* b = *it;
-		if (b) {
+		if (b)
+		{
 			b->Update();
-			if (!b->IsActive()) {
+			if (!b->IsActive())
+			{
 				delete b;
 				it = barriers_.erase(it);
 				continue;
@@ -154,6 +166,34 @@ void Player::Update()
 			}
 		}
 	}
+
+	// invincibility timer update
+	if (invincible_)
+	{
+		invincibleTimer_ -= 1.0f / 60.0f;
+		if (invincibleTimer_ <= 0.0f)
+		{
+			invincible_ = false;
+			invincibleTimer_ = 0.0f;
+			// ensure model alpha restored
+			if (model_ && model_->GetModel()) {
+				Vector4 col = {1.0f,1.0f,1.0f,1.0f};
+				model_->SetColor(col);
+				model_->GetModel()->SetColor(col);
+			}
+		}
+		else
+		{
+			// blinking visual effect
+			float phase = fmodf(invincibleTimer_, kInvincibleBlinkPeriod) / kInvincibleBlinkPeriod;
+			float alpha = (phase < 0.5f) ? 0.25f : 1.0f;
+			if (model_) {
+				Vector4 c = {1.0f,1.0f,1.0f,alpha};
+				model_->SetColor(c);
+				if (model_->GetModel()) model_->GetModel()->SetColor(c);
+			}
+		}
+	}
 }
 
 void Player::Draw()
@@ -171,7 +211,8 @@ void Player::Draw()
 
 void Player::ClearBarriers()
 {
-	for (auto b : barriers_) {
+	for (auto b : barriers_)
+	{
 		if (b) delete b;
 	}
 	barriers_.clear();
@@ -254,23 +295,30 @@ void Player::Barrier()
 	// respect canFire_ flag
 	if (!canFire_) return;
 
+
+
 	// バリア発射キーを変更: 例として LEFT CONTROL を使用（Triggerで発射）
 
 	bool fireTriggered = keyInput_->TriggerKey(DIK_LCONTROL);
-	// コントローラの B ボタンでも発射可能にする
-	if (!fireTriggered && controller_ && controller_->IsConnected()) {
-		if (controller_->WasButtonPressedThisFrame(XINPUT_GAMEPAD_A)) {
+	// コントローラの A ボタンでも発射可能にする
+	if (!fireTriggered && controller_ && controller_->IsConnected())
+	{
+		if (controller_->WasButtonPressedThisFrame(XINPUT_GAMEPAD_A))
+		{
 			fireTriggered = true;
+			soundManager_->SoundPlayWave(shotBarrierSoundData_, false, 0.2f);
 		}
 	}
 
-	// キーボードの '1' キーでも発射できるようにする
+	// キーボードの 'SPACE' キーでも発射できるようにする
 	if (fireTriggered || keyInput_->TriggerKey(DIK_SPACE))
 
 	{
 		const float kBarrierSpeed = 0.5f;
 
 		Vector3 velocity;
+
+		soundManager_->SoundPlayWave(shotBarrierSoundData_, false, 0.2f);
 
 		// カメラの前方向に真っ直ぐ飛ぶように設定（レールシューティング風）
 		if (camera_)
@@ -283,7 +331,8 @@ void Player::Barrier()
 			// 正規化
 			Vector3 dir = Normalize(camForward);
 			// 長さが0に近ければフォールバック
-			if (Length(dir) <= 1e-6f) {
+			if (Length(dir) <= 1e-6f)
+			{
 				dir = { 0.0f, 0.0f, 1.0f };
 			}
 			velocity = { dir.x * kBarrierSpeed, dir.y * kBarrierSpeed, dir.z * kBarrierSpeed };
@@ -304,9 +353,16 @@ void Player::Barrier()
 
 void Player::OnCollision()
 {
+	// if currently invincible, ignore
+	if (invincible_) return;
+
 #ifndef _DEBUG
 	isAlive_ = false;
 #endif
+
+	// start invincibility instead of immediate death in non-debug builds
+	invincible_ = true;
+	invincibleTimer_ = kInvincibleDuration;
 
 	// 小さなメッシュ(OBJ)パーティクルエフェクトを追加
 	auto* pm = ParticleManager::GetInstance();
@@ -343,6 +399,7 @@ void Player::DrawImGui()
 
 	// 基本情報表示
 	ImGui::Text("Alive: %s", isAlive_ ? "true" : "false");
+	ImGui::Text("Invincible: %s", invincible_ ? "true" : "false");
 
 	Vector3 translate = worldTransform_.GetTranslate();
 	if (ImGui::DragFloat3("Translate", &translate.x, 0.1f))
@@ -354,6 +411,8 @@ void Player::DrawImGui()
 			model_->ApplyState(worldTransform_, camera_, true);
 		}
 	}
+
+	ImGui::DragFloat("Invincible Timer", &invincibleTimer_, 0.01f, 0.0f, 5.0f);
 
 	ImGui::End();
 }

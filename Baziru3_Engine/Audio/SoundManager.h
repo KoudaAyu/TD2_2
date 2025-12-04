@@ -37,6 +37,9 @@ struct FormatChunk {
 class SoundManager
 {
 public:
+	// シングルトン取得
+	static SoundManager* GetInstance();
+
 	bool Initialize();  // ← 初期化をまとめる
 	void Finalize();    // ← 終了処理
 
@@ -59,5 +62,8 @@ private:
 	IXAudio2MasteringVoice* masterVoice_ = nullptr;
 	std::vector<IXAudio2SourceVoice*> voices_{}; // アクティブなSourceVoice
 	float seVolume_ = 1.0f; // デフォルトSE音量
+
+	// シングルトンインスタンス
+	static SoundManager* instance;
 };
 

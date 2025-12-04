@@ -17,6 +17,8 @@
 #include "SelectScene.h"
 #include "TutorialScene.h"
 #include "Baziru3_Engine/Particle/ParticleManager.h"
+#include "Baziru3_Engine/Audio/SoundManager.h"
+
 
 using namespace StringUtility;
 

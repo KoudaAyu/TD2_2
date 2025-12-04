@@ -2,10 +2,12 @@
 #include"AABB.h"
 #include"Camera.h"
 #include"KeyInput.h"
+#include"MathUtl.h"
 #include"Object3d.h"
 #include"Object3dCom.h"
 #include"PlayerBarrier.h"
-#include"MathUtl.h"
+#include"SoundManager.h"
+
 #include <vector>
 
 class Controller; // forward declaration for controller pointer
@@ -57,6 +59,9 @@ public:
 	// 生存状態のgetter/setter
 	bool IsAlive() const { return isAlive_; }
 	void SetAlive(bool isAlive) { isAlive_ = isAlive; }
+
+	// invincibility getter
+	bool IsInvincible() const { return invincible_; }
 
 	
 	Vector3 GetWorldTranslate() const
@@ -122,9 +127,9 @@ private:
 
 	// --- controller vibration on damage ---
 	// duration in seconds for controller vibration when player is hit
-	static constexpr float kCollisionVibrationDuration = 0.4f; // seconds
+	static constexpr float kCollisionVibrationDuration = 0.25f; // seconds (reduced)
 	// motor amplitude (0..1)
-	static constexpr float kCollisionVibrationAmplitude = 0.7f;
+	static constexpr float kCollisionVibrationAmplitude = 0.35f; // reduced amplitude
 	// remaining vibration timer (seconds)
 	float controllerVibrationTimer_ = 0.0f;
 
@@ -133,5 +138,17 @@ private:
 	static constexpr float kMaxTiltAngle = 0.18f; // ~10 degrees
 	// smoothing factor for tilting (0..1)
 	static constexpr float kTiltSmoothing = 0.15f;
+
+	// --- invincibility frames ---
+	bool invincible_ = false;
+	// seconds remaining for invincibility
+	float invincibleTimer_ = 0.0f;
+	static constexpr float kInvincibleDuration = 1.2f; // seconds of i-frames
+	// blink period while invincible
+	static constexpr float kInvincibleBlinkPeriod = 0.12f;
+
+	
+	SoundManager* soundManager_;
+	SoundData shotBarrierSoundData_;
 
 };

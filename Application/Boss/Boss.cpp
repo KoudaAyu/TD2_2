@@ -11,10 +11,10 @@
 #include <filesystem>
 #include <cmath>
 // Particle effects
-#include "Baziru3_Engine/Particle/ParticleManager.h"
-#include "Baziru3_Engine/Audio/SoundManager.h"
+#include "ParticleManager.h"
+#include "SoundManager.h"
 // AABB collision
-#include "Baziru3_Engine/MathUtl/AABB.h"
+#include "AABB.h"
 
 Boss::Boss() {}
 

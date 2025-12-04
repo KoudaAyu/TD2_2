@@ -10,6 +10,19 @@
 
 using Microsoft::WRL::ComPtr;
 
+// define static instance
+SoundManager* SoundManager::instance = nullptr;
+
+// GetInstance implementation
+SoundManager* SoundManager::GetInstance()
+{
+    if (instance == nullptr) {
+        instance = new SoundManager();
+        instance->Initialize();
+    }
+    return instance;
+}
+
 bool SoundManager::Initialize() {
     // XAudio2の初期化
     HRESULT result = XAudio2Create(&xAudio2_, 0, XAUDIO2_DEFAULT_PROCESSOR);
