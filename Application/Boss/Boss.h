@@ -84,7 +84,7 @@ public:
     void ApplyDamage(int dmg) { hp_ -= dmg; if (hp_ < 0) hp_ = 0; }
 
     // 現在のフェーズを取得
-    enum class Phase { Spawn, Phase1, Phase2, Phase3, Phase4, Phase5, Leave };
+    enum class Phase { Spawn, Phase1, Phase2, Phase2_5, Phase3, Phase4, Phase5, Leave };
     Phase GetPhase() const { return phase_; }
 
     // Start a fancy visual/sound/particle transition when phases change
@@ -117,14 +117,14 @@ private:
 
     // フェーズ境界（比率）。降順で指定。0.0f ~ 1.0f の範囲で設定。
     // 例: {1.0f, 0.8f, 0.6f, 0.4f, 0.2f} の場合、HP が 80% を下回ると Phase2 に遷移
-    std::array<float, 5> hpPhaseThresholds_ = { 1.0f, 0.8f, 0.6f, 0.4f, 0.2f };
+    std::array<float, 6> hpPhaseThresholds_ = { 1.0f, 0.85f, 0.7f, 0.55f, 0.4f, 0.2f };
 
     // 現在のフェーズ
     Phase phase_ = Phase::Spawn;
 
     // ヒット回数（1ヒットで次のフェーズへ進行させるため）
     int hitCount_ = 0; // 初期は 0
-    const int hitsPerFull = 5; // 5 ヒットでボス撃破（フェーズ5 到達で切替）
+    const int hitsPerFull = 6; // 6 ヒットでボス撃破（フェーズ5 到達で切替）
 
     // ヒットの短期無敵（多重カウント防止）
     int hitCooldownTimer_ = 0; // フレームカウント
@@ -137,7 +137,7 @@ private:
     // --- デバッグ用スプライト ---
     // Phase1~Phase5 のときに画面に対応する番号画像を重ねて描画する
     SpriteCom* spriteCom_ = nullptr; // Sprite作成用コンポーネント
-    std::array<Sprite*, 5> phaseSprites_ = { nullptr, nullptr, nullptr, nullptr, nullptr };
+    std::array<Sprite*, 6> phaseSprites_ = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
     // スプライトの描画位置・スケールは簡単に変更できるようにメンバ化
     Vector2 phaseSpritePosition_ = { 10.0f, 10.0f }; // 画面左上に表示
     Vector2 phaseSpriteScale_ = { 64.0f, 64.0f };   // 表示サイズ
@@ -150,6 +150,7 @@ private:
 
   
     void UpdatePhase2();
+    void UpdatePhase2_5();
     int phase2ShootInterval_ = 25;
     int phase2BulletsPerShot_ = 1; //弾をいくつ発射するか
     float phase2BulletSpeed_ = 0.7f;

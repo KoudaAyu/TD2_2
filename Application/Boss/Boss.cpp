@@ -266,7 +266,7 @@ void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object
     // デバッグ用スプライト作成 
     if (spriteCom_)
     {
-        for (int i = 0; i < 5; ++i)
+        for (int i = 0; i < 6; ++i)
         {
             std::string fileName = std::to_string(i + 1) + ".png";
             std::string path = FindNumberTexturePath(fileName);
@@ -381,7 +381,7 @@ void Boss::OnHit()
     {
         int currentPhaseIndex = (phase_ >= Phase::Phase1 && phase_ <= Phase::Phase5) ?
             static_cast<int>(phase_) - static_cast<int>(Phase::Phase1) : 0;
-        for (int i = 0; i < 5; ++i)
+        for (int i = 0; i < 6; ++i)
         {
             Sprite* s = phaseSprites_[i];
             if (!s) continue;
@@ -530,6 +530,68 @@ void Boss::UpdatePhase2()
         EnemyBullet* b = new EnemyBullet();
         b->Initialize(model_, spawnPos, object3dCom_, vel);
         b->EnableHoming(player_, phase2BulletSpeed_, phase2TurnRate_);
+        b->SetLifeDuration(phase2BulletLifeFrames_);
+        bullets_.push_back(b);
+    }
+}
+
+void Boss::UpdatePhase2_5()
+{
+    // don't shoot while in phase transition
+    if (inPhaseTransition_) return;
+
+    ++ShootTimer_;
+    // a bit faster than Phase2
+    int interval = (phase2ShootInterval_ > 12) ? phase2ShootInterval_ - 6 : phase2ShootInterval_;
+    if (ShootTimer_ < interval) return;
+    ShootTimer_ = 0;
+
+    std::vector<int> aliveIndices;
+    aliveIndices.reserve(parts_.size());
+    for (size_t i = 0; i < parts_.size(); ++i)
+    {
+        if (parts_[i] && !parts_[i]->IsDestroyed()) aliveIndices.push_back(static_cast<int>(i));
+    }
+
+    int bulletsThisWave = phase2BulletsPerShot_ + 1; // slightly more aggressive
+    for (int i = 0; i < bulletsThisWave; ++i)
+    {
+        Vector3 spawnPos;
+        if (!aliveIndices.empty())
+        {
+            float r = Random::GeneratorFloat(0.0f, static_cast<float>(aliveIndices.size() - 1));
+            int pick = static_cast<int>(std::floor(r + 0.5f));
+            if (pick < 0) pick = 0;
+            if (pick >= static_cast<int>(aliveIndices.size())) pick = static_cast<int>(aliveIndices.size() - 1);
+            spawnPos = parts_[aliveIndices[pick]]->GetWorldTranslate();
+        }
+        else
+        {
+            spawnPos = worldTransform_.GetTranslate();
+        }
+
+        Vector3 dir = { 0.0f, 0.0f, -1.0f };
+        if (player_)
+        {
+            Vector3 p = player_->GetWorldTranslate();
+            dir = { p.x - spawnPos.x, p.y - spawnPos.y, p.z - spawnPos.z };
+            float l = std::sqrt(dir.x*dir.x + dir.y*dir.y + dir.z*dir.z);
+            if (l > 1e-6f) dir = { dir.x / l, dir.y / l, dir.z / l };
+            else dir = { 0.0f, 0.0f, -1.0f };
+
+            // add a small spread per-bullet
+            float spread = 0.06f * (static_cast<float>(i) - (static_cast<float>(bulletsThisWave - 1) * 0.5f));
+            dir.x += spread;
+            float nl = std::sqrt(dir.x*dir.x + dir.y*dir.y + dir.z*dir.z);
+            if (nl > 1e-6f) dir = { dir.x / nl, dir.y / nl, dir.z / nl };
+        }
+
+        Vector3 vel = { dir.x * (phase2BulletSpeed_ * 0.92f), dir.y * (phase2BulletSpeed_ * 0.92f), dir.z * (phase2BulletSpeed_ * 0.92f) };
+
+        EnemyBullet* b = new EnemyBullet();
+        b->Initialize(model_, spawnPos, object3dCom_, vel);
+        // enable mild homing but with less aggressive turn to distinguish the phase
+        b->EnableHoming(player_, phase2BulletSpeed_ * 0.92f, phase2TurnRate_ * 0.8f);
         b->SetLifeDuration(phase2BulletLifeFrames_);
         bullets_.push_back(b);
     }
@@ -941,7 +1003,7 @@ void Boss::Update()
 
     if (spriteCom_)
     {
-        for (int i = 0; i < 5; ++i)
+        for (int i = 0; i < 6; ++i)
         {
             Sprite* s = phaseSprites_[i];
             if (!s) continue;
@@ -987,6 +1049,10 @@ void Boss::Update()
     else if (phase_ == Phase::Phase2)
     {
         UpdatePhase2();
+    }
+    else if (phase_ == Phase::Phase2_5)
+    {
+        UpdatePhase2_5();
     }
     else if (phase_ == Phase::Phase3)
     {
@@ -1067,7 +1133,7 @@ void Boss::Draw()
 
     if (spriteCom_)
     {
-        for (int i = 0; i < 5; ++i)
+        for (int i = 0; i < 6; ++i)
         {
             Sprite* s = phaseSprites_[i];
             if (!s) continue;
