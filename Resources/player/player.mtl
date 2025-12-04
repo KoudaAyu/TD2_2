@@ -2,23 +2,11 @@
 # www.blender.org
 
 newmtl mat0
+Ns 1000.000000
 Ka 1.000000 1.000000 1.000000
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.000000
 d 1.000000
 illum 2
-map_Kd C:/Users/k024g/Downloads/ImageToStl.com_hitem3d/image0.png
-map_Ns C:/Users/k024g/Downloads/ImageToStl.com_hitem3d/image1.png
-map_refl C:/Users/k024g/Downloads/ImageToStl.com_hitem3d/image1.png
-
-newmtl mat0.001
-Ka 1.000000 1.000000 1.000000
-Ks 0.500000 0.500000 0.500000
-Ke 0.000000 0.000000 0.000000
-Ni 1.000000
-d 1.000000
-illum 2
-map_Kd C:/Users/k024g/Downloads/ImageToStl.com_hitem3d/image0.png
-map_Ns C:/Users/k024g/Downloads/ImageToStl.com_hitem3d/image1.png
-map_refl C:/Users/k024g/Downloads/ImageToStl.com_hitem3d/image1.png
+map_Kd image0.png

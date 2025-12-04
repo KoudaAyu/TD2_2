@@ -60,6 +60,7 @@ private:
 	std::vector<Enemy*> enemies_;
 	KeyInput* keyInput_ = nullptr;
 	Object3d* model_ = nullptr;
+	Object3d* playerModel_ = nullptr;
 	// Object3d* enemyModel_ = nullptr; 
 	Object3dCom* object3dCom_ = nullptr;
 	Player* player_ = nullptr;

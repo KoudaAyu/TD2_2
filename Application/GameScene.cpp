@@ -53,9 +53,11 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 
 	model_ = Object3d::Create(object3dCom_, "apple.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera_);
 	Object3d* enemyModelTemplate = Object3d::Create(object3dCom_, "wall.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera_);
-			
+	playerModel_ = Object3d::Create(object3dCom_, "player/player.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera_); 
+
+	
 	player_ = new Player();
-	player_->Initialize(model_, camera, { 0.0f,0.0f,0.0f }, object3dCom);
+	player_->Initialize(playerModel_, camera, { 0.0f,0.0f,0.0f }, object3dCom);
 
 	{
 		auto* pm = ParticleManager::GetInstance();
