@@ -58,7 +58,7 @@ public:
     float GetLaserWidth() const { return laserWidth_; }
     float GetLaserMaxLength() const { return laserMaxLength_; }
 
-    void SetPlayer(Player* player) { player_ = player; }
+    void SetPlayer(Player* player);
 
     const std::list<EnemyBullet*>& GetBullets() const { return bullets_; }
     bool IsActive() const { return isActive_; }
@@ -86,6 +86,12 @@ public:
     // 現在のフェーズを取得
     enum class Phase { Spawn, Phase1, Phase2, Phase3, Phase4, Phase5, Leave };
     Phase GetPhase() const { return phase_; }
+
+    // Start a fancy visual/sound/particle transition when phases change
+    void StartPhaseTransition();
+
+    // Query whether boss is currently performing a phase transition (used to temporarily disable player actions)
+    bool IsInPhaseTransition() const { return inPhaseTransition_; }
 
 private:
     std::vector<std::unique_ptr<BossPart>> parts_;
@@ -234,4 +240,8 @@ private:
 
     void StartLaserPreMotion();
 
+    // phase transition internal flag and timer
+    bool inPhaseTransition_ = false;
+    int phaseTransitionTimer_ = 0;
+    int phaseTransitionDuration_ = 30; // frames to block player input by default
 };

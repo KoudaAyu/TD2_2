@@ -195,6 +195,18 @@ void GameScene::Update()
 	{
 		if (enemy) enemy->Update();
 	}
+
+        // If boss exists and is spawning or in phase transition, ensure player cannot fire this frame
+        if (boss_ && boss_->IsActive()) {
+            auto bphase = boss_->GetPhase();
+            if (bphase == Boss::Phase::Spawn || boss_->IsInPhaseTransition()) {
+                if (player_) {
+                    player_->SetCanFire(false);
+                    player_->ClearBarriers();
+                }
+            }
+        }
+
 	player_->Update();
 
 

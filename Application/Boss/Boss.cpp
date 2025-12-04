@@ -12,6 +12,7 @@
 #include <cmath>
 // Particle effects
 #include "Baziru3_Engine/Particle/ParticleManager.h"
+#include "Baziru3_Engine/Audio/SoundManager.h"
 // AABB collision
 #include "Baziru3_Engine/MathUtl/AABB.h"
 
@@ -151,6 +152,18 @@ void Boss::StartLaserPreMotion()
     if (currentMotion_) currentMotion_->Start(this);
 }
 
+void Boss::SetPlayer(Player* player)
+{
+    player_ = player;
+    // if boss is currently spawning or in transition, ensure player cannot fire
+    if (player_) {
+        if (phase_ == Phase::Spawn || inPhaseTransition_) {
+            player_->SetCanFire(false);
+            player_->ClearBarriers();
+        }
+    }
+}
+
 void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object3dCom* object3dCom, SpriteCom* spriteCom)
 {
     model_ = model;
@@ -236,6 +249,12 @@ void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object
     hp_ = maxHP_;
     hitCount_ = 0;
     hitCooldownTimer_ = 0;
+
+    // disable player firing during spawn motion
+    if (player_) {
+        player_->SetCanFire(false);
+        player_->ClearBarriers();
+    }
 
     // デバッグ用スプライト作成 
     if (spriteCom_)
@@ -323,6 +342,9 @@ void Boss::OnHit()
     Phase newPhase = static_cast<Phase>(static_cast<int>(Phase::Phase1) + clampedIndex);
     phase_ = newPhase;
 
+    // start visual transition
+    StartPhaseTransition();
+
     if (camera_ && cameraShakeCooldown_ <= 0.0f)
     {
         camera_->StartShake(0.2f, 0.2f);
@@ -354,6 +376,9 @@ void Boss::OnHit()
 
 void Boss::Shoot()
 {
+    // don't shoot while in phase transition
+    if (inPhaseTransition_) return;
+
     ++ShootTimer_;
     if (ShootTimer_ < ShootInterval_) return;
     ShootTimer_ = 0;
@@ -443,6 +468,9 @@ void Boss::UpdatePhase1()
 
 void Boss::UpdatePhase2()
 {
+    // don't shoot while in phase transition
+    if (inPhaseTransition_) return;
+
     ++ShootTimer_;
     if (ShootTimer_ < phase2ShootInterval_) return;
     ShootTimer_ = 0;
@@ -483,7 +511,7 @@ void Boss::UpdatePhase2()
 
 void Boss::UpdatePhase3()
 {
-    if (!isActive_) return;
+    if (!isActive_ || inPhaseTransition_) return;
 
     const float dt = 1.0f / 60.0f;
     const float twoPi = 2.0f * 3.14159265f;
@@ -569,6 +597,8 @@ void Boss::UpdatePhase3()
 
 void Boss::UpdatePhase4()
 {
+    if (inPhaseTransition_) return;
+
     if (!laserModel_) return;
 
     // フェーズ突入直後に初期化
@@ -701,7 +731,7 @@ void Boss::UpdatePhase4()
 // --- Phase5: スパイラル / ラジアル攻撃の実装 ---
 void Boss::UpdatePhase5()
 {
-    if (!isActive_) return;
+    if (!isActive_ || inPhaseTransition_) return;
 
     ++phase5BurstTimer_;
 
@@ -811,6 +841,10 @@ void Boss::Update()
                 camera_->StartShake(0.6f, 0.6f);
                 cameraShakeCooldown_ = kCameraShakeCooldownSeconds;
             }
+            // re-enable player firing after spawn completed
+            if (player_) {
+                player_->SetCanFire(true);
+            }
         }
     }
 
@@ -846,6 +880,20 @@ void Boss::Update()
         if (currentMotion_->IsFinished())
         {
             currentMotion_.reset();
+        }
+    }
+
+    // phase transition timer handling: keep player firing disabled during transition
+    if (inPhaseTransition_)
+    {
+        ++phaseTransitionTimer_;
+        // only end transition after both the timer expires AND any motion (visual pre-motion) finished
+        bool motionFinished = (currentMotion_ == nullptr);
+        if (phaseTransitionTimer_ >= phaseTransitionDuration_ && motionFinished)
+        {
+            inPhaseTransition_ = false;
+            phaseTransitionTimer_ = 0;
+            if (player_) player_->SetCanFire(true);
         }
     }
 
@@ -955,6 +1003,58 @@ void Boss::OnCollision()
     isActive_ = false;
 }
 
+void Boss::StartPhaseTransition()
+{
+    auto* pm = ParticleManager::GetInstance();
+    Vector3 center = worldTransform_.GetTranslate();
+
+    // mark transition state and set timer
+    inPhaseTransition_ = true;
+    phaseTransitionTimer_ = 0; // will be incremented in Update
+
+    // disable player firing during transition if player exists
+    if (player_) {
+        player_->SetCanFire(false);
+        // also clear any active barriers to avoid instant collision during transition
+        player_->ClearBarriers();
+    }
+
+    if (pm) {
+        // If mesh-group exists, favor mesh particles (OBJ) for richer visuals
+        if (pm->HasGroup("defaultMesh")) {
+            // multiple rotating inward bursts (mesh)
+            pm->EmitBurst8RotatingInward("defaultMesh", center, 8.0f, 1.3f, 3.0f, 0.9f, 2.6f, 0.8f);
+            pm->EmitBurst8RotatingInward("defaultMesh", center, 5.0f, 1.1f, -4.2f, 0.6f, 2.2f, 0.6f);
+            // add an outward burst using mesh for chunk pieces
+            pm->EmitBurst8("defaultMesh", center, 0.12f, 0.7f, 1.0f);
+        }
+
+        // sprite/textured particles for glow and spark
+        if (pm->HasGroup("default")) {
+            pm->EmitBurst8RotatingInward("default", center, 6.0f, 0.9f, 4.0f, 0.9f, 1.6f, 0.4f);
+            pm->EmitBurst8("default", center, 0.08f, 1.2f, 0.9f);
+        }
+
+        // a final, tight rotating ring of small sprites for impact
+        if (pm->HasGroup("default")) {
+            pm->EmitBurst8Rotating("default", center, 2.4f, 0.6f, 8.0f, 0.45f, false, -1.6f, -0.6f);
+        }
+    }
+
+    // camera: strong shake
+    if (camera_ && cameraShakeCooldown_ <= 0.0f) {
+        camera_->StartShake(0.6f, 0.6f);
+        cameraShakeCooldown_ = kCameraShakeCooldownSeconds;
+    }
+
+    // model: quick flash tint
+    if (model_) {
+        // set a bright tint briefly
+        model_->SetColor({1.0f, 0.6f, 0.2f, 1.0f});
+    }
+}
+
+// UpdatePhaseByHP: call StartPhaseTransition when phase changes
 void Boss::UpdatePhaseByHP()
 {
     if (phase_ == Phase::Spawn || phase_ == Phase::Leave) return;
@@ -966,6 +1066,7 @@ void Boss::UpdatePhaseByHP()
         if (newPhase != phase_)
         {
             phase_ = newPhase;
+            StartPhaseTransition();
             if (camera_ && cameraShakeCooldown_ <= 0.0f)
             {
                 camera_->StartShake(0.3f, 0.3f);
@@ -993,6 +1094,8 @@ void Boss::UpdatePhaseByHP()
     if (newPhase != phase_)
     {
         phase_ = newPhase;
+        // fancy transition
+        StartPhaseTransition();
         if (camera_)
         {
             if (cameraShakeCooldown_ <= 0.0f)

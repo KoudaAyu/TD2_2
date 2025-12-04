@@ -41,6 +41,8 @@ public:
 	/// </summary>
 	void OnCollision();
 
+	// allow external code to enable/disable firing
+	void SetCanFire(bool v) { canFire_ = v; }
 
 #ifdef USE_IMGUI
 	
@@ -74,6 +76,9 @@ public:
 	// バリア群を取得（複数化対応）
 	const std::vector<PlayerBarrier*>& GetBarriers() const { return barriers_; }
 
+	// remove and delete all active barriers immediately
+	void ClearBarriers();
+
 private:
 
 	bool isAlive_ = true;
@@ -105,5 +110,8 @@ private:
 	// 衝突時のカメラ振動パラメータ
 	static constexpr float kCollisionShakeAmplitude = 0.6f; // ワールド単位
 	static constexpr float kCollisionShakeDuration = 0.5f;  // 秒
+
+	// whether player is allowed to fire barriers
+	bool canFire_ = true;
 
 };

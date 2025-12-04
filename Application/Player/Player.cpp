@@ -115,6 +115,14 @@ void Player::Draw()
 	}
 }
 
+void Player::ClearBarriers()
+{
+	for (auto b : barriers_) {
+		if (b) delete b;
+	}
+	barriers_.clear();
+}
+
 void Player::Move()
 {
 	Vector3 move = { 0.0f,0.0f,0.0f };
@@ -186,6 +194,9 @@ void Player::Rotate()
 
 void Player::Barrier()
 {
+	// respect canFire_ flag
+	if (!canFire_) return;
+
 	// バリア発射キーを変更: 例として LEFT CONTROL を使用（Triggerで発射）
 
 	bool fireTriggered = keyInput_->TriggerKey(DIK_LCONTROL);
@@ -283,6 +294,8 @@ void Player::DrawImGui()
 	ImGui::End();
 }
 #endif
+
+
 
 
 
