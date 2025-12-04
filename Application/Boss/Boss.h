@@ -199,6 +199,18 @@ private:
     float playerHitHalfSizeXY_ = 0.4f;
     float playerHitHalfSizeZ_ = 0.4f;
 
+    // Phase4 turrets (mass-produced enemies that fire beams)
+    struct Phase4Turret {
+        Object3d* obj = nullptr;
+        int fireTimer = 0;
+        int fireInterval = 36; // frames
+        bool active = true;
+    };
+    std::vector<Phase4Turret> phase4Turrets_;
+    int phase4TurretCount_ = 4;
+    float phase4TurretRadius_ = 3.2f;
+    float phase4TurretScale_ = 0.5f;
+
     // --- Phase3: 周回ドローン + 狭角連射 ---
     void UpdatePhase3();
 
@@ -244,4 +256,18 @@ private:
     bool inPhaseTransition_ = false;
     int phaseTransitionTimer_ = 0;
     int phaseTransitionDuration_ = 30; // frames to block player input by default
+
+    // --- 新規: レーザーを派手にするためのパラメータ ---
+    // 横スイープ量（角度）
+    float laserSweepAngle_ = 0.0f;
+    float laserSweepSpeed_ = 0.12f;        // スイープ速度
+    float laserSweepAmplitude_ = 1.8f;     // X方向の振幅
+    // プレイヤー方向へのゆっくり追従
+    float laserAimX_ = 0.0f;               // 内部保持用のXオフセット
+    float laserAimLerpSpeed_ = 0.06f;      // 追従のLerp速度
+
+    // 発射中にレーザーから子弾を出すためのタイマー
+    int laserBulletInterval_ = 8;          // フレーム間隔
+    int laserBulletTimer_ = 0;
+    float phase4BulletSpeed_ = 1.2f;       // 発射される子弾の速度
 };

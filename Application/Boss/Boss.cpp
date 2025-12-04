@@ -33,6 +33,13 @@ Boss::~Boss()
     }
     droneObjs_.clear();
 
+    // phase4 turret cleanup
+    for (auto &t : phase4Turrets_)
+    {
+        if (t.obj) { delete t.obj; t.obj = nullptr; }
+    }
+    phase4Turrets_.clear();
+
     // スプライト解放
     for (auto s : phaseSprites_)
     {
@@ -297,7 +304,6 @@ void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object
         laserModel_->ApplyState(Transform{ laserModel_->GetScale(), {0,0,0}, laserModel_->GetTranslate() }, camera_, true);
     }
 
-   
     drones_.clear();
     drones_.resize(phase3DroneCount_);
     droneObjs_.clear();
@@ -313,20 +319,40 @@ void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object
         drones_[i].shootInterval = 45 + (i * 5); 
         drones_[i].active = true;
 
-       
         Object3d* dObj = new Object3d();
         dObj->Initialize(object3dCom_);
         if (model_ && model_->GetModel())
         {
             dObj->SetModel(new Model(*model_->GetModel()));
             dObj->SetScale({ droneModelScale_, droneModelScale_, droneModelScale_ });
-           
             dObj->SetColor({ 0.7f, 0.9f, 1.0f, 1.0f });
         }
-      
+
         dObj->SetTranslate({ 10000.0f, 10000.0f, 10000.0f });
         dObj->ApplyState(Transform{ dObj->GetScale(), dObj->GetRotate(), dObj->GetTranslate() }, camera_, true);
         droneObjs_.push_back(dObj);
+    }
+
+    // Initialize Phase4 turrets separately
+    phase4Turrets_.clear();
+    phase4Turrets_.resize(phase4TurretCount_);
+    for (int i = 0; i < phase4TurretCount_; ++i)
+    {
+        Object3d* tObj = new Object3d();
+        tObj->Initialize(object3dCom_);
+        if (model_ && model_->GetModel())
+        {
+            tObj->SetModel(new Model(*model_->GetModel()));
+            tObj->SetScale({ phase4TurretScale_, phase4TurretScale_, phase4TurretScale_ });
+            tObj->SetColor({ 1.0f, 0.3f, 0.3f, 1.0f });
+        }
+        tObj->SetTranslate({ 10000.0f, 10000.0f, 10000.0f });
+        tObj->ApplyState(Transform{ tObj->GetScale(), tObj->GetRotate(), tObj->GetTranslate() }, camera_, true);
+        phase4Turrets_[i].obj = tObj;
+        // ensure some turrets will fire quickly for testing
+        phase4Turrets_[i].fireInterval = 24; // shorter interval for Phase4 turrets to be noticeable
+        phase4Turrets_[i].fireTimer = phase4Turrets_[i].fireInterval - 1;
+        phase4Turrets_[i].active = true;
     }
 }
 
@@ -598,70 +624,120 @@ void Boss::UpdatePhase3()
 void Boss::UpdatePhase4()
 {
     if (inPhaseTransition_) return;
-
     if (!laserModel_) return;
 
-    // フェーズ突入直後に初期化
+    const float twoPi = 2.0f * 3.14159265f;
+    Vector3 bossPos = worldTransform_.GetTranslate();
+
+    // initialize on first entry
     if (!laserActive_)
     {
         laserActive_ = true;
         laserTimer_ = 0;
+        laserBulletTimer_ = 0;
+        laserSweepAngle_ = 0.0f;
+        laserAimX_ = 0.0f;
 
-        // ボスの位置を取得
-        Vector3 bossPos = worldTransform_.GetTranslate();
+        // position turrets around boss
+        for (int i = 0; i < phase4TurretCount_; ++i)
+        {
+            float ang = twoPi * static_cast<float>(i) / static_cast<float>(phase4TurretCount_);
+            Vector3 pos = bossPos + Vector3{ std::cos(ang) * phase4TurretRadius_, std::sin(ang) * phase4TurretRadius_, 0.0f };
+            if (i < static_cast<int>(phase4Turrets_.size()) && phase4Turrets_[i].obj)
+            {
+                auto* tobj = phase4Turrets_[i].obj;
+                tobj->SetTranslate(pos);
+                tobj->SetScale({ phase4TurretScale_, phase4TurretScale_, phase4TurretScale_ });
+                tobj->SetRotate({ 0.0f, 0.0f, 0.0f });
+                tobj->ApplyState(Transform{ tobj->GetScale(), tobj->GetRotate(), tobj->GetTranslate() }, camera_, true);
+                // make them ready to fire immediately for visibility
+                phase4Turrets_[i].fireTimer = phase4Turrets_[i].fireInterval - 1;
+                phase4Turrets_[i].active = true;
+            }
+        }
 
-        // レーザーの方向を固定（Z軸マイナス方向）
-        Vector3 direction = { 0.0f, 0.0f, -1.0f };
-
-        // レーザーの初期位置をボスの位置に設定（方向ベクトルに基づいて少し前方にオフセット）
-        Vector3 laserPos = bossPos + direction * 2.0f; // ボスの位置からZ軸マイナス方向に2.0fオフセット
+        // short visual on boss
+        Vector3 laserPos = bossPos + Vector3{ 0.0f, 0.0f, -2.0f };
         laserModel_->SetTranslate(laserPos);
-
-        // レーザーの回転をゼロに設定（Z軸マイナス方向に固定）
-        Vector3 laserRotation = { 0.0f, 0.0f, 0.0f };
-        laserModel_->SetRotate(laserRotation);
-
-        // レーザーのスケールと色を初期化
+        laserModel_->SetRotate({ 0.0f,0.0f,0.0f });
         laserModel_->SetScale({ laserWidth_, laserWidth_, 1.0f });
         laserModel_->SetColor(laserChargeColor_);
-        laserModel_->ApplyState(Transform{ laserModel_->GetScale(), laserRotation, laserPos }, camera_, true);
+        laserModel_->ApplyState(Transform{ laserModel_->GetScale(), laserModel_->GetRotate(), laserModel_->GetTranslate() }, camera_, true);
+
+        auto* pm = ParticleManager::GetInstance();
+        if (pm) pm->EmitBurst8("default", bossPos, 0.12f, 1.6f, 0.6f);
     }
 
     ++laserTimer_;
-
     int total = laserChargeFrames_ + laserFireFrames_ + laserCooldownFrames_;
 
     if (laserTimer_ <= laserChargeFrames_)
     {
-        // チャージ中: レーザー本体は伸ばさず短いチャージ表示のみ行う
-    
-        float t = (float)laserTimer_ / (float)laserChargeFrames_;
-        // パルスアルファでチャージ感を出す
+        // charging: short visible core, turrets idle (but visible)
+        float t = static_cast<float>(laserTimer_) / static_cast<float>(laserChargeFrames_);
         float alpha = 0.5f + 0.5f * std::sin(t * 3.14159265f);
         Vector4 col = laserChargeColor_;
         col.w = alpha;
-
-        // 常に短く表示（伸ばさない）
-        Vector3 scale = { laserWidth_, laserWidth_, 1.0f };
-        laserModel_->SetScale(scale);
-
-        // レーザーの位置はボス前方に固定（長さ変化を考慮しない）
-        Vector3 bossPos = worldTransform_.GetTranslate();
-        Vector3 laserPos = bossPos + Vector3{0.0f, 0.0f, -0.5f};
-        laserModel_->SetTranslate(laserPos);
-
+        laserModel_->SetScale({ laserWidth_, laserWidth_, 1.0f });
+        laserModel_->SetTranslate(bossPos + Vector3{ 0.0f, 0.0f, -0.5f });
         laserModel_->SetColor(col);
+
+        // update turret visuals
+        for (auto &tur : phase4Turrets_)
+        {
+            if (tur.obj)
+            {
+                tur.obj->ApplyState(Transform{ tur.obj->GetScale(), tur.obj->GetRotate(), tur.obj->GetTranslate() }, camera_, true);
+            }
+        }
     }
     else if (laserTimer_ <= laserChargeFrames_ + laserFireFrames_)
     {
+        // firing period: turrets shoot bullets toward player periodically; central beam is a visual core
         float length = laserMaxLength_;
-        laserModel_->SetScale({ laserWidth_, laserWidth_, length });
-        Vector3 bossPos = worldTransform_.GetTranslate();
-        Vector3 laserPos = bossPos + Vector3{0.0f, 0.0f, -length * 0.5f};
-        laserModel_->SetTranslate(laserPos);
+        laserModel_->SetScale({ laserWidth_ * 0.4f, laserWidth_ * 0.4f, length * 0.6f });
+        laserModel_->SetTranslate(bossPos + Vector3{ 0.0f, 0.0f, -length * 0.5f * 0.6f });
         laserModel_->SetColor(laserFireColor_);
 
-        
+        // turrets fire
+        for (auto &tur : phase4Turrets_)
+        {
+            if (!tur.active || !tur.obj) continue;
+            ++tur.fireTimer;
+            if (tur.fireTimer >= tur.fireInterval)
+            {
+                tur.fireTimer = 0;
+                Vector3 tp = tur.obj->GetTranslate();
+                Vector3 dir = { 0.0f, 0.0f, -1.0f };
+                if (player_)
+                {
+                    Vector3 p = player_->GetWorldTranslate();
+                    dir = { p.x - tp.x, p.y - tp.y, p.z - tp.z };
+                    float l = std::sqrt(dir.x*dir.x + dir.y*dir.y + dir.z*dir.z);
+                    if (l > 1e-6f) dir = { dir.x / l, dir.y / l, dir.z / l };
+                    else dir = { 0.0f, 0.0f, -1.0f };
+                }
+
+                Vector3 vel = { dir.x * phase4BulletSpeed_, dir.y * phase4BulletSpeed_, dir.z * phase4BulletSpeed_ };
+                EnemyBullet* b = new EnemyBullet();
+                b->Initialize(model_, tp, object3dCom_, vel);
+                bullets_.push_back(b);
+
+                auto* pm = ParticleManager::GetInstance();
+                if (pm) pm->EmitBurst8("default", tp, 0.08f, 0.6f, 0.45f);
+
+                if (camera_ && cameraShakeCooldown_ <= 0.0f)
+                {
+                    camera_->StartShake(0.08f, 0.08f);
+                    cameraShakeCooldown_ = kCameraShakeCooldownSeconds;
+                }
+            }
+
+            // update turret visual
+            tur.obj->ApplyState(Transform{ tur.obj->GetScale(), tur.obj->GetRotate(), tur.obj->GetTranslate() }, camera_, true);
+        }
+
+        // central laser collision check (short core)
         if (player_ && player_->IsAlive())
         {
             Vector3 p = player_->GetWorldTranslate();
@@ -669,34 +745,37 @@ void Boss::UpdatePhase4()
             Vector3 laserHalf = { (laserWidth_ * 0.5f) + laserPlayerHitPaddingXY_, (laserWidth_ * 0.5f) + laserPlayerHitPaddingXY_, (length * 0.5f) + laserPlayerHitPaddingZ_ };
             Vector3 playerHalf = { playerHitHalfSizeXY_, playerHitHalfSizeXY_, playerHitHalfSizeZ_ };
 
-            AABB laserBox{ { lp.x - laserHalf.x, lp.y - laserHalf.y, lp.z - laserHalf.z },
-                           { lp.x + laserHalf.x, lp.y + laserHalf.y, lp.z + laserHalf.z } };
-            AABB playerBox{ { p.x - playerHalf.x, p.y - playerHalf.y, p.z - playerHalf.z },
-                            { p.x + playerHalf.x, p.y + playerHalf.y, p.z + playerHalf.z } };
+            AABB laserBox{ { lp.x - laserHalf.x, lp.y - laserHalf.y, lp.z - laserHalf.z }, { lp.x + laserHalf.x, lp.y + laserHalf.y, lp.z + laserHalf.z } };
+            AABB playerBox{ { p.x - playerHalf.x, p.y - playerHalf.y, p.z - playerHalf.z }, { p.x + playerHalf.x, p.y + playerHalf.y, p.z + playerHalf.z } };
 
             if (IsCollisionAABBAABB(laserBox, playerBox))
             {
                 player_->OnCollision();
-                if (camera_) { camera_->StartShake(0.6f, 0.45f); }
+                if (camera_) camera_->StartShake(0.6f, 0.45f);
             }
         }
     }
     else if (laserTimer_ <= total)
     {
-        // クールダウン: 長さを縮小し透明に
+        // cooldown: shrink and fade
         int coolT = laserTimer_ - (laserChargeFrames_ + laserFireFrames_);
-        float t = (float)coolT / (float)laserCooldownFrames_;
-        float length = laserMaxLength_ * (1.0f - t);
+        float tf = static_cast<float>(coolT) / static_cast<float>(laserCooldownFrames_);
+        float length = laserMaxLength_ * (1.0f - tf);
         if (length < 1.0f) length = 1.0f;
-        laserModel_->SetScale({ laserWidth_, laserWidth_, length });
-        Vector3 bossPos = worldTransform_.GetTranslate();
-        Vector3 laserPos = bossPos + Vector3{0.0f, 0.0f, -length * 0.5f};
-        laserModel_->SetTranslate(laserPos);
+        // keep the beam's X/Y thickness consistent with firing visual to avoid sudden jump
+        laserModel_->SetScale({ laserWidth_ * 0.4f, laserWidth_ * 0.4f, length });
+        laserModel_->SetTranslate(bossPos + Vector3{ 0.0f, 0.0f, -length * 0.5f });
         Vector4 col = laserFireColor_;
-        col.w = 1.0f - t; // フェードアウト
+        col.w = 1.0f - tf;
         laserModel_->SetColor(col);
 
-        // 回収中も AABB 当たり判定を維持
+        // keep turret visuals while cooling
+        for (auto &tur : phase4Turrets_)
+        {
+            if (tur.obj) tur.obj->ApplyState(Transform{ tur.obj->GetScale(), tur.obj->GetRotate(), tur.obj->GetTranslate() }, camera_, true);
+        }
+
+        // collision still active during cooldown
         if (player_ && player_->IsAlive())
         {
             Vector3 p = player_->GetWorldTranslate();
@@ -704,27 +783,31 @@ void Boss::UpdatePhase4()
             Vector3 laserHalf = { (laserWidth_ * 0.5f) + laserPlayerHitPaddingXY_, (laserWidth_ * 0.5f) + laserPlayerHitPaddingXY_, (length * 0.5f) + laserPlayerHitPaddingZ_ };
             Vector3 playerHalf = { playerHitHalfSizeXY_, playerHitHalfSizeXY_, playerHitHalfSizeZ_ };
 
-            AABB laserBox{ { lp.x - laserHalf.x, lp.y - laserHalf.y, lp.z - laserHalf.z },
-                           { lp.x + laserHalf.x, lp.y + laserHalf.y, lp.z + laserHalf.z } };
-            AABB playerBox{ { p.x - playerHalf.x, p.y - playerHalf.y, p.z - playerHalf.z },
-                            { p.x + playerHalf.x, p.y + playerHalf.y, p.z + playerHalf.z } };
+            AABB laserBox{ { lp.x - laserHalf.x, lp.y - laserHalf.y, lp.z - laserHalf.z }, { lp.x + laserHalf.x, lp.y + laserHalf.y, lp.z + laserHalf.z } };
+            AABB playerBox{ { p.x - playerHalf.x, p.y - playerHalf.y, p.z - playerHalf.z }, { p.x + playerHalf.x, p.y + playerHalf.y, p.z + playerHalf.z } };
 
             if (IsCollisionAABBAABB(laserBox, playerBox))
             {
                 player_->OnCollision();
-                if (camera_) { camera_->StartShake(0.45f, 0.35f); }
+                if (camera_) camera_->StartShake(0.45f, 0.35f);
             }
         }
     }
     else
     {
-        // サイクル終了: 次ループまで非表示へ移動
+        // end cycle: hide laser and turrets until next activation
         laserActive_ = false;
         laserTimer_ = 0;
         laserModel_->SetTranslate({ 10000.0f, 10000.0f, 10000.0f });
+        for (auto &tur : phase4Turrets_)
+        {
+            if (tur.obj) tur.obj->SetTranslate({ 10000.0f, 10000.0f, 10000.0f });
+            tur.active = true;
+            tur.fireTimer = static_cast<int>(Random::GeneratorFloat(0.0f, static_cast<float>(tur.fireInterval)));
+        }
     }
 
-    // 行列反映
+    // apply matrix for laser
     laserModel_->ApplyState(Transform{ laserModel_->GetScale(), laserModel_->GetRotate(), laserModel_->GetTranslate() }, camera_, true);
 }
 
@@ -974,6 +1057,11 @@ void Boss::Draw()
 
     if (phase_ == Phase::Phase4 && laserModel_ && laserActive_)
     {
+        // draw turrets first
+        for (auto &t : phase4Turrets_)
+        {
+            if (t.obj) t.obj->Draw();
+        }
         laserModel_->Draw();
     }
 
