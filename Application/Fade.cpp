@@ -63,10 +63,15 @@ void Fade::FadeIn()
 	
 	float t = duration_ > 0.0f ? std::clamp(counter_ / duration_, 0.0f, 1.0f) : 1.0f;
 	fadeSprite_->SetColor(Vector4(0, 0, 0, 1.0f - t));
+
+	// 完了したらアクティブ状態を解除（ただし counter_ は維持して IsFinished() が true を返すようにする）
+	if (counter_ >= duration_) {
+		status_ = State::kNone;
+	}
 }
 
 void Fade::FadeOut()
-{	
+{ 	
 	// 時間経過
 	counter_ += 1.0f / 60.0f;
 
@@ -78,31 +83,30 @@ void Fade::FadeOut()
 
 	float t = duration_ > 0.0f ? std::clamp(counter_ / duration_, 0.0f, 1.0f) : 1.0f;
 	fadeSprite_->SetColor(Vector4(0, 0, 0, t));
+
+	if (counter_ >= duration_) {
+		status_ = State::kNone;
+	}
 }
 
 void Fade::Stop()
 {
+	// stop the fade by setting status to none and resetting the counter
 	status_ = State::kNone;
-	if (status_ == State::kNone)
-	{
-		return;
-	}
+	counter_ = 0.0f;
 }
 
 bool Fade::IsFinished() const
 {
-	switch (status_)
-	{
-	case State::kFadeIn:
-	case State::kFadeOut:
-		if(counter_ >= duration_)
-		{
-			return true;
-		}
-		else
-		{
-			return false;
-		}
-	}
-	return false;
+	return counter_ >= duration_;
+}
+
+bool Fade::IsActive() const
+{
+	return status_ != State::kNone;
+}
+
+Fade::State Fade::GetState() const
+{
+	return status_;
 }

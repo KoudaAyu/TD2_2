@@ -148,6 +148,9 @@ void Player::ClearBarriers()
 
 void Player::Move()
 {
+	// prevent movement if disabled (e.g., during fade)
+	if (!canMove_) return;
+
 	Vector3 move = { 0.0f,0.0f,0.0f };
 	const float kCharacterSpeed = 0.2f;
 
@@ -225,7 +228,7 @@ void Player::Barrier()
 	bool fireTriggered = keyInput_->TriggerKey(DIK_LCONTROL);
 	// コントローラの B ボタンでも発射可能にする
 	if (!fireTriggered && controller_ && controller_->IsConnected()) {
-		if (controller_->WasButtonPressedThisFrame(XINPUT_GAMEPAD_B)) {
+		if (controller_->WasButtonPressedThisFrame(XINPUT_GAMEPAD_A)) {
 			fireTriggered = true;
 		}
 	}

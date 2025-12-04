@@ -44,6 +44,9 @@ public:
 	// allow external code to enable/disable firing
 	void SetCanFire(bool v) { canFire_ = v; }
 
+	// allow external code to enable/disable movement (used during fade etc.)
+	void SetCanMove(bool v) { canMove_ = v; }
+
 #ifdef USE_IMGUI
 	
 	void DrawImGui();
@@ -113,6 +116,9 @@ private:
 
 	// whether player is allowed to fire barriers
 	bool canFire_ = true;
+
+	// whether player is allowed to move (used to disable movement during fade)
+	bool canMove_ = true;
 
 	// --- controller vibration on damage ---
 	// duration in seconds for controller vibration when player is hit

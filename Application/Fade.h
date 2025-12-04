@@ -48,6 +48,16 @@ public:
 	/// <returns>フェード状態による分岐</returns>
 	bool IsFinished() const;
 
+	/// <summary>
+	/// フェード中かどうか (kNone 以外はアクティブ)
+	/// </summary>
+	bool IsActive() const;
+
+	/// <summary>
+	/// 現在のフェード状態を取得
+	/// </summary>
+	State GetState() const;
+
 private:
 	//フェードの継続時間
 	float duration_ = 1.0f;

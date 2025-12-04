@@ -207,7 +207,16 @@ void GameScene::Update()
             }
         }
 
-	player_->Update();
+		// Advance fade state before deciding player movement
+		if (fade_) { fade_->Update(); }
+
+		// Disable player movement while fade is active (only while fading)
+		if (player_) {
+			bool fadeActive = (fade_ && fade_->IsActive());
+			player_->SetCanMove(!fadeActive);
+		}
+
+		player_->Update();
 
 
 	const float kEnemyActiveZThreshold = -5.0f;
@@ -263,6 +272,11 @@ void GameScene::Update()
 	for (Enemy* enemy : enemies_)
 	{
 		if (enemy) enemy->Update();
+	}
+	// ensure player movement is disabled while fade is active
+	if (player_) {
+		bool fadeActive = (fade_ && fade_->IsActive());
+		player_->SetCanMove(!fadeActive);
 	}
 	player_->Update();
 	railCameraController_->Update();
@@ -325,7 +339,7 @@ void GameScene::Update()
     // フェードは常に更新（必要なときのみ内部で進行）
     if (fade_)
     {
-        fade_->Update();
+        // fade already updated earlier; just check completion here
         if (phase_ == Phase::kFadeOut && fade_->IsFinished())
         {
             isFinish_ = true;
