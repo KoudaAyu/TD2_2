@@ -235,16 +235,16 @@ void Player::Rotate()
 	Vector3 rot = worldTransform_.GetRotate();
 
 	// 方向キー左でY軸回転を減算（左回転）
-	if (keyInput_->PushKey(DIK_LEFT))
+	/*if (keyInput_->PushKey(DIK_LEFT))
 	{
 		rot.y -= kRotSpeed;
-	}
+	}*/
 
 	// 方向キー右でY軸回転を加算（右回転）
-	if (keyInput_->PushKey(DIK_RIGHT))
+	/*if (keyInput_->PushKey(DIK_RIGHT))
 	{
 		rot.y += kRotSpeed;
-	}
+	}*/
 
 	worldTransform_.SetRotate(rot);
 }

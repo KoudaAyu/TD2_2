@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cmath>
 #include "Random.h"
+#include "Logger.h"
 
 static float EaseOutBack(float t)
 {
@@ -151,20 +152,30 @@ void Fade::Update()
 
 void Fade::Draw()
 {
+    // If not active, don't draw anything to avoid residual sprites causing flashes
+    if (status_ == State::kNone) return;
+
+    const float kEpsilon = 0.01f; // raised threshold to avoid faint residual draw
+
     // draw highlights over bars first, then bars and edges
     for (int i = 0; i < static_cast<int>(barHighlights_.size()); ++i) {
-        if (barHighlights_[i]) barHighlights_[i]->Draw();
+        Sprite* hl = barHighlights_[i];
+        if (!hl) continue;
+        Vector4 hc = hl->GetColor();
+        if (hc.w > kEpsilon) hl->Draw();
     }
     for (int i = 0; i < static_cast<int>(bars_.size()); ++i) {
-        if (bars_[i]) bars_[i]->Draw();
-        if (barEdges_[i]) barEdges_[i]->Draw();
+        Sprite* s = bars_[i];
+        Sprite* edge = barEdges_[i];
+        if (s) { Vector4 sc = s->GetColor(); if (sc.w > kEpsilon) s->Draw(); }
+        if (edge) { Vector4 ec = edge->GetColor(); if (ec.w > kEpsilon) edge->Draw(); }
     }
 
     // draw scanline above bars for strong Eva-like sweep
-    if (scanline_) scanline_->Draw();
+    if (scanline_) { Vector4 sc = scanline_->GetColor(); if (sc.w > kEpsilon) scanline_->Draw(); }
 
-    if (fadeSprite_) fadeSprite_->Draw();
-    if (flashSprite_) flashSprite_->Draw();
+    if (fadeSprite_) { Vector4 fc = fadeSprite_->GetColor(); if (fc.w > kEpsilon) fadeSprite_->Draw(); }
+    if (flashSprite_) { Vector4 fc2 = flashSprite_->GetColor(); if (fc2.w > kEpsilon) flashSprite_->Draw(); }
 }
 
 void Fade::Start(State state, float duration)
@@ -231,6 +242,25 @@ void Fade::FadeIn()
     // overlay fades out quickly
     if (fadeSprite_) {
         float alpha = 1.0f - EaseOutCubic(t);
+        // We'll clamp overlay alpha to not exceed any visible bar/scanline alpha to avoid
+        // a frame where bars have left but the overlay still dims the screen.
+        float maxCompAlpha = 0.0f;
+        // check bars
+        for (auto*s : bars_) { if (s) { Vector4 c = s->GetColor(); if (c.w > maxCompAlpha) maxCompAlpha = c.w; } }
+        for (auto*s : barEdges_) { if (s) { Vector4 c = s->GetColor(); if (c.w > maxCompAlpha) maxCompAlpha = c.w; } }
+        for (auto*s : barHighlights_) { if (s) { Vector4 c = s->GetColor(); if (c.w > maxCompAlpha) maxCompAlpha = c.w; } }
+        if (scanline_) { Vector4 sc = scanline_->GetColor(); if (sc.w > maxCompAlpha) maxCompAlpha = sc.w; }
+        if (flashSprite_) { Vector4 fc = flashSprite_->GetColor(); if (fc.w > maxCompAlpha) maxCompAlpha = fc.w; }
+
+        // Debug logging to trace alpha behavior
+        {
+            std::string msg = "FadeIn t=" + std::to_string(t) + ", overlayAlpha(before)=" + std::to_string(1.0f - EaseOutCubic(t)) + ", maxCompAlpha=" + std::to_string(maxCompAlpha);
+            Logger::Log(msg);
+        }
+
+        // clamp overlay so it won't remain visible when all components are gone
+        if (maxCompAlpha < alpha) alpha = maxCompAlpha;
+
         Vector4 c = fadeSprite_->GetColor(); c.w = alpha; fadeSprite_->SetColor(c); fadeSprite_->Update();
     }
 
@@ -310,6 +340,8 @@ void Fade::FadeIn()
         for (auto*s : bars_) { if (s) { Vector4 cc = s->GetColor(); cc.w = 0.0f; s->SetColor(cc); s->Update(); } }
         for (auto*s : barEdges_) { if (s) { Vector4 cc = s->GetColor(); cc.w = 0.0f; s->SetColor(cc); s->Update(); } }
         for (auto*s : barHighlights_) { if (s) { Vector4 cc = s->GetColor(); cc.w = 0.0f; s->SetColor(cc); s->Update(); } }
+
+        Logger::Log("FadeIn complete: status set to kNone, all component alphas set to 0");
     }
 }
 
