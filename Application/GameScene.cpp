@@ -8,6 +8,7 @@
 #include "UIButton.h"
 #include "Logger.h"
 #include <format>
+#include "AABB.h"
 
 // フェード開始フラグ
 static bool gFadeStarted = false;
@@ -467,111 +468,135 @@ void GameScene::Draw()
 
 void GameScene::CheckAllCollisions()
 {
-	Vector3 posA, posB;
+    Vector3 posA, posB;
 
-	// バリア群を取得
-	const std::vector<PlayerBarrier*>& barriers = player_->GetBarriers();
-	//敵の弾のリスト: aggregate from all enemies + boss
-	std::list<EnemyBullet*> enemyBullets;
-	for (Enemy* enemy : enemies_)
-	{
-		if (!enemy) continue;
-		const std::list<EnemyBullet*>& enemy_Bullets = enemy->GetBullets();
-		for (EnemyBullet* enemy_Bullet : enemy_Bullets)
-		{
-			enemyBullets.push_back(enemy_Bullet);
-		}
-	}
-	
-	if (boss_)
-	{
-		const std::list<EnemyBullet*>& bossBullets = boss_->GetBullets();
-		for (EnemyBullet* b : bossBullets)
-		{
-			enemyBullets.push_back(b);
-		}
-	}
+    // バリア群を取得
+    const std::vector<PlayerBarrier*>& barriers = player_->GetBarriers();
+    //敵の弾のリスト: aggregate from all enemies + boss
+    std::list<EnemyBullet*> enemyBullets;
+    for (Enemy* enemy : enemies_)
+    {
+        if (!enemy) continue;
+        const std::list<EnemyBullet*>& enemy_Bullets = enemy->GetBullets();
+        for (EnemyBullet* enemy_Bullet : enemy_Bullets)
+        {
+            enemyBullets.push_back(enemy_Bullet);
+        }
+    }
+
+    if (boss_)
+    {
+        const std::list<EnemyBullet*>& bossBullets = boss_->GetBullets();
+        for (EnemyBullet* b : bossBullets)
+        {
+            enemyBullets.push_back(b);
+        }
+    }
+
 #pragma region  敵の弾同士の当たり判定
-	
-	// 敵弾 vs 敵弾 は通常無効化。
-	/*
-	{
-		auto* pm = ParticleManager::GetInstance();
-		if (!enemyBullets.empty()) {
-			for (auto it = enemyBullets.begin(); it != enemyBullets.end(); ++it) {
-				EnemyBullet* b1 = *it;
-				if (!b1 || !b1->IsActive()) continue;
-				Vector3 p1 = b1->GetWorldTranslate();
-				auto it2 = it; ++it2;
-				for (; it2 != enemyBullets.end(); ++it2) {
-					EnemyBullet* b2 = *it2;
-					if (!b2 || !b2->IsActive()) continue;
-					Vector3 p2 = b2->GetWorldTranslate();
-					float dist = Distance(p1, p2);
-					const float kBulletCollisionThreshold = 0.6f;
-					if (dist < kBulletCollisionThreshold) {
-						Vector3 mid = { (p1.x + p2.x) * 0.5f, (p1.y + p2.y) * 0.5f, (p1.z + p2.z) * 0.5f };
-						if (pm) {
-							pm->EmitBurst8("defaultMesh", mid, 0.06f, 0.18f, 0.6f);
-						}
-						b1->OnCollision();
-						b2->OnCollision();
-					}
-				}
-			}
-		}
-	}
-	*/
+
+    // 敵弾 vs 敵弾 は通常無効化。
+    /*
+    {
+        auto* pm = ParticleManager::GetInstance();
+        if (!enemyBullets.empty()) {
+            for (auto it = enemyBullets.begin(); it != enemyBullets.end(); ++it) {
+                EnemyBullet* b1 = *it;
+                if (!b1 || !b1->IsActive()) continue;
+                Vector3 p1 = b1->GetWorldTranslate();
+                auto it2 = it; ++it2;
+                for (; it2 != enemyBullets.end(); ++it2) {
+                    EnemyBullet* b2 = *it2;
+                    if (!b2 || !b2->IsActive()) continue;
+                    Vector3 p2 = b2->GetWorldTranslate();
+                    float dist = Distance(p1, p2);
+                    const float kBulletCollisionThreshold = 0.6f;
+                    if (dist < kBulletCollisionThreshold) {
+                        Vector3 mid = { (p1.x + p2.x) * 0.5f, (p1.y + p2.y) * 0.5f, (p1.z + p2.z) * 0.5f };
+                        if (pm) {
+                            pm->EmitBurst8("defaultMesh", mid, 0.06f, 0.18f, 0.6f);
+                        }
+                        b1->OnCollision();
+                        b2->OnCollision();
+                    }
+                }
+            }
+        }
+    }
+    */
 #pragma endregion
 
 #pragma region 自キャラと敵の弾の当たり判定
-	posA = player_->GetWorldTranslate();
-	for (EnemyBullet* bullet : enemyBullets)
-	{
-		// 無効な弾は当たり判定対象外にする
-		if (!bullet || !bullet->IsActive()) continue;
+    posA = player_->GetWorldTranslate();
+    for (EnemyBullet* bullet : enemyBullets)
+    {
+        // 無効な弾は当たり判定対象外にする
+        if (!bullet || !bullet->IsActive()) continue;
 
-		posB = bullet->GetWorldTranslate();
+        posB = bullet->GetWorldTranslate();
 
-		// 距離（MathUtl の Distance を使用）
-		float distance = Distance(posA, posB);
+        // 距離（MathUtl の Distance を使用）
+        float distance = Distance(posA, posB);
 
-		const float threshold = 1.0f;
-		if (distance < threshold)
-		{
-			player_->OnCollision();
-			bullet->OnCollision();
-		}
-	}
+        const float threshold = 1.0f;
+        if (distance < threshold)
+        {
+            player_->OnCollision();
+            bullet->OnCollision();
+        }
+    }
 #pragma endregion
 
+    // プレイヤーと敵本体の当たり判定（弾と同様の距離判定で簡潔に）
+    if (player_)
+    {
+        const Vector3 ppos = player_->GetWorldTranslate();
+        const float collisionThreshold = 1.0f; // プレイヤーと敵の接触閾値（必要に応じて調整）
+
+        for (Enemy* enemy : enemies_)
+        {
+            if (!enemy) continue;
+            if (!enemy->IsActive()) continue;
+            if (!enemy->IsCollidable()) continue;
+
+            const Vector3 epos = enemy->GetWorldTranslate();
+            float dist = Distance(ppos, epos);
+            if (dist < collisionThreshold)
+            {
+                // プレイヤー被爆、敵は無効化（OnCollisionで状態変更）
+                player_->OnCollision();
+                enemy->OnCollision();
+            }
+        }
+    }
+    
 #pragma region バリアと敵の当たり判定
-	// バリアと敵本体の当たり判定を実装（書き方を他と統一）
-	for (Enemy* enemy_ : enemies_)
-	{
-		if (!enemy_) continue;
-		if (!enemy_->IsActive()) continue;
-	
-		posB = enemy_->GetWorldTranslate();
+    // バリアと敵本体の当たり判定を実装（書き方を他と統一）
+    for (Enemy* enemy_ : enemies_)
+    {
+        if (!enemy_) continue;
+        if (!enemy_->IsActive()) continue;
+    
+        posB = enemy_->GetWorldTranslate();
 
-		for (const PlayerBarrier* barrier : barriers)
-		{
-			if (!barrier) continue;
-			if (!barrier->IsActive()) continue;
+        for (const PlayerBarrier* barrier : barriers)
+        {
+            if (!barrier) continue;
+            if (!barrier->IsActive()) continue;
 
-			posA = barrier->GetWorldTranslate();
+            posA = barrier->GetWorldTranslate();
 
-			float distance = Distance(posA, posB);
-			const float threshold = 1.5f; // 判定半径 (必要に応じて調整)
-			if (distance < threshold)
-			{
-				// 衝突発生: バリアと敵に衝突処理を通知
-				const_cast<PlayerBarrier*>(barrier)->OnCollision();
-				enemy_->OnCollision();
-				break; // 敵は一度当たれば十分なのでループを抜ける
-			}
-		}
-	}
+            float distance = Distance(posA, posB);
+            const float threshold = 1.5f; // 判定半径 (必要に応じて調整)
+            if (distance < threshold)
+            {
+                // 衝突発生: バリアと敵に衝突処理を通知
+                const_cast<PlayerBarrier*>(barrier)->OnCollision();
+                enemy_->OnCollision();
+                break; // 敵は一度当たれば十分なのでループを抜ける
+            }
+        }
+    }
 
 	if (boss_ && boss_->IsActive())
 	{
