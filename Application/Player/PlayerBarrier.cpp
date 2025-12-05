@@ -37,6 +37,8 @@ void PlayerBarrier::Initialize(Object3d* model, const Vector3 pos, Object3dCom* 
         barrierModel_->SetColor(barrierColor);             // Object3d の色
     }
 
+	birthWave_ = 0; // initialize member
+
 }
 
 void PlayerBarrier::Update()

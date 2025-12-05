@@ -16,6 +16,7 @@ Player::~Player()
 	for (auto b : barriers_)
 	{
 		if (b) delete b;
+		b = nullptr;
 	}
 	barriers_.clear();
 
@@ -345,6 +346,9 @@ void Player::Barrier()
 
 		PlayerBarrier* barrier = new PlayerBarrier();
 		barrier->Initialize(model_, worldTransform_.GetTranslate(), object3dCom_, velocity);
+
+		// set birth wave so it won't hit next-wave enemies
+		barrier->SetBirthWave(currentWaveForBarriers_);
 
 		// 新しいバリアを配列に追加
 		barriers_.push_back(barrier);

@@ -95,7 +95,7 @@ public:
 	// 敵の生存/アクティブ状態
 	bool IsActive() const { return isActive_; }
 	// 離脱中など当たり判定を無効にする場合に使用
-	bool IsCollidable() const { return collidable_; }
+	bool IsCollidable() const { return collidable_ && (invincibilityTimerFrames_ <= 0); }
 
 	// 攻撃パターンの設定
 	void SetAttackPattern(AttackPattern p) { attackPattern_ = p; }
@@ -193,6 +193,10 @@ private:
 	// How long the visual tint/pulse remains (frames) after charge
 	static constexpr int kChargeVisualFrames = 20; // default hold frames
 	int chargeVisualTimer_ = 0;
+
+	// temporary invincibility after spawn->approach transition (frames)
+	int invincibilityTimerFrames_ = 0;
+	static constexpr int kSpawnInvincibilityFrames = 30; // configurable small i-frames
 
 private:
 	Camera* camera_ = nullptr;

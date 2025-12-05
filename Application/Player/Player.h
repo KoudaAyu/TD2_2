@@ -49,6 +49,9 @@ public:
 	// allow external code to enable/disable movement (used during fade etc.)
 	void SetCanMove(bool v) { canMove_ = v; }
 
+	// set current wave id for newly spawned barriers
+	void SetCurrentWaveForBarriers(int wave) { currentWaveForBarriers_ = wave; }
+
 #ifdef USE_IMGUI
 	
 	void DrawImGui();
@@ -150,5 +153,8 @@ private:
 	
 	SoundManager* soundManager_;
 	SoundData shotBarrierSoundData_;
+
+	// track the current wave id so newly spawned barriers know which wave they belong to
+	int currentWaveForBarriers_ = 0;
 
 };

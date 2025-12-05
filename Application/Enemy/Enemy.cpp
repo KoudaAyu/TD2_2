@@ -9,7 +9,7 @@ Enemy::~Enemy()
 	{
 		delete bullet;
 		bullet = nullptr;
-	}
+		}
 	bullets_.clear();
 }
 
@@ -47,7 +47,13 @@ void Enemy::Update()
 		return;
 	}
 
-		switch (phase_
+	// decrement temporary invincibility timer if active
+	if (invincibilityTimerFrames_ > 0)
+	{
+		--invincibilityTimerFrames_;
+	}
+
+	switch (phase_
 	)
 	{
 			case Phase::Spawn:
@@ -313,6 +319,8 @@ void Enemy::SpawnUpdate()
 		// 出現完了、Approach フェーズへ移行
 		phase_ = Phase::Approach;
 		ApproachInitialize();
+		// grant a few frames of invincibility to avoid being immediately hit by pre-existing bullets
+        invincibilityTimerFrames_ = kSpawnInvincibilityFrames;
 		// 到着演出: 短いショック
 		if (camera_) camera_->StartShake(0.35f, 0.25f);
 	}

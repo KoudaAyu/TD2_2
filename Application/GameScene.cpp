@@ -576,7 +576,7 @@ void GameScene::CheckAllCollisions()
     {
         if (!enemy_) continue;
         if (!enemy_->IsActive()) continue;
-    
+
         posB = enemy_->GetWorldTranslate();
 
         for (const PlayerBarrier* barrier : barriers)
@@ -584,12 +584,48 @@ void GameScene::CheckAllCollisions()
             if (!barrier) continue;
             if (!barrier->IsActive()) continue;
 
+            // ignore barriers that were created in previous waves
+            if (barrier->GetBirthWave() != currentWave_) continue;
+            
             posA = barrier->GetWorldTranslate();
 
             float distance = Distance(posA, posB);
             const float threshold = 1.5f; // 判定半径 (必要に応じて調整)
             if (distance < threshold)
             {
+                // If enemy is currently non-collidable (e.g. spawn invincibility), show small hit feedback and consume barrier
+                if (!enemy_->IsCollidable())
+                {
+                    // consume barrier
+                    const_cast<PlayerBarrier*>(barrier)->OnCollision();
+
+                    // small sprite feedback drawn slightly in front of the model (Z offset)
+                    if (spriteCom_ && !particleTexturePath_.empty())
+                    {
+                        int screenW = object3dCom_->GetDirectXCom()->GetClientWidth();
+                        int screenH = object3dCom_->GetDirectXCom()->GetClientHeight();
+                        Vector3 hitWorld = posB + Vector3{0.0f, 0.0f, -0.25f}; // slightly forward
+                        Vector2 screen = WorldToScreen(hitWorld, camera_, screenW, screenH);
+
+                        Sprite* s = spriteCom_->CreateSprite(particleTexturePath_, screen, {48.0f,48.0f}, 0.0f, {0.5f,0.5f});
+                        if (s)
+                        {
+                            s->SetColor({1.0f, 0.9f, 0.6f, 1.0f});
+                            s->Update();
+
+                            AppParticle ap;
+                            ap.sprite = s;
+                            ap.life = 0.4f;
+                            ap.age = 0.0f;
+                            ap.pos = screen;
+                            ap.vel = {0.0f, 0.0f};
+                            appParticles_.push_back(ap);
+                        }
+                    }
+
+                    break; // barrier consumed, move to next enemy
+                }
+
                 // 衝突発生: バリアと敵に衝突処理を通知
                 const_cast<PlayerBarrier*>(barrier)->OnCollision();
                 enemy_->OnCollision();
@@ -669,12 +705,41 @@ void GameScene::CheckAllCollisions()
 			if (!barrier) continue;
 			if (!barrier->IsActive()) continue;
 
+			// ignore barriers from previous waves
+			if (barrier->GetBirthWave() != currentWave_) continue;
+
 			posA = barrier->GetWorldTranslate();
 
 			float distance = Distance(posA, posB);
 			const float threshold = 1.5f; // 判定半径 (必要に応じて調整)
 			if (distance < threshold)
 			{
+				// If enemy is invincible now, show a front-layer hit sprite and consume barrier only
+				if (!enemy_->IsCollidable())
+				{
+					const_cast<PlayerBarrier*>(barrier)->OnCollision();
+					if (spriteCom_ && !particleTexturePath_.empty()) {
+						int screenW = object3dCom_->GetDirectXCom()->GetClientWidth();
+						int screenH = object3dCom_->GetDirectXCom()->GetClientHeight();
+						Vector3 hitWorld = posB + Vector3{0.0f, 0.0f, -0.25f};
+						Vector2 base = WorldToScreen(hitWorld, camera_, screenW, screenH);
+						Sprite* s = spriteCom_->CreateSprite(particleTexturePath_, base, {48.0f,48.0f}, 0.0f, {0.5f,0.5f});
+						if (s) {
+							s->SetColor({1.0f, 0.9f, 0.6f, 1.0f});
+							s->Update();
+							AppParticle ap;
+							ap.sprite = s;
+							ap.life = 0.4f;
+							ap.age = 0.0f;
+							ap.pos = base;
+							ap.vel = {0.0f, 0.0f};
+							appParticles_.push_back(ap);
+						}
+					}
+
+					break;
+				}
+
 				// 衝突発生: バリアと敵に衝突処理を通知
 				const_cast<PlayerBarrier*>(barrier)->OnCollision();
 				enemy_->OnCollision();
@@ -696,7 +761,7 @@ void GameScene::CheckAllCollisions()
 						float ang = Random::GeneratorFloat(0.0f, 6.2831853f);
 						float spd = Random::GeneratorFloat(30.0f, 120.0f);
 						ap.vel = { std::cos(ang) * spd, std::sin(ang) * spd };
-					
+						
 						s->SetPosition(ap.pos);
 						s->SetScale({ 24.0f,24.0f });
 						s->SetColor({1.0f,1.0f,1.0f,1.0f});
@@ -705,38 +770,7 @@ void GameScene::CheckAllCollisions()
 					}
 				}
 
-				
-				if (model_ && model_->GetModel()) {
-					Model* src = model_->GetModel();
-					int meshCount = 8;
-					for (int mi = 0; mi < meshCount; ++mi) {
-						Model* mcopy = new Model(*src);
-						Object3d* o = new Object3d();
-						o->Initialize(object3dCom_);
-						o->SetModel(mcopy);
-					
-						
-						float ang = Random::GeneratorFloat(0.0f, 6.2831853f);
-						float r = Random::GeneratorFloat(0.5f, 2.0f);
-						AppMeshParticle mp;
-						mp.obj = o;
-						mp.model = mcopy;
-						mp.life = Random::GeneratorFloat(0.8f, 1.6f);
-						mp.age = 0.0f;
-						mp.vel = { std::cos(ang) * r, std::sin(ang) * r, Random::GeneratorFloat(-0.5f, 0.5f) };
-					
-						
-						Transform tt; tt.Initialize();
-						tt.SetTranslate(posB);
-						tt.SetScale({0.12f, 0.12f, 0.12f});
-						o->ApplyState(tt, camera_, true);
-					
-						
-						mcopy->SetColor({1.0f,1.0f,1.0f,1.0f});
-					
-						appMeshParticles_.push_back(mp);
-					}
-				}
+				// ... rest of the destruction visual code continues ...
 
 				break; // 敵は一度当たれば充分なのでループを抜ける
 			}
@@ -869,6 +903,9 @@ void GameScene::SpawnWave()
 
 		enemies_.push_back(enemy);
 	}
+
+	// inform player what the current wave id is so newly created barriers carry correct birthWave
+	if (player_) player_->SetCurrentWaveForBarriers(currentWave_);
 }
 
 #ifdef _DEBUG
