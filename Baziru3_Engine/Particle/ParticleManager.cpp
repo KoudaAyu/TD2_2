@@ -42,7 +42,7 @@ void ParticleManager::Initialize(DirectXCom* dx, SrvManager* srvMgr, Object3dCom
 	CreatePipeline_();
 
 	// ● 頂点データの初期化（座標等）
-	// ここではパーティクル1枚分のローカル四角形（-0.5～0.5）だけを用意
+// ここではパーティクル1枚分のローカル四角形（-0.5～0.5）だけを用意
 	vertices_.clear();
 	vertices_.reserve(4);
 	vertices_.push_back({ -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f }); // 左下
@@ -104,6 +104,10 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 
 				// 回転更新（メッシュ粒子にも自転を追加）
 				p.rotation += p.angularVel * dt;
+				// 3D回転も更新
+				p.rotation3.x += p.angularVel3.x * dt;
+				p.rotation3.y += p.angularVel3.y * dt;
+				p.rotation3.z += p.angularVel3.z * dt;
 
 				// ★ 公転モードなら角度→位置で更新。そうでなければ従来の力学
 				if (p.orbiting) {
@@ -111,7 +115,6 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 					p.orbitAngle += p.orbitAngularVel * dt;
 
 					// ★ 半径を拡大（内→外）
-					p.radialSpeed += p.radialAccel * dt;      // 加速したい時だけ有効
 					p.orbitRadius += p.radialSpeed * dt;      // ここで半径が伸びる
 
 					// 位置再計算
@@ -144,7 +147,7 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 
 		// ───────────────
 		// 板ポリ粒子（テクスチャ）
-		// ───────────────
+// ───────────────
 		group.instanceCount = 0;
 		constexpr UINT kMaxInstance = 1024;
 
@@ -160,7 +163,7 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 				p.orbitAngle += p.orbitAngularVel * dt;
 
 				// ★ 半径を拡大（内→外）
-				p.radialSpeed += p.radialAccel * dt;      // 加速したい時だけ有効
+// p.radialSpeed += p.radialAccel * dt;      // 加速したい時だけ有効
 				p.orbitRadius += p.radialSpeed * dt;      // ここで半径が伸びる
 
 				// 位置再計算
@@ -186,7 +189,7 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 
 
 			// 粒子自身のスピン（必要なら保持）
-			p.rotation += p.angularVel * dt;
+            p.rotation += p.angularVel * dt;
 
 			if (group.instanceCount >= kMaxInstance || !group.instanceMappedPtr) { ++it; continue; }
 
@@ -215,7 +218,7 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 		// =============================
 		// ※ 1回だけ共通セット
 		// SRVヒープをバインド（SrvManager の仕様に合わせて）
-		srvMgr_->PreDraw();
+// srvMgr_->PreDraw();
 
 		cl->SetGraphicsRootSignature(rootSignature_.Get()); // ← CreatePipeline_ で作った粒子用RS
 		if (pso_) { cl->SetPipelineState(pso_.Get()); }
@@ -239,7 +242,7 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 
 		// =============================
 		// 2) メッシュ粒子（OBJ）
-		// =============================
+// =============================
 		object3dCom_->ApplyCommonRenderState();                      // RootSig/PSO/IA（三角形）
 		cl->SetGraphicsRootConstantBufferView(3, meshLightCB_->GetGPUVirtualAddress());
 
@@ -257,10 +260,14 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 				const D3D12_GPU_VIRTUAL_ADDRESS gpuAddr =
 					meshTransformCB_->GetGPUVirtualAddress() +
 					static_cast<UINT64>(AlignedCBSize) * meshCBWriteIndex_;
-			auto* slot = reinterpret_cast<TransformationMatrix*>(
-				meshTransformCBBase_ + static_cast<size_t>(AlignedCBSize) * meshCBWriteIndex_);
+            auto* slot = reinterpret_cast<TransformationMatrix*>(
+                meshTransformCBBase_ + static_cast<size_t>(AlignedCBSize) * meshCBWriteIndex_);
 				Matrix4x4 S = MakeScaleMatrix({ p.scale, p.scale, p.scale });
-				Matrix4x4 R = MakeRotateZMatrix(p.rotation); // apply self-rotation
+				// build full 3D rotation from rotation3
+				Matrix4x4 Rz = MakeRotateZMatrix(p.rotation3.z);
+				Matrix4x4 Ry = MakeRotateYMatrix(p.rotation3.y);
+				Matrix4x4 Rx = MakeRotateXMatrix(p.rotation3.x);
+				Matrix4x4 R = Multiply(Rx, Multiply(Ry, Rz));
 				Matrix4x4 T = MakeTranslateMatrix(p.position);
 				Matrix4x4 world = Multiply(Multiply(S, R), T);
 				slot->World = world;
@@ -418,18 +425,19 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 		auto rand01 = [&] { return u01(rng_); };
 
 		// ランダム分布（後で名前ごとに上書き）
-		std::uniform_real_distribution<float> speedDist(0.08f, 0.15f);
+// std::uniform_real_distribution<float> speedDist(0.08f, 0.15f);
+		std::uniform_real_distribution<float> speedDist(0.01f, 0.05f); // 感じて変更
 		std::uniform_real_distribution<float> scaleDist(0.10f, 0.20f);
 		std::uniform_real_distribution<float> lifeDist(1.0f, 2.0f);
 
 		std::uniform_real_distribution<float> angVelDist(-6.0f, 6.0f);
 
 		// ★ omni用のチューニング（出す間隔を長くしたいので寿命も長め）
-		if (name == "default") {
-			speedDist = std::uniform_real_distribution<float>{ 0.01f, 0.10f }; // 速く
-			scaleDist = std::uniform_real_distribution<float>{ 1.0f, 1.0f }; // でかく
-			lifeDist = std::uniform_real_distribution<float>{ 0.5f , 1.0f };  // 長生き
-		}
+// if (name == "default") {
+// 	speedDist = std::uniform_real_distribution<float>{ 0.01f, 0.10f }; // 速く
+// 	scaleDist = std::uniform_real_distribution<float>{ 1.0f, 1.0f }; // でかく
+// 	lifeDist = std::uniform_real_distribution<float>{ 0.5f , 1.0f };  // 長生き
+// }
 
 		if (name == "defaultMesh") {
 			speedDist = std::uniform_real_distribution<float>{ 0.01f, 0.10f }; // 速く
@@ -446,33 +454,52 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 			return Vector3{ sinT * std::cos(phi), cosT, sinT * std::sin(phi) };
 			};
 
+		// variations: color jitter and scale jitter distributions
+		std::uniform_real_distribution<float> colorJit(-0.18f, 0.18f);
+		std::uniform_real_distribution<float> scaleJit(0.85f, 1.25f);
+
 		for (uint32_t i = 0; i < count; ++i) {
 			Particle p{};
 			p.position = position;
 			p.lifeTime = lifeDist(rng_);
 			p.current = 0.0f;
+			// base color slightly transparent
 			p.color = { 1,1,1,0.1f };
 			p.scale = scaleDist(rng_);
 
 			
 			if (group.useMesh) {
 				p.angularVel = angVelDist(rng_);
+                // initialize 3D rotation and angular velocity for mesh particles
+                std::uniform_real_distribution<float> ang3Init(0.0f, 6.283185307f);
+                std::uniform_real_distribution<float> ang3Vel(-1.5f, 1.5f);
+                p.rotation3 = { ang3Init(rng_), ang3Init(rng_), ang3Init(rng_) };
+                p.angularVel3 = { ang3Vel(rng_), ang3Vel(rng_), ang3Vel(rng_) };
 			} else {
 				p.angularVel = 0.0f;
 			}
 
 			if (name == "default") {
-				// 全方向ランダムに飛ばす（ただし Z 変化させたくないので z=0 に固定）
+				// widen color and scale variety for boss/emphasis
+				float cj = colorJit(rng_);
+				p.color = { 1.0f + cj, 0.9f + cj*0.5f, 0.6f + cj*0.2f, 0.9f };
+				p.scale *= scaleJit(rng_);
+				// velocity mostly upwards
 				Vector3 dir = randomDirOnSphere();
 				float spd = speedDist(rng_);
-				p.velocity = { dir.x * spd, dir.y * spd, 0.0f }; // ← z 成分を 0 に固定
+				p.velocity = { dir.x * spd, dir.y * spd, 0.0f };
 			} else if (name == "defaultMesh") {
-				// 全方向ランダムに飛ばす（ただし Z 変化させたくないので z=0 に固定）
+				float cj = colorJit(rng_);
+				p.color = { 0.9f + cj*0.2f, 0.9f + cj*0.2f, 1.0f + cj*0.1f, 1.0f };
+				p.scale *= scaleJit(rng_);
 				Vector3 dir = randomDirOnSphere();
 				float spd = speedDist(rng_);
-				p.velocity = { dir.x * spd, dir.y * spd, 0.0f }; // ← z 成分を 0 に固定
+				p.velocity = { dir.x * spd, dir.y * spd, 0.0f };
 			} else {
-				// デフォルト（上向きに飛ぶ）
+				// fallback varied default
+				float cj = colorJit(rng_);
+				p.color = { 1.0f + cj, 1.0f + cj*0.2f, 1.0f + cj*0.1f, 0.85f + (rand01()*0.15f) };
+				p.scale *= 0.9f + rand01()*0.6f;
 				float spd = speedDist(rng_);
 				p.velocity = { 0.0f, spd, 0.0f };
 			}
@@ -523,26 +550,7 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 	}
 
 
-	// ParticleManager.cpp
-	void ParticleManager::CreateParticleGroupFromModel(const std::string & name, const std::string & modelPath)
-	{
-		// 既に同名グループがある場合はスキップ（idempotent）
-		auto it = particleGroups.find(name);
-		if (it != particleGroups.end()) {
-			return;
-		}
-
-		ParticleGroup g{};
-		g.useMesh = true;
-		g.model = ModelManager::GetInstance()->FindModel(modelPath); // 既にLoad済み前提
-		assert(g.model && "ModelManager::LoadModel(modelPath) を先に呼んでください");
-
-		// ★ インスタンス用StructuredBufferは不要（1 粒子ずつ描く）
-		// テクスチャは Model::Draw が自分でバインドするのでSRVも不要
-
-		particleGroups.emplace(name, std::move(g));
-	}
-
+	// This function emits an 8-way burst (original implementation)
 	void ParticleManager::EmitBurst8(const std::string& name,
 		const Vector3& position,
 		float speed, float scale, float life)
@@ -560,34 +568,67 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 			Particle p{};
 			p.position = position;
 
-			// 直線バーストの基準速度（フレーム単位）
-			p.baseVelocity = dir * speed;
+			// add slight random jitter to scale/color/speed to reduce repetition
+			float sj = std::uniform_real_distribution<float>(0.75f, 1.35f)(rng_);
+			float cj = std::uniform_real_distribution<float>(-0.22f, 0.22f)(rng_);
+
+			p.baseVelocity = dir * speed * sj;
 			p.velocity = p.baseVelocity;
 
-			p.lifeTime = life;
+			p.lifeTime = life * (0.72f + std::uniform_real_distribution<float>(0.0f, 0.56f)(rng_));
 			p.current = 0.0f;
-			p.scale = scale;
-			p.color = { 1,1,1,1 };
+			p.scale = scale * sj;
+
+			// color: angle-based shift + jitter for variety
+			float hue = (angle / (DirectX::XM_2PI));
+			p.color = { std::clamp(1.0f - 0.6f * hue + cj, 0.0f, 1.0f),
+			            std::clamp(0.2f + 0.8f * hue + cj * 0.35f, 0.0f, 1.0f),
+			            std::clamp(0.1f + 0.5f * (1.0f - hue) + cj * 0.15f, 0.0f, 1.0f),
+			            1.0f };
 
 			// イージング有効化：外へ行くほど遅くなる（Ease-Out）
 			p.easeOut = true;
-			p.easePow = 2.0f;   // おすすめ: 2.0 = Quad（ふわっと減速）
-			// 好みで 1.5 ～ 3.0 を試してOK
-
+			p.easePow = 1.8f + std::uniform_real_distribution<float>(-0.3f, 0.6f)(rng_);
 			// 公転は使わない
 			p.orbiting = false;
 
-			
-			if (group.useMesh) p.angularVel = angVelDist(rng_);
-			else p.angularVel = 0.0f;
+			// give slight spin variation for textured particles so they look different
+			if (group.useMesh) {
+				p.angularVel = angVelDist(rng_);
+                // 3D rotation for mesh
+                std::uniform_real_distribution<float> ang3Init(0.0f, 6.283185307f);
+                std::uniform_real_distribution<float> ang3Vel(-2.0f, 2.0f);
+                p.rotation3 = { ang3Init(rng_), ang3Init(rng_), ang3Init(rng_) };
+                p.angularVel3 = { ang3Vel(rng_), ang3Vel(rng_), ang3Vel(rng_) };
+			}
+			else p.angularVel = std::uniform_real_distribution<float>(-2.0f, 2.0f)(rng_);
 
 			group.particles.push_back(p);
+
+			// spawn small secondary sparks in a fallback group to add uniqueness
+			auto itSpark = particleGroups.find("default");
+			if (itSpark != particleGroups.end()) {
+				ParticleGroup& sparkGroup = itSpark->second;
+				int sparks = 1 + (std::uniform_int_distribution<int>(0,2)(rng_));
+				for (int si = 0; si < sparks; ++si) {
+					Particle sp{};
+					sp.position = position + Vector3{ dir.x * 0.2f * si, dir.y * 0.2f * si, 0.0f };
+					float sjs = std::uniform_real_distribution<float>(0.35f, 0.9f)(rng_);
+					sp.scale = (scale * 0.35f) * sjs;
+					sp.lifeTime = std::uniform_real_distribution<float>(0.25f, 0.65f)(rng_);
+					sp.current = 0.0f;
+					float spd = std::uniform_real_distribution<float>(speed * 0.3f, speed * 1.2f)(rng_);
+					sp.velocity = { dir.x * spd * (0.6f + std::uniform_real_distribution<float>(-0.4f,0.6f)(rng_)),
+					                  dir.y * spd * (0.6f + std::uniform_real_distribution<float>(-0.4f,0.6f)(rng_)),
+					                  0.0f };
+					sp.color = { 1.0f, 0.85f + std::uniform_real_distribution<float>(-0.2f,0.2f)(rng_), 0.6f + std::uniform_real_distribution<float>(-0.2f,0.2f)(rng_), 0.9f };
+					sparkGroup.particles.push_back(sp);
+				}
+			}
 		}
 	}
 
 
-	// 指定中心を軸に公転する8粒子を同時生成
-	// 追加引数: startRadius=0, radialSpeed>0, radialAccel=0 で内→外へ
 	void ParticleManager::EmitBurst8Rotating(
 		const std::string& name,
 		const Vector3& center,
@@ -612,32 +653,45 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 			Particle p{};
 			p.center = center;
 			p.orbitRadius = startRadius;     // ★ 0から始めると内側スタート
-			p.orbitAngle = step * i;
-			p.orbitAngularVel = angularVel;
+			p.orbitAngle = step * i + std::uniform_real_distribution<float>(-0.2f,0.2f)(rng_); // jitter start angle
+			// small per-particle angular velocity variation
+			float av = angularVel * (1.0f + std::uniform_real_distribution<float>(-0.25f,0.25f)(rng_));
+			if (alternateDir && (i % 2 == 1)) av = -av;
+			p.orbitAngularVel = av;
 
 			// ★ 渦巻きパラメータ
-			p.radialSpeed = radialSpeed;     // 正で外へ
+// p.radialSpeed = radialSpeed * (1.0f + std::uniform_real_distribution<float>(-0.35f,0.6f)(rng_));
+			p.radialSpeed = radialSpeed;
 			p.radialAccel = radialAccel;
 
 			// 初期位置（開始半径）
-			const float c = std::cos(p.orbitAngle);
-			const float s = std::sin(p.orbitAngle);
-			p.position = { center.x + c * p.orbitRadius,
-					center.y + s * p.orbitRadius,
-					center.z };
+// const float c = std::cos(p.orbitAngle);
+// const float s = std::sin(p.orbitAngle);
+// p.position = { center.x + c * p.orbitRadius,
+// 			   center.y + s * p.orbitRadius,
+// 			   center.z };
+			p.position = center;
 
 			// そのほか
 			p.velocity = { 0,0,0 };          // 公転で位置制御するので未使用
-			p.rotation = 0.0f;
-			p.angularVel = 0.0f;              // 粒子自身のスピンは使わない
-			p.scale = scale;
-			p.color = { 1,1,1,1 };
-			p.lifeTime = life;
+			p.rotation = std::uniform_real_distribution<float>(0.0f, 6.2831853f)(rng_);
+			p.angularVel = std::uniform_real_distribution<float>(-2.5f, 2.5f)(rng_);
+			p.scale = scale * std::uniform_real_distribution<float>(0.8f, 1.4f)(rng_);
+			// slight color variance
+			float cj = std::uniform_real_distribution<float>(-0.28f, 0.28f)(rng_);
+			p.color = { std::clamp(0.9f + cj*0.3f, 0.0f, 1.0f), 0.8f + cj*0.2f, 0.6f + cj*0.15f, 1.0f };
+			p.lifeTime = life * (0.85f + std::uniform_real_distribution<float>(-0.12f, 0.28f)(rng_));
 			p.current = 0.0f;
 			p.orbiting = true;
 
-		
-			if (group.useMesh) p.angularVel = angVelDist(rng_);
+			if (group.useMesh) {
+				p.angularVel += angVelDist(rng_);
+                // init 3D rotation and angular velocity
+                std::uniform_real_distribution<float> ang3Init(0.0f, 6.283185307f);
+                std::uniform_real_distribution<float> ang3Vel(-1.2f, 1.8f);
+                p.rotation3 = { ang3Init(rng_), ang3Init(rng_), ang3Init(rng_) };
+                p.angularVel3 = { ang3Vel(rng_), ang3Vel(rng_), ang3Vel(rng_) };
+			}
 
 			group.particles.push_back(p);
 		}
@@ -663,47 +717,102 @@ void ParticleManager::Update(const Matrix4x4& view, const Matrix4x4& projection)
 		const float step = 2.0f * 3.14159265358979323846f / float(kCount);
 
 		// 内向きに確実に収束させるため、速度・加速度は負符号で設定
-		const float inwardSpeed = -std::abs(radialSpeedAbs);
-		const float inwardAccel = -std::abs(radialAccelAbs);
+		const float inwardBase = -std::abs(radialSpeedAbs);
+		const float inwardAccelBase = -std::abs(radialAccelAbs);
 
 		for (int i = 0; i < kCount; ++i) {
 			Particle p{};
 
 			// 公転の初期状態
 			p.center = center;
-			p.orbitRadius = startRadius;      // 外側スタート
-			p.orbitAngle = step * i;         // 円周上に等配
-			p.orbitAngularVel = angularVel;       // 全員同方向（符号でCW/CCWを決定）
+			p.orbitRadius = startRadius + std::uniform_real_distribution<float>(-1.2f,1.8f)(rng_);      // 外側スタート with jitter
+			p.orbitAngle = step * i + std::uniform_real_distribution<float>(-0.35f,0.35f)(rng_);         // jitter
+			// vary angular direction/velocity slightly
+			float sign = (i % 2 == 0) ? 1.0f : -1.0f;
+			p.orbitAngularVel = (angularVel + std::uniform_real_distribution<float>(-1.2f,1.6f)(rng_)) * sign;
 			p.orbiting = true;
 
-			// 渦巻き（外→内）パラメータ
-			p.radialSpeed = inwardSpeed;      // 半径が毎秒減る
-			p.radialAccel = inwardAccel;      // 必要に応じてさらに減速（強い収束）
+			// 渦巻き（外→内）パラメータ with per-particle variance
+			p.radialSpeed = inwardBase * (0.6f + std::uniform_real_distribution<float>(-0.25f,0.6f)(rng_));
+			p.radialAccel = inwardAccelBase * (0.6f + std::uniform_real_distribution<float>(-0.25f,0.6f)(rng_));
 
 			// 初期位置（開始半径）
-			const float c = std::cos(p.orbitAngle);
-			const float s = std::sin(p.orbitAngle);
-			p.position = { center.x + c * p.orbitRadius,
-					   center.y + s * p.orbitRadius,
-					   center.z };
-
-			// 自走速度は未使用（公転で位置を決定）
-			p.velocity = { 0.0f, 0.0f, 0.0f };
+// const float c = std::cos(p.orbitAngle);
+// const float s = std::sin(p.orbitAngle);
+// p.position = { center.x + c * p.orbitRadius,
+// 			   center.y + s * p.orbitRadius,
+// 			   center.z };
+			p.position = center;
 
 			// 見た目
-			p.scale = scale;
-			p.color = { 1,1,1,1 };
+			p.scale = scale * std::uniform_real_distribution<float>(0.7f, 1.5f)(rng_);
+			float hueJ = std::uniform_real_distribution<float>(-0.25f, 0.25f)(rng_);
+			p.color = { std::clamp(1.0f + hueJ*0.4f, 0.0f, 1.0f), 0.85f + hueJ*0.3f, 0.6f + hueJ*0.2f, 1.0f };
 
 			// 寿命
-			p.lifeTime = life;
+			p.lifeTime = life * (0.85f + std::uniform_real_distribution<float>(-0.15f, 0.25f)(rng_));
 			p.current = 0.0f;
 
-		
-			if (group.useMesh) p.angularVel = angVelDist(rng_);
-
-		
-		
+			if (group.useMesh) {
+				p.angularVel = angVelDist(rng_);
+                std::uniform_real_distribution<float> ang3Init(0.0f, 6.283185307f);
+                std::uniform_real_distribution<float> ang3Vel(-1.4f, 1.6f);
+                p.rotation3 = { ang3Init(rng_), ang3Init(rng_), ang3Init(rng_) };
+                p.angularVel3 = { ang3Vel(rng_), ang3Vel(rng_), ang3Vel(rng_) };
+			}
 
 			group.particles.push_back(p);
 		}
 	}
+
+	void ParticleManager::EmitCustom(const std::string& name, const Vector3& position, uint32_t count, const Vector4& baseColor, float scaleMin, float scaleMax)
+{
+    auto it = particleGroups.find(name);
+    if (it == particleGroups.end()) return;
+    ParticleGroup& group = it->second;
+
+    std::uniform_real_distribution<float> u01(0.0f, 1.0f);
+    std::uniform_real_distribution<float> colorJ(-0.18f, 0.18f);
+    std::uniform_real_distribution<float> scaleD(scaleMin, scaleMax);
+    std::uniform_real_distribution<float> spd(0.02f, 0.18f);
+
+    for (uint32_t i=0;i<count;++i) {
+        Particle p{};
+        p.position = position + Vector3{ (u01(rng_)-0.5f)*0.6f, (u01(rng_)-0.5f)*0.6f, (u01(rng_)-0.5f)*0.2f };
+        p.scale = scaleD(rng_);
+        float cj = colorJ(rng_);
+        p.color = { std::clamp(baseColor.x + cj, 0.0f, 1.0f), std::clamp(baseColor.y + cj*0.5f, 0.0f, 1.0f), std::clamp(baseColor.z + cj*0.3f, 0.0f, 1.0f), baseColor.w };
+        p.lifeTime = 0.6f + u01(rng_)*1.2f;
+        p.current = 0.0f;
+        Vector3 dir = { (u01(rng_)-0.5f), (u01(rng_)-0.5f), (u01(rng_)*0.6f) };
+        float len = std::sqrt(dir.x*dir.x + dir.y*dir.y + dir.z*dir.z);
+        if (len > 1e-6f) dir = { dir.x/len, dir.y/len, dir.z/len };
+        p.baseVelocity = { dir.x*spd(rng_), dir.y*spd(rng_), dir.z*spd(rng_) };
+        p.velocity = p.baseVelocity;
+        p.angularVel = std::uniform_real_distribution<float>(-4.0f,4.0f)(rng_);
+        if (group.useMesh) {
+            std::uniform_real_distribution<float> ang3Init(0.0f, 6.283185307f);
+            std::uniform_real_distribution<float> ang3Vel(-2.0f, 2.0f);
+            p.rotation3 = { ang3Init(rng_), ang3Init(rng_), ang3Init(rng_) };
+            p.angularVel3 = { ang3Vel(rng_), ang3Vel(rng_), ang3Vel(rng_) };
+        }
+        group.particles.push_back(p);
+    }
+}
+
+void ParticleManager::CreateParticleGroupFromModel(const std::string& name, const std::string& modelPath)
+{
+    // If group already exists, do nothing
+    auto it = particleGroups.find(name);
+    if (it != particleGroups.end()) return;
+
+    ParticleGroup g{};
+    g.useMesh = true;
+
+    // Ensure model is loaded
+    ModelManager::GetInstance()->LoadModel(modelPath);
+    g.model = ModelManager::GetInstance()->FindModel(modelPath);
+    assert(g.model && "CreateParticleGroupFromModel: model not found after LoadModel");
+
+    particleGroups.emplace(name, std::move(g));
+}

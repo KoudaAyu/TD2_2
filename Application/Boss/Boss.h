@@ -42,7 +42,7 @@ public:
     void Move();
 
 public:
-    // --- Polymorphic motion interface (public so external implementations can subclass) ---
+ 
     struct Motion {
         virtual ~Motion() {}
         virtual void Start(Boss* owner) = 0;
@@ -50,7 +50,7 @@ public:
         virtual bool IsFinished() const = 0;
     };
 
-    // Accessors used by Motion implementations
+   
     Object3d* GetModel() const { return model_; }
     Object3d* GetLaserModel() const { return laserModel_; }
     Camera* GetCamera() const { return camera_; }
@@ -58,7 +58,7 @@ public:
     float GetLaserWidth() const { return laserWidth_; }
     float GetLaserMaxLength() const { return laserMaxLength_; }
 
-    void SetPlayer(Player* player) { player_ = player; }
+    void SetPlayer(Player* player);
 
     const std::list<EnemyBullet*>& GetBullets() const { return bullets_; }
     bool IsActive() const { return isActive_; }
@@ -84,8 +84,14 @@ public:
     void ApplyDamage(int dmg) { hp_ -= dmg; if (hp_ < 0) hp_ = 0; }
 
     // 現在のフェーズを取得
-    enum class Phase { Spawn, Phase1, Phase2, Phase3, Phase4, Phase5, Leave };
+    enum class Phase { Spawn, Phase1, Phase2, Phase2_5, Phase3, Phase4, Phase5, Leave };
     Phase GetPhase() const { return phase_; }
+
+    // Start a fancy visual/sound/particle transition when phases change
+    void StartPhaseTransition();
+
+    // Query whether boss is currently performing a phase transition (used to temporarily disable player actions)
+    bool IsInPhaseTransition() const { return inPhaseTransition_; }
 
 private:
     std::vector<std::unique_ptr<BossPart>> parts_;
@@ -103,7 +109,11 @@ private:
     Vector3 spawnStart_ = { 0.0f, 0.0f, 0.0f };
     Vector3 spawnTarget_ = { 0.0f, 0.0f, 0.0f };
     int spawnTimer_ = 0;
-    int spawnDuration_ = 180;
+    int spawnDuration_ = 240; // 増加デフォルト値
+
+    // cinematic spawn state
+    int spawnCineTimer_ = 0;
+    // don't modify camera transform or FOV per user request
 
     // --- HP / フェーズ関連 ---
     int maxHP_ = 100; // 最大HP（デフォルト）
@@ -111,14 +121,14 @@ private:
 
     // フェーズ境界（比率）。降順で指定。0.0f ~ 1.0f の範囲で設定。
     // 例: {1.0f, 0.8f, 0.6f, 0.4f, 0.2f} の場合、HP が 80% を下回ると Phase2 に遷移
-    std::array<float, 5> hpPhaseThresholds_ = { 1.0f, 0.8f, 0.6f, 0.4f, 0.2f };
+    std::array<float, 6> hpPhaseThresholds_ = { 1.0f, 0.85f, 0.7f, 0.55f, 0.4f, 0.2f };
 
     // 現在のフェーズ
     Phase phase_ = Phase::Spawn;
 
     // ヒット回数（1ヒットで次のフェーズへ進行させるため）
     int hitCount_ = 0; // 初期は 0
-    const int hitsPerFull = 5; // 5 ヒットでボス撃破（フェーズ5 到達で切替）
+    const int hitsPerFull = 6; // 6 ヒットでボス撃破（フェーズ5 到達で切替）
 
     // ヒットの短期無敵（多重カウント防止）
     int hitCooldownTimer_ = 0; // フレームカウント
@@ -131,7 +141,7 @@ private:
     // --- デバッグ用スプライト ---
     // Phase1~Phase5 のときに画面に対応する番号画像を重ねて描画する
     SpriteCom* spriteCom_ = nullptr; // Sprite作成用コンポーネント
-    std::array<Sprite*, 5> phaseSprites_ = { nullptr, nullptr, nullptr, nullptr, nullptr };
+    std::array<Sprite*, 6> phaseSprites_ = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
     // スプライトの描画位置・スケールは簡単に変更できるようにメンバ化
     Vector2 phaseSpritePosition_ = { 10.0f, 10.0f }; // 画面左上に表示
     Vector2 phaseSpriteScale_ = { 64.0f, 64.0f };   // 表示サイズ
@@ -144,6 +154,7 @@ private:
 
   
     void UpdatePhase2();
+    void UpdatePhase2_5();
     int phase2ShootInterval_ = 25;
     int phase2BulletsPerShot_ = 1; //弾をいくつ発射するか
     float phase2BulletSpeed_ = 0.7f;
@@ -185,6 +196,25 @@ private:
     float laserWidth_ = 0.6f;       // 幅(X,Y方向スケール)
     Vector4 laserChargeColor_ = {1.0f, 0.3f, 0.3f, 0.7f};
     Vector4 laserFireColor_ = {1.0f, 0.9f, 0.2f, 1.0f};
+    // プレイヤー判定のパディング（プレイヤーの見た目に合わせて幅を加算）
+    float laserPlayerHitPaddingXY_ = 0.4f; // X/Y方向の追加半径
+    // Z方向の判定補正（深さ方向の猶予）
+    float laserPlayerHitPaddingZ_ = 0.6f; // Z方向の追加半径
+    // プレイヤーAABB半径（モデルに依存しない簡易当たり判定用）
+    float playerHitHalfSizeXY_ = 0.4f;
+    float playerHitHalfSizeZ_ = 0.4f;
+
+    // Phase4 turrets (mass-produced enemies that fire beams)
+    struct Phase4Turret {
+        Object3d* obj = nullptr;
+        int fireTimer = 0;
+        int fireInterval = 36; // frames
+        bool active = true;
+    };
+    std::vector<Phase4Turret> phase4Turrets_;
+    int phase4TurretCount_ = 4;
+    float phase4TurretRadius_ = 3.2f;
+    float phase4TurretScale_ = 0.5f;
 
     // --- Phase3: 周回ドローン + 狭角連射 ---
     void UpdatePhase3();
@@ -227,4 +257,27 @@ private:
 
     void StartLaserPreMotion();
 
+    // phase transition internal flag and timer
+    bool inPhaseTransition_ = false;
+    int phaseTransitionTimer_ = 0;
+    int phaseTransitionDuration_ = 30; // frames to block player input by default
+
+    // --- 新規: レーザーを派手にするためのパラメータ ---
+    // 横スイープ量（角度）
+    float laserSweepAngle_ = 0.0f;
+    float laserSweepSpeed_ = 0.12f;        // スイープ速度
+    float laserSweepAmplitude_ = 1.8f;     // X方向の振幅
+    // プレイヤー方向へのゆっくり追従
+    float laserAimX_ = 0.0f;               // 内部保持用のXオフセット
+    float laserAimLerpSpeed_ = 0.06f;      // 追従のLerp速度
+
+    // 発射中にレーザーから子弾を出すためのタイマー
+    int laserBulletInterval_ = 8;          // フレーム間隔
+    int laserBulletTimer_ = 0;
+    float phase4BulletSpeed_ = 1.2f;       // 発射される子弾の速度
+
+    // --- 新規: スポーン時の派手演出フラグ ---
+    bool spawnCineStage1_ = false; // outward burst
+    bool spawnCineStage2_ = false; // inward convergence
+    bool spawnCineStage3_ = false; // reveal
 };

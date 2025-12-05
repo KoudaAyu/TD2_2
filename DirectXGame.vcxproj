@@ -14,6 +14,7 @@
     <ClCompile Include="Application\Boss\BodyPart.cpp" />
     <ClCompile Include="Application\Bullet.cpp" />
     <ClCompile Include="Application\Boss\Boss.cpp" />
+    <ClCompile Include="Application\ClearScene.cpp" />
     <ClCompile Include="Application\Enemy\Enemy.cpp" />
     <ClCompile Include="Application\Enemy\EnemyBullet.cpp" />
     <ClCompile Include="Application\Boss\HeadPart.cpp" />
@@ -99,6 +100,7 @@
     <ClInclude Include="Application\Bullet.h" />
     <ClInclude Include="Application\Boss\Boss.h" />
     <ClInclude Include="Application\Boss\BossPart.h" />
+    <ClInclude Include="Application\ClearScene.h" />
     <ClInclude Include="Application\Enemy\Enemy.h" />
     <ClInclude Include="Application\Enemy\EnemyBullet.h" />
     <ClInclude Include="Application\Boss\HeadPart.h" />

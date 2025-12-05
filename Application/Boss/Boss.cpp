@@ -11,7 +11,10 @@
 #include <filesystem>
 #include <cmath>
 // Particle effects
-#include "Baziru3_Engine/Particle/ParticleManager.h"
+#include "ParticleManager.h"
+#include "SoundManager.h"
+// AABB collision
+#include "AABB.h"
 
 Boss::Boss() {}
 
@@ -29,6 +32,13 @@ Boss::~Boss()
         if (o) { delete o; }
     }
     droneObjs_.clear();
+
+    // phase4 turret cleanup
+    for (auto &t : phase4Turrets_)
+    {
+        if (t.obj) { delete t.obj; t.obj = nullptr; }
+    }
+    phase4Turrets_.clear();
 
     // スプライト解放
     for (auto s : phaseSprites_)
@@ -89,12 +99,28 @@ namespace {
             {
                 origLaserScale = owner->GetLaserModel()->GetScale();
             }
+            // initial charge bloom
+            auto* pm = ParticleManager::GetInstance();
+            if (pm) {
+                Vector3 bossPos = owner->GetWorldTranslatePublic();
+                pm->EmitCustom("default", bossPos, 26, { 0.72f, 0.08f, 0.82f, 1.0f }, 0.5f, 1.3f);
+                pm->EmitCustom("default", bossPos, 12, { 0.14f, 0.82f, 0.96f, 1.0f }, 0.1f, 0.4f);
+            }
         }
 
         void Update(Boss* owner, float /*dt*/) override
         {
             if (finished) return;
             ++timer;
+
+            // periodic micro-sparks during charge
+            if ((timer % 15) == 0) {
+                auto* pm = ParticleManager::GetInstance();
+                if (pm) {
+                    Vector3 bossPos = owner->GetWorldTranslatePublic();
+                    pm->EmitCustom("default", bossPos + Vector3{0.0f,0.0f,-1.0f}, 6, { 0.5f, 0.05f, 0.7f, 1.0f }, 0.08f, 0.22f);
+                }
+            }
 
             float t = static_cast<float>(timer) / static_cast<float>(duration);
             if (t > 1.0f) t = 1.0f;
@@ -111,6 +137,16 @@ namespace {
                 Vector4 c = { 1.0f * (1.0f - 0.4f * t) + 1.0f * (0.4f * t), 1.0f * (1.0f - 0.2f * t), 1.0f * (1.0f - 0.2f * t), 1.0f };
                 m->SetColor(c);
 
+                // add a rotation spin while charging
+                float spinFull = 2.0f * 3.14159265f; // one full rotation baseline
+                float rotAngle = (static_cast<float>(timer) / static_cast<float>(duration)) * spinFull * 0.75f; // up to 0.75 turn
+                Vector3 r = m->GetRotate();
+                r.y = rotAngle;
+                // slight precession on X/Z to feel more organic
+                r.x = 0.06f * std::sin(t * 3.14159265f * 2.0f);
+                r.z = 0.04f * std::cos(t * 3.14159265f * 2.0f);
+                m->SetRotate(r);
+
                 m->ApplyState(Transform{ m->GetScale(), m->GetRotate(), m->GetTranslate() }, owner->GetCamera(), true);
             }
 
@@ -125,6 +161,11 @@ namespace {
                 // small Z scale to hint beam growing
                 Vector3 ls = { owner->GetLaserWidth(), owner->GetLaserWidth(), 1.0f + owner->GetLaserMaxLength() * 0.2f * t };
                 lm->SetScale(ls);
+
+                // slight rotation wobble for the laser core
+                Vector3 lr = lm->GetRotate();
+                lr.y = 0.18f * std::sin(t * 3.14159265f * 3.0f + static_cast<float>(timer) * 0.02f);
+                lm->SetRotate(lr);
 
                 // position it in front of boss
                 Vector3 bossPos = owner->GetWorldTranslatePublic();
@@ -149,6 +190,18 @@ void Boss::StartLaserPreMotion()
     if (currentMotion_) currentMotion_->Start(this);
 }
 
+void Boss::SetPlayer(Player* player)
+{
+    player_ = player;
+    // if boss is currently spawning or in transition, ensure player cannot fire
+    if (player_) {
+        if (phase_ == Phase::Spawn || inPhaseTransition_) {
+            player_->SetCanFire(false);
+            player_->ClearBarriers();
+        }
+    }
+}
+
 void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object3dCom* object3dCom, SpriteCom* spriteCom)
 {
     model_ = model;
@@ -165,6 +218,13 @@ void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object
     {
         model_->ApplyState(worldTransform_, camera_, true);
     }
+
+    // mark cinematic spawn initial state
+    spawnCineTimer_ = 0;
+    spawnCineStage1_ = true;
+    spawnCineStage2_ = false;
+    spawnCineStage3_ = false;
+    // do NOT change camera FOV or position per user's request
 
     const int gridSizeX = 3;
     const int gridSizeY = 3;
@@ -206,10 +266,25 @@ void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object
         Vector3 bossPos = worldTransform_.GetTranslate();
         Vector3 localTarget = { targetLocal.x - bossPos.x, targetLocal.y - bossPos.y, targetLocal.z - bossPos.z };
 
-        float scatterScale = 4.0f;
-        Vector3 startLocal = { localTarget.x * scatterScale, localTarget.y * scatterScale + 6.0f, localTarget.z + 12.0f };
+        
+        float idx = static_cast<float>(i);
+        float rings = 3.0f; 
+        float angleStep = 0.8f; 
+        float radiusBase = 10.0f;
+        float radiusVar = 6.0f;  
+        float angle = idx * angleStep;
+        float ring = std::fmod(idx, rings);
+        float radius = radiusBase + radiusVar * ring;
 
-        int dur = spawnDuration_;
+        
+        Vector3 startLocal = {
+            std::cos(angle) * radius,
+            std::sin(angle) * radius * 0.6f + 6.0f,
+            localTarget.z + 18.0f + ring * 4.0f
+        };
+
+       
+        int dur = spawnDuration_ + static_cast<int>((idx * 6.0f));
         p->StartSpawn(startLocal, dur);
     }
 
@@ -220,10 +295,16 @@ void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object
     hitCount_ = 0;
     hitCooldownTimer_ = 0;
 
+    // disable player firing during spawn motion
+    if (player_) {
+        player_->SetCanFire(false);
+        player_->ClearBarriers();
+    }
+
     // デバッグ用スプライト作成 
     if (spriteCom_)
     {
-        for (int i = 0; i < 5; ++i)
+        for (int i = 0; i < 6; ++i)
         {
             std::string fileName = std::to_string(i + 1) + ".png";
             std::string path = FindNumberTexturePath(fileName);
@@ -261,7 +342,6 @@ void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object
         laserModel_->ApplyState(Transform{ laserModel_->GetScale(), {0,0,0}, laserModel_->GetTranslate() }, camera_, true);
     }
 
-   
     drones_.clear();
     drones_.resize(phase3DroneCount_);
     droneObjs_.clear();
@@ -277,20 +357,40 @@ void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object
         drones_[i].shootInterval = 45 + (i * 5); 
         drones_[i].active = true;
 
-       
         Object3d* dObj = new Object3d();
         dObj->Initialize(object3dCom_);
         if (model_ && model_->GetModel())
         {
             dObj->SetModel(new Model(*model_->GetModel()));
             dObj->SetScale({ droneModelScale_, droneModelScale_, droneModelScale_ });
-           
             dObj->SetColor({ 0.7f, 0.9f, 1.0f, 1.0f });
         }
-      
+
         dObj->SetTranslate({ 10000.0f, 10000.0f, 10000.0f });
         dObj->ApplyState(Transform{ dObj->GetScale(), dObj->GetRotate(), dObj->GetTranslate() }, camera_, true);
         droneObjs_.push_back(dObj);
+    }
+
+    // Initialize Phase4 turrets separately
+    phase4Turrets_.clear();
+    phase4Turrets_.resize(phase4TurretCount_);
+    for (int i = 0; i < phase4TurretCount_; ++i)
+    {
+        Object3d* tObj = new Object3d();
+        tObj->Initialize(object3dCom_);
+        if (model_ && model_->GetModel())
+        {
+            tObj->SetModel(new Model(*model_->GetModel()));
+            tObj->SetScale({ phase4TurretScale_, phase4TurretScale_, phase4TurretScale_ });
+            tObj->SetColor({ 1.0f, 0.3f, 0.3f, 1.0f });
+        }
+        tObj->SetTranslate({ 10000.0f, 10000.0f, 10000.0f });
+        tObj->ApplyState(Transform{ tObj->GetScale(), tObj->GetRotate(), tObj->GetTranslate() }, camera_, true);
+        phase4Turrets_[i].obj = tObj;
+        // ensure some turrets will fire quickly for testing
+        phase4Turrets_[i].fireInterval = 24; // shorter interval for Phase4 turrets to be noticeable
+        phase4Turrets_[i].fireTimer = phase4Turrets_[i].fireInterval - 1;
+        phase4Turrets_[i].active = true;
     }
 }
 
@@ -306,6 +406,9 @@ void Boss::OnHit()
     Phase newPhase = static_cast<Phase>(static_cast<int>(Phase::Phase1) + clampedIndex);
     phase_ = newPhase;
 
+    // start visual transition
+    StartPhaseTransition();
+
     if (camera_ && cameraShakeCooldown_ <= 0.0f)
     {
         camera_->StartShake(0.2f, 0.2f);
@@ -316,7 +419,7 @@ void Boss::OnHit()
     {
         int currentPhaseIndex = (phase_ >= Phase::Phase1 && phase_ <= Phase::Phase5) ?
             static_cast<int>(phase_) - static_cast<int>(Phase::Phase1) : 0;
-        for (int i = 0; i < 5; ++i)
+        for (int i = 0; i < 6; ++i)
         {
             Sprite* s = phaseSprites_[i];
             if (!s) continue;
@@ -337,6 +440,9 @@ void Boss::OnHit()
 
 void Boss::Shoot()
 {
+    // don't shoot while in phase transition
+    if (inPhaseTransition_) return;
+
     ++ShootTimer_;
     if (ShootTimer_ < ShootInterval_) return;
     ShootTimer_ = 0;
@@ -426,6 +532,9 @@ void Boss::UpdatePhase1()
 
 void Boss::UpdatePhase2()
 {
+    // don't shoot while in phase transition
+    if (inPhaseTransition_) return;
+
     ++ShootTimer_;
     if (ShootTimer_ < phase2ShootInterval_) return;
     ShootTimer_ = 0;
@@ -464,9 +573,71 @@ void Boss::UpdatePhase2()
     }
 }
 
+void Boss::UpdatePhase2_5()
+{
+    // don't shoot while in phase transition
+    if (inPhaseTransition_) return;
+
+    ++ShootTimer_;
+    // a bit faster than Phase2
+    int interval = (phase2ShootInterval_ > 12) ? phase2ShootInterval_ - 6 : phase2ShootInterval_;
+    if (ShootTimer_ < interval) return;
+    ShootTimer_ = 0;
+
+    std::vector<int> aliveIndices;
+    aliveIndices.reserve(parts_.size());
+    for (size_t i = 0; i < parts_.size(); ++i)
+    {
+        if (parts_[i] && !parts_[i]->IsDestroyed()) aliveIndices.push_back(static_cast<int>(i));
+    }
+
+    int bulletsThisWave = phase2BulletsPerShot_ + 1; // slightly more aggressive
+    for (int i = 0; i < bulletsThisWave; ++i)
+    {
+        Vector3 spawnPos;
+        if (!aliveIndices.empty())
+        {
+            float r = Random::GeneratorFloat(0.0f, static_cast<float>(aliveIndices.size() - 1));
+            int pick = static_cast<int>(std::floor(r + 0.5f));
+            if (pick < 0) pick = 0;
+            if (pick >= static_cast<int>(aliveIndices.size())) pick = static_cast<int>(aliveIndices.size() - 1);
+            spawnPos = parts_[aliveIndices[pick]]->GetWorldTranslate();
+        }
+        else
+        {
+            spawnPos = worldTransform_.GetTranslate();
+        }
+
+        Vector3 dir = { 0.0f, 0.0f, -1.0f };
+        if (player_)
+        {
+            Vector3 p = player_->GetWorldTranslate();
+            dir = { p.x - spawnPos.x, p.y - spawnPos.y, p.z - spawnPos.z };
+            float l = std::sqrt(dir.x*dir.x + dir.y*dir.y + dir.z*dir.z);
+            if (l > 1e-6f) dir = { dir.x / l, dir.y / l, dir.z / l };
+            else dir = { 0.0f, 0.0f, -1.0f };
+
+            // add a small spread per-bullet
+            float spread = 0.06f * (static_cast<float>(i) - (static_cast<float>(bulletsThisWave - 1) * 0.5f));
+            dir.x += spread;
+            float nl = std::sqrt(dir.x*dir.x + dir.y*dir.y + dir.z*dir.z);
+            if (nl > 1e-6f) dir = { dir.x / nl, dir.y / nl, dir.z / nl };
+        }
+
+        Vector3 vel = { dir.x * (phase2BulletSpeed_ * 0.92f), dir.y * (phase2BulletSpeed_ * 0.92f), dir.z * (phase2BulletSpeed_ * 0.92f) };
+
+        EnemyBullet* b = new EnemyBullet();
+        b->Initialize(model_, spawnPos, object3dCom_, vel);
+        // enable mild homing but with less aggressive turn to distinguish the phase
+        b->EnableHoming(player_, phase2BulletSpeed_ * 0.92f, phase2TurnRate_ * 0.8f);
+        b->SetLifeDuration(phase2BulletLifeFrames_);
+        bullets_.push_back(b);
+    }
+}
+
 void Boss::UpdatePhase3()
 {
-    if (!isActive_) return;
+    if (!isActive_ || inPhaseTransition_) return;
 
     const float dt = 1.0f / 60.0f;
     const float twoPi = 2.0f * 3.14159265f;
@@ -552,125 +723,201 @@ void Boss::UpdatePhase3()
 
 void Boss::UpdatePhase4()
 {
+    if (inPhaseTransition_) return;
     if (!laserModel_) return;
 
-    // フェーズ突入直後に初期化
+    const float twoPi = 2.0f * 3.14159265f;
+    Vector3 bossPos = worldTransform_.GetTranslate();
+
+    // initialize on first entry
     if (!laserActive_)
     {
         laserActive_ = true;
         laserTimer_ = 0;
+        laserBulletTimer_ = 0;
+        laserSweepAngle_ = 0.0f;
+        laserAimX_ = 0.0f;
 
-        // ボスの位置を取得
-        Vector3 bossPos = worldTransform_.GetTranslate();
+        // position turrets around boss
+        for (int i = 0; i < phase4TurretCount_; ++i)
+        {
+            float ang = twoPi * static_cast<float>(i) / static_cast<float>(phase4TurretCount_);
+            Vector3 pos = bossPos + Vector3{ std::cos(ang) * phase4TurretRadius_, std::sin(ang) * phase4TurretRadius_, 0.0f };
+            if (i < static_cast<int>(phase4Turrets_.size()) && phase4Turrets_[i].obj)
+            {
+                auto* tobj = phase4Turrets_[i].obj;
+                tobj->SetTranslate(pos);
+                tobj->SetScale({ phase4TurretScale_, phase4TurretScale_, phase4TurretScale_ });
+                tobj->SetRotate({ 0.0f, 0.0f, 0.0f });
+                tobj->ApplyState(Transform{ tobj->GetScale(), tobj->GetRotate(), tobj->GetTranslate() }, camera_, true);
+                // make them ready to fire immediately for visibility
+                phase4Turrets_[i].fireTimer = phase4Turrets_[i].fireInterval - 1;
+                phase4Turrets_[i].active = true;
+            }
+        }
 
-        // レーザーの方向を固定（Z軸マイナス方向）
-        Vector3 direction = { 0.0f, 0.0f, -1.0f };
-
-        // レーザーの初期位置をボスの位置に設定（方向ベクトルに基づいて少し前方にオフセット）
-        Vector3 laserPos = bossPos + direction * 2.0f; // ボスの位置からZ軸マイナス方向に2.0fオフセット
+        // short visual on boss
+        Vector3 laserPos = bossPos + Vector3{ 0.0f, 0.0f, -2.0f };
         laserModel_->SetTranslate(laserPos);
-
-        // レーザーの回転をゼロに設定（Z軸マイナス方向に固定）
-        Vector3 laserRotation = { 0.0f, 0.0f, 0.0f };
-        laserModel_->SetRotate(laserRotation);
-
-        // レーザーのスケールと色を初期化
+        laserModel_->SetRotate({ 0.0f,0.0f,0.0f });
         laserModel_->SetScale({ laserWidth_, laserWidth_, 1.0f });
         laserModel_->SetColor(laserChargeColor_);
-        laserModel_->ApplyState(Transform{ laserModel_->GetScale(), laserRotation, laserPos }, camera_, true);
+        laserModel_->ApplyState(Transform{ laserModel_->GetScale(), laserModel_->GetRotate(), laserModel_->GetTranslate() }, camera_, true);
+
+        auto* pm = ParticleManager::GetInstance();
+        if (pm) pm->EmitBurst8("default", bossPos, 0.12f, 1.6f, 0.6f);
+        // central magenta charge and cyan flares for EVA feel
+        pm->EmitCustom("default", bossPos, 28, { 0.7f, 0.1f, 0.8f, 1.0f }, 0.6f, 1.2f);
+        pm->EmitCustom("default", bossPos, 14, { 0.12f, 0.9f, 0.95f, 1.0f }, 0.12f, 0.5f);
     }
 
     ++laserTimer_;
-
     int total = laserChargeFrames_ + laserFireFrames_ + laserCooldownFrames_;
 
     if (laserTimer_ <= laserChargeFrames_)
     {
-        // チャージ中: レーザー本体は伸ばさず短いチャージ表示のみ行う
-    
-        float t = (float)laserTimer_ / (float)laserChargeFrames_;
-        // パルスアルファでチャージ感を出す
+        // charging: short visible core, turrets idle (but visible)
+        float t = static_cast<float>(laserTimer_) / static_cast<float>(laserChargeFrames_);
         float alpha = 0.5f + 0.5f * std::sin(t * 3.14159265f);
         Vector4 col = laserChargeColor_;
         col.w = alpha;
-
-        // 常に短く表示（伸ばさない）
-        Vector3 scale = { laserWidth_, laserWidth_, 1.0f };
-        laserModel_->SetScale(scale);
-
-        // レーザーの位置はボス前方に固定（長さ変化を考慮しない）
-        Vector3 bossPos = worldTransform_.GetTranslate();
-        Vector3 laserPos = bossPos + Vector3{0.0f, 0.0f, -0.5f};
-        laserModel_->SetTranslate(laserPos);
-
+        laserModel_->SetScale({ laserWidth_, laserWidth_, 1.0f });
+        laserModel_->SetTranslate(bossPos + Vector3{ 0.0f, 0.0f, -0.5f });
         laserModel_->SetColor(col);
+
+        // update turret visuals
+        for (auto &tur : phase4Turrets_)
+        {
+            if (tur.obj)
+            {
+                tur.obj->ApplyState(Transform{ tur.obj->GetScale(), tur.obj->GetRotate(), tur.obj->GetTranslate() }, camera_, true);
+            }
+        }
     }
     else if (laserTimer_ <= laserChargeFrames_ + laserFireFrames_)
     {
-        // 発射中: 最大長さ、発射色
+        // firing period: turrets shoot bullets toward player periodically; central beam is a visual core
         float length = laserMaxLength_;
-        laserModel_->SetScale({ laserWidth_, laserWidth_, length });
-
-        // レーザーの位置を再計算（Z軸スケールの変化に伴う調整）
-        Vector3 bossPos = worldTransform_.GetTranslate();
-        Vector3 laserPos = bossPos + Vector3{0.0f, 0.0f, -length * 0.5f};
-        laserModel_->SetTranslate(laserPos);
-
+        laserModel_->SetScale({ laserWidth_ * 0.4f, laserWidth_ * 0.4f, length * 0.6f });
+        laserModel_->SetTranslate(bossPos + Vector3{ 0.0f, 0.0f, -length * 0.5f * 0.6f });
         laserModel_->SetColor(laserFireColor_);
 
-        // プレイヤーへの当たり判定（簡易AABB）
-        if (player_)
+        // turrets fire
+        for (auto &tur : phase4Turrets_)
+        {
+            if (!tur.active || !tur.obj) continue;
+            ++tur.fireTimer;
+            if (tur.fireTimer >= tur.fireInterval)
+            {
+                tur.fireTimer = 0;
+                Vector3 tp = tur.obj->GetTranslate();
+                Vector3 dir = { 0.0f, 0.0f, -1.0f };
+                if (player_)
+                {
+                    Vector3 p = player_->GetWorldTranslate();
+                    dir = { p.x - tp.x, p.y - tp.y, p.z - tp.z };
+                    float l = std::sqrt(dir.x*dir.x + dir.y*dir.y + dir.z*dir.z);
+                    if (l > 1e-6f) dir = { dir.x / l, dir.y / l, dir.z / l };
+                    else dir = { 0.0f, 0.0f, -1.0f };
+                }
+
+                Vector3 vel = { dir.x * phase4BulletSpeed_, dir.y * phase4BulletSpeed_, dir.z * phase4BulletSpeed_ };
+                EnemyBullet* b = new EnemyBullet();
+                b->Initialize(model_, tp, object3dCom_, vel);
+                bullets_.push_back(b);
+
+                auto* pm = ParticleManager::GetInstance();
+                if (pm) pm->EmitBurst8("default", tp, 0.08f, 0.6f, 0.45f);
+
+                if (camera_ && cameraShakeCooldown_ <= 0.0f)
+                {
+                    camera_->StartShake(0.08f, 0.08f);
+                    cameraShakeCooldown_ = kCameraShakeCooldownSeconds;
+                }
+            }
+
+            // update turret visual
+            tur.obj->ApplyState(Transform{ tur.obj->GetScale(), tur.obj->GetRotate(), tur.obj->GetTranslate() }, camera_, true);
+        }
+
+        // central laser collision check (short core)
+        if (player_ && player_->IsAlive())
         {
             Vector3 p = player_->GetWorldTranslate();
             Vector3 lp = laserModel_->GetTranslate();
-            // レーザーの方向に伸びると仮定: lp.z から lp.z - length まで
-            float zStart = lp.z;
-            float zEnd = lp.z - length;
-            float halfW = laserWidth_ * 0.5f;
-            float halfH = laserWidth_ * 0.5f;
-            bool inX = std::fabs(p.x - lp.x) <= halfW;
-            bool inY = std::fabs(p.y - lp.y) <= halfH;
-            bool inZ = (p.z <= zStart) && (p.z >= zEnd);
-            if (inX && inY && inZ)
+            Vector3 laserHalf = { (laserWidth_ * 0.5f) + laserPlayerHitPaddingXY_, (laserWidth_ * 0.5f) + laserPlayerHitPaddingXY_, (length * 0.5f) + laserPlayerHitPaddingZ_ };
+            Vector3 playerHalf = { playerHitHalfSizeXY_, playerHitHalfSizeXY_, playerHitHalfSizeZ_ };
+
+            AABB laserBox{ { lp.x - laserHalf.x, lp.y - laserHalf.y, lp.z - laserHalf.z }, { lp.x + laserHalf.x, lp.y + laserHalf.y, lp.z + laserHalf.z } };
+            AABB playerBox{ { p.x - playerHalf.x, p.y - playerHalf.y, p.z - playerHalf.z }, { p.x + playerHalf.x, p.y + playerHalf.y, p.z + playerHalf.z } };
+
+            if (IsCollisionAABBAABB(laserBox, playerBox))
             {
                 player_->OnCollision();
+                if (camera_) camera_->StartShake(0.6f, 0.45f);
             }
         }
     }
     else if (laserTimer_ <= total)
     {
-        // クールダウン: 長さを縮小し透明に
+        // cooldown: shrink and fade
         int coolT = laserTimer_ - (laserChargeFrames_ + laserFireFrames_);
-        float t = (float)coolT / (float)laserCooldownFrames_;
-        float length = laserMaxLength_ * (1.0f - t);
+        float tf = static_cast<float>(coolT) / static_cast<float>(laserCooldownFrames_);
+        float length = laserMaxLength_ * (1.0f - tf);
         if (length < 1.0f) length = 1.0f;
-        laserModel_->SetScale({ laserWidth_, laserWidth_, length });
-
-        // レーザーの位置を再計算（Z軸スケールの変化に伴う調整）
-        Vector3 bossPos = worldTransform_.GetTranslate();
-        Vector3 laserPos = bossPos + Vector3{0.0f, 0.0f, -length * 0.5f};
-        laserModel_->SetTranslate(laserPos);
-
+        // keep the beam's X/Y thickness consistent with firing visual to avoid sudden jump
+        laserModel_->SetScale({ laserWidth_ * 0.4f, laserWidth_ * 0.4f, length });
+        laserModel_->SetTranslate(bossPos + Vector3{ 0.0f, 0.0f, -length * 0.5f });
         Vector4 col = laserFireColor_;
-        col.w = 1.0f - t; // フェードアウト
+        col.w = 1.0f - tf;
         laserModel_->SetColor(col);
+
+        // keep turret visuals while cooling
+        for (auto &tur : phase4Turrets_)
+        {
+            if (tur.obj) tur.obj->ApplyState(Transform{ tur.obj->GetScale(), tur.obj->GetRotate(), tur.obj->GetTranslate() }, camera_, true);
+        }
+
+        // collision still active during cooldown
+        if (player_ && player_->IsAlive())
+        {
+            Vector3 p = player_->GetWorldTranslate();
+            Vector3 lp = laserModel_->GetTranslate();
+            Vector3 laserHalf = { (laserWidth_ * 0.5f) + laserPlayerHitPaddingXY_, (laserWidth_ * 0.5f) + laserPlayerHitPaddingXY_, (length * 0.5f) + laserPlayerHitPaddingZ_ };
+            Vector3 playerHalf = { playerHitHalfSizeXY_, playerHitHalfSizeXY_, playerHitHalfSizeZ_ };
+
+            AABB laserBox{ { lp.x - laserHalf.x, lp.y - laserHalf.y, lp.z - laserHalf.z }, { lp.x + laserHalf.x, lp.y + laserHalf.y, lp.z + laserHalf.z } };
+            AABB playerBox{ { p.x - playerHalf.x, p.y - playerHalf.y, p.z - playerHalf.z }, { p.x + playerHalf.x, p.y + playerHalf.y, p.z + playerHalf.z } };
+
+            if (IsCollisionAABBAABB(laserBox, playerBox))
+            {
+                player_->OnCollision();
+                if (camera_) camera_->StartShake(0.45f, 0.35f);
+            }
+        }
     }
     else
     {
-        // サイクル終了: 次ループまで非表示へ移動
+        // end cycle: hide laser and turrets until next activation
         laserActive_ = false;
         laserTimer_ = 0;
         laserModel_->SetTranslate({ 10000.0f, 10000.0f, 10000.0f });
+        for (auto &tur : phase4Turrets_)
+        {
+            if (tur.obj) tur.obj->SetTranslate({ 10000.0f, 10000.0f, 10000.0f });
+            tur.active = true;
+            tur.fireTimer = static_cast<int>(Random::GeneratorFloat(0.0f, static_cast<float>(tur.fireInterval)));
+        }
     }
 
-    // 行列反映
+    // apply matrix for laser
     laserModel_->ApplyState(Transform{ laserModel_->GetScale(), laserModel_->GetRotate(), laserModel_->GetTranslate() }, camera_, true);
 }
 
 // --- Phase5: スパイラル / ラジアル攻撃の実装 ---
 void Boss::UpdatePhase5()
 {
-    if (!isActive_) return;
+    if (!isActive_ || inPhaseTransition_) return;
 
     ++phase5BurstTimer_;
 
@@ -767,6 +1014,104 @@ void Boss::Update()
         float t = (spawnDuration_ <= 0) ? 1.0f : (float)spawnTimer_ / (float)spawnDuration_;
         if (t > 1.0f) t = 1.0f;
 
+        // cinematic spawn sequence
+        auto* pm = ParticleManager::GetInstance();
+        Vector3 center = worldTransform_.GetTranslate();
+
+        // stage timing thresholds
+        int stage1End = spawnDuration_ / 3;
+        int stage2Start = stage1End + 1;
+        int stage2End = (spawnDuration_ * 2) / 3;
+        int revealStart = stage2End + 1;
+
+        // initial burst at spawn start
+        if (spawnCineStage1_ && spawnTimer_ == 1)
+        {
+            if (pm && pm->HasGroup("defaultMesh")) {
+                pm->EmitBurst8RotatingInward("defaultMesh", center, 18.0f, 1.8f, 1.8f, 2.2f, 6.0f, 1.6f);
+                pm->EmitBurst8("defaultMesh", center, 0.18f, 2.2f, 1.4f);
+            }
+            if (pm && pm->HasGroup("default")) {
+                pm->EmitBurst8RotatingInward("default", center, 12.0f, 1.2f, 2.6f, 1.6f, 3.6f, 0.8f);
+                pm->EmitBurst8("default", center, 0.12f, 1.8f, 1.0f);
+            }
+            // Eva-like purple core + cyan sparks for variety
+            if (pm) {
+                pm->EmitCustom("default", center, 18, { 0.62f, 0.12f, 0.72f, 1.0f }, 0.6f, 1.4f); // deep magenta core
+                pm->EmitCustom("default", center, 10, { 0.18f, 0.86f, 0.95f, 1.0f }, 0.15f, 0.45f); // cyan micro sparks
+            }
+            if (camera_ && cameraShakeCooldown_ <= 0.0f)
+            {
+                camera_->StartShake(0.9f, 0.9f);
+                cameraShakeCooldown_ = kCameraShakeCooldownSeconds;
+            }
+        }
+
+        // progress stage2: inner convergence and stronger vibration
+        if (spawnTimer_ >= stage2Start && spawnTimer_ <= stage2End && !spawnCineStage2_)
+        {
+            spawnCineStage2_ = true;
+            if (pm && pm->HasGroup("defaultMesh")) {
+                pm->EmitBurst8RotatingInward("defaultMesh", center, 14.0f, 1.4f, -3.6f, 1.2f, 4.0f, 1.2f);
+            }
+            if (pm && pm->HasGroup("default")) {
+                pm->EmitBurst8RotatingInward("default", center, 9.0f, 1.0f, -3.2f, 1.0f, 2.8f, 0.6f);
+            }
+            // tighten pulse with purple-blue wash
+            if (pm) {
+                pm->EmitCustom("default", center, 22, { 0.55f, 0.08f, 0.7f, 1.0f }, 0.45f, 1.0f);
+                pm->EmitCustom("default", center, 12, { 0.2f, 0.6f, 0.95f, 1.0f }, 0.12f, 0.35f);
+            }
+            if (camera_ && cameraShakeCooldown_ <= 0.0f) { camera_->StartShake(1.0f, 0.9f); cameraShakeCooldown_ = kCameraShakeCooldownSeconds; }
+
+            // brief super-scale pulse + tint
+            if (model_) {
+                Vector3 s = model_->GetScale();
+                model_->SetScale({ s.x * 1.35f, s.y * 1.35f, s.z * 1.15f });
+                model_->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });
+            }
+        }
+
+        // reveal final: big outward burst and final model settle
+        if (spawnTimer_ >= revealStart && !spawnCineStage3_)
+        {
+            spawnCineStage3_ = true;
+            if (pm && pm->HasGroup("defaultMesh")) {
+                pm->EmitBurst8("defaultMesh", center, 0.22f, 2.6f, 1.4f);
+                pm->EmitBurst8Rotating("defaultMesh", center, 3.2f, 1.0f, 6.0f, 0.9f, false, 0.0f, 0.0f);
+            }
+            if (pm && pm->HasGroup("default")) {
+                pm->EmitBurst8("default", center, 0.18f, 2.4f, 1.2f);
+                pm->EmitBurst8Rotating("default", center, 4.0f, 1.0f, 5.5f, 1.0f, false, -0.8f, -0.4f);
+            }
+
+            // dramatic reveal: layered colored emissions
+            if (pm) {
+                pm->EmitCustom("default", center, 36, { 0.72f, 0.14f, 0.82f, 1.0f }, 0.8f, 1.6f);
+                pm->EmitCustom("default", center, 20, { 0.14f, 0.9f, 0.95f, 1.0f }, 0.2f, 0.6f);
+            }
+
+            // final model settle
+            if (model_) {
+                model_->SetScale({1.0f,1.0f,1.0f});
+                model_->SetColor({1.0f,1.0f,1.0f,1.0f});
+            }
+            if (camera_ && cameraShakeCooldown_ <= 0.0f) { camera_->StartShake(0.6f, 0.6f); cameraShakeCooldown_ = kCameraShakeCooldownSeconds; }
+        }
+
+        // advance spawn cinematic timer
+        ++spawnCineTimer_;
+
+        // add gentle rotation to model during spawn cinematic for visual interest
+        if (model_) {
+            float spinSpeed = 0.035f; // radians per frame ~ slow
+            float angle = static_cast<float>(spawnCineTimer_) * spinSpeed;
+            Vector3 rot = model_->GetRotate();
+            rot.y = angle;
+            model_->SetRotate(rot);
+            model_->ApplyState(Transform{ model_->GetScale(), model_->GetRotate(), model_->GetTranslate() }, camera_, true);
+        }
+
         for (auto& p : parts_)
         {
             if (p) p->UpdateSpawn(t);
@@ -780,6 +1125,13 @@ void Boss::Update()
                 camera_->StartShake(0.6f, 0.6f);
                 cameraShakeCooldown_ = kCameraShakeCooldownSeconds;
             }
+            // re-enable player firing after spawn completed
+            if (player_) {
+                player_->SetCanFire(true);
+            }
+
+            // clear cinematic flags
+            spawnCineStage1_ = spawnCineStage2_ = spawnCineStage3_ = false;
         }
     }
 
@@ -793,7 +1145,7 @@ void Boss::Update()
 
     if (spriteCom_)
     {
-        for (int i = 0; i < 5; ++i)
+        for (int i = 0; i < 6; ++i)
         {
             Sprite* s = phaseSprites_[i];
             if (!s) continue;
@@ -809,13 +1161,26 @@ void Boss::Update()
         }
     }
 
-    // If a motion is active, update it and skip running phase-specific logic for Phase4 until finished.
     if (currentMotion_)
     {
         currentMotion_->Update(this, dt);
         if (currentMotion_->IsFinished())
         {
             currentMotion_.reset();
+        }
+    }
+
+    // phase transition timer handling: keep player firing disabled during transition
+    if (inPhaseTransition_)
+    {
+        ++phaseTransitionTimer_;
+        // only end transition after both the timer expires AND any motion (visual pre-motion) finished
+        bool motionFinished = (currentMotion_ == nullptr);
+        if (phaseTransitionTimer_ >= phaseTransitionDuration_ && motionFinished)
+        {
+            inPhaseTransition_ = false;
+            phaseTransitionTimer_ = 0;
+            if (player_) player_->SetCanFire(true);
         }
     }
 
@@ -827,13 +1192,16 @@ void Boss::Update()
     {
         UpdatePhase2();
     }
+    else if (phase_ == Phase::Phase2_5)
+    {
+        UpdatePhase2_5();
+    }
     else if (phase_ == Phase::Phase3)
     {
         UpdatePhase3();
     }
     else if (phase_ == Phase::Phase4)
     {
-        // Only run UpdatePhase4 if no pre-motion is active; UpdatePhase4 will initialize laserActive_
         if (!currentMotion_)
         {
             UpdatePhase4();
@@ -897,12 +1265,17 @@ void Boss::Draw()
 
     if (phase_ == Phase::Phase4 && laserModel_ && laserActive_)
     {
+        // draw turrets first
+        for (auto &t : phase4Turrets_)
+        {
+            if (t.obj) t.obj->Draw();
+        }
         laserModel_->Draw();
     }
 
     if (spriteCom_)
     {
-        for (int i = 0; i < 5; ++i)
+        for (int i = 0; i < 6; ++i)
         {
             Sprite* s = phaseSprites_[i];
             if (!s) continue;
@@ -926,6 +1299,62 @@ void Boss::OnCollision()
     isActive_ = false;
 }
 
+void Boss::StartPhaseTransition()
+{
+    auto* pm = ParticleManager::GetInstance();
+    Vector3 center = worldTransform_.GetTranslate();
+
+    // mark transition state and set timer
+    inPhaseTransition_ = true;
+    phaseTransitionTimer_ = 0; // will be incremented in Update
+
+    // disable player firing during transition if player exists
+    if (player_) {
+        player_->SetCanFire(false);
+        // also clear any active barriers to avoid instant collision during transition
+        player_->ClearBarriers();
+    }
+
+    if (pm) {
+        // If mesh-group exists, favor mesh particles (OBJ) for richer visuals
+        if (pm->HasGroup("defaultMesh")) {
+            // multiple rotating inward bursts (mesh)
+            pm->EmitBurst8RotatingInward("defaultMesh", center, 8.0f, 1.3f, 3.0f, 0.9f, 2.6f, 0.8f);
+            pm->EmitBurst8RotatingInward("defaultMesh", center, 5.0f, 1.1f, -4.2f, 0.6f, 2.2f, 0.6f);
+            // add an outward burst using mesh for chunk pieces
+            pm->EmitBurst8("defaultMesh", center, 0.12f, 0.7f, 1.0f);
+        }
+
+        // sprite/textured particles for glow and spark
+        if (pm->HasGroup("default")) {
+            pm->EmitBurst8RotatingInward("default", center, 6.0f, 0.9f, 4.0f, 0.9f, 1.6f, 0.4f);
+            pm->EmitBurst8("default", center, 0.08f, 1.2f, 0.9f);
+        }
+
+        // add Eva-like colored wash and quick cyan shards
+        pm->EmitCustom("default", center, 20, { 0.66f, 0.08f, 0.78f, 1.0f }, 0.45f, 1.0f);
+        pm->EmitCustom("default", center, 12, { 0.16f, 0.82f, 0.96f, 1.0f }, 0.12f, 0.4f);
+
+        // a final, tight rotating ring of small sprites for impact
+        if (pm->HasGroup("default")) {
+            pm->EmitBurst8Rotating("default", center, 2.4f, 0.6f, 8.0f, 0.45f, false, -1.6f, -0.6f);
+        }
+    }
+
+    // camera: strong shake
+    if (camera_ && cameraShakeCooldown_ <= 0.0f) {
+        camera_->StartShake(0.6f, 0.6f);
+        cameraShakeCooldown_ = kCameraShakeCooldownSeconds;
+    }
+
+    // model: quick flash tint
+    if (model_) {
+        // set a bright tint briefly
+        model_->SetColor({1.0f, 0.6f, 0.2f, 1.0f});
+    }
+}
+
+// UpdatePhaseByHP: call StartPhaseTransition when phase changes
 void Boss::UpdatePhaseByHP()
 {
     if (phase_ == Phase::Spawn || phase_ == Phase::Leave) return;
@@ -937,6 +1366,7 @@ void Boss::UpdatePhaseByHP()
         if (newPhase != phase_)
         {
             phase_ = newPhase;
+            StartPhaseTransition();
             if (camera_ && cameraShakeCooldown_ <= 0.0f)
             {
                 camera_->StartShake(0.3f, 0.3f);
@@ -964,6 +1394,8 @@ void Boss::UpdatePhaseByHP()
     if (newPhase != phase_)
     {
         phase_ = newPhase;
+        // fancy transition
+        StartPhaseTransition();
         if (camera_)
         {
             if (cameraShakeCooldown_ <= 0.0f)

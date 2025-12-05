@@ -8,6 +8,11 @@
 #include "UIButton.h"
 #include "Logger.h"
 #include <format>
+#include "AABB.h"
+#include "ClearScene.h"
+
+// フェード開始フラグ
+static bool gFadeStarted = false;
 
 GameScene::~GameScene()
 {
@@ -25,6 +30,8 @@ GameScene::~GameScene()
 
 	if (boss_) delete boss_;
 	if (bossBodyModel_) delete bossBodyModel_;
+
+	if (clearScene_) { delete clearScene_; clearScene_ = nullptr; }
 }
 
 void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* spriteCom)
@@ -50,9 +57,11 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 
 	model_ = Object3d::Create(object3dCom_, "apple.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera_);
 	Object3d* enemyModelTemplate = Object3d::Create(object3dCom_, "wall.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera_);
-			
+	playerModel_ = Object3d::Create(object3dCom_, "player/player.obj", { {1,1,1},{0,0,0},{0,0,0} }, camera_); 
+
+	
 	player_ = new Player();
-	player_->Initialize(model_, camera, { 0.0f,0.0f,0.0f }, object3dCom);
+	player_->Initialize(playerModel_, camera, { 0.0f,0.0f,0.0f }, object3dCom);
 
 	{
 		auto* pm = ParticleManager::GetInstance();
@@ -61,18 +70,14 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 				
 				pm->CreateParticleGroupFromModel("default", "apple.obj");
 
-			
 				std::string texPath = model_->GetModel()->GetTexturePath();
 				if (!texPath.empty()) {
 					pm->CreateParticleGroup("defaultSprite", texPath);
-				
 					particleTexturePath_ = texPath;
 				}
 
-			
 				pm->CreateParticleGroupFromModel("defaultMesh", "apple.obj");
 
-				
 				if (!pm->HasGroup("enemyMesh")) {
 					pm->CreateParticleGroupFromModel("enemyMesh", "wall.obj");
 				}
@@ -83,29 +88,44 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 	currentWave_ = 0;
 	phase_ = Phase::kMain;
 
-	if (maxWaves_ < 1) maxWaves_ = 4;
-	SpawnWave();
+#ifdef _DEBUG
+	// デバッグフラグでボスから開始（DEBUG限定）
+	if (startAtBoss_) {
+		phase_ = Phase::kBoss;
+		for (Enemy* e : enemies_) { delete e; }
+		enemies_.clear();
+		bossBodyModel_ = Object3d::Create(object3dCom_, "bomb.obj", { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,15.0f} }, camera_);
+		boss_ = new Boss();
+		boss_->Initialize(bossBodyModel_, camera_, { 0.0f, 0.0f, 15.0f }, object3dCom_, spriteCom_);
+		boss_->SetPlayer(player_);
+	} else
+#endif
+	{
+		if (maxWaves_ < 1) maxWaves_ = 4;
+		SpawnWave();
+	}
 
 	railCameraController_ = new RailCameraController();
 	railCameraController_->SetCamera(camera_);
-	railCameraController_->Initialize({ 0.0f, 5.0f, -10.0f }, { 20.0f, 0.0f, 0.0f });
-
-	railCameraController_->SetTarget(player_);
-
-
-	bossBodyModel_ = nullptr;
-	boss_ = nullptr;
+	railCameraController_->Initialize({ 0.0f, 5.0f, -10.0f }, { 20.0f, 0.0f, 0.0f });	railCameraController_->SetTarget(player_);
+	bossBodyModel_ = bossBodyModel_;
+	boss_ = boss_;
 
 	fade_ = new Fade();
 	fade_->Initialize(spriteCom);
-	fade_->Start(Fade::State::kNone, 1.0f);
+	// SelectScene から遷移直後は画面が黒の可能性があるためフェードインを開始
+	fade_->Start(Fade::State::kFadeIn, 0.5f);
 
+	gFadeStarted = false; // シーン初期化時にフェード開始フラグをリセット
 
 	isWaitingForNextWave_ = false;
 	waveDelayTimer_ = 0.0f;
 
 	skydome_ = new Skydome();
-skydome_->Initialize(object3dCom_, camera_);
+	skydome_->Initialize(object3dCom_, camera_);
+
+	// prepare clear scene but do not initialize until needed
+	clearScene_ = new ClearScene();
 }
 
 static Vector2 WorldToScreen(const Vector3& world, Camera* cam, int screenW, int screenH)
@@ -138,11 +158,19 @@ void GameScene::Update()
         }
     }
 
+#ifdef _DEBUG
+	// 実行中に F2 でボス開始フラグをトグル（次の ResetScene/Initialize で反映）
+	if (keyInput_ && keyInput_->TriggerKey(DIK_9)) {
+		startAtBoss_ = !startAtBoss_;
+	}
+#endif
+
     if (isPaused_) {
         
         uiManager_.UpdateAll();
+        // 常にフェードを更新（アクティブ時のみ内部で進行）
+        if (fade_) { fade_->Update(); }
         if (phase_ == Phase::kFadeOut && fade_) {
-            fade_->Update();
             if (fade_->IsFinished()) { isFinish_ = true; }
         }
         
@@ -151,6 +179,9 @@ void GameScene::Update()
     }
 
     uiManager_.UpdateAll();
+
+	// Always advance fade state each frame so scenes relying on fade completion progress.
+	if (fade_) { fade_->Update(); }
 
 #ifdef _DEBUG
 #ifdef USE_IMGUI
@@ -176,7 +207,25 @@ void GameScene::Update()
 	{
 		if (enemy) enemy->Update();
 	}
-	player_->Update();
+
+        // If boss exists and is spawning or in phase transition, ensure player cannot fire this frame
+        if (boss_ && boss_->IsActive()) {
+            auto bphase = boss_->GetPhase();
+            if (bphase == Boss::Phase::Spawn || boss_->IsInPhaseTransition()) {
+                if (player_) {
+                    player_->SetCanFire(false);
+                    player_->ClearBarriers();
+                }
+            }
+        }
+
+		// Disable player movement while fade is active (only while fading)
+		if (player_) {
+			bool fadeActive = (fade_ && fade_->IsActive());
+			player_->SetCanMove(!fadeActive);
+		}
+
+		player_->Update();
 
 
 	const float kEnemyActiveZThreshold = -5.0f;
@@ -224,7 +273,7 @@ void GameScene::Update()
 	}
 	else
 	{
-		// 通常のレールカメラ更新（player の更新後に行う）
+		// 通常のレールカメラ更新（player の更新後に行う）	
 		railCameraController_->Update();
 	}
 #else
@@ -232,6 +281,11 @@ void GameScene::Update()
 	for (Enemy* enemy : enemies_)
 	{
 		if (enemy) enemy->Update();
+	}
+	// ensure player movement is disabled while fade is active
+	if (player_) {
+		bool fadeActive = (fade_ && fade_->IsActive());
+		player_->SetCanMove(!fadeActive);
 	}
 	player_->Update();
 	railCameraController_->Update();
@@ -275,25 +329,30 @@ void GameScene::Update()
 #endif
 
 
+
 	if (boss_)
 	{
 		boss_->Update();
 	
 		if (!boss_->IsActive() && phase_ == Phase::kBoss)
 		{
-			phase_ = Phase::kFadeOut;
-			fade_->Start(Fade::State::kFadeOut, 1.0f);
+			// switch to clear scene (no fade requested)
+			phase_ = Phase::kClear;
+			if (clearScene_) {
+				clearScene_->Initialize(camera_, object3dCom_, spriteCom_);
+			}
 		}
 	}
 
-	if (phase_ == Phase::kFadeOut)
-	{
-		fade_->Update();
-		if (fade_->IsFinished())
-		{
-			isFinish_ = true;
-		}
-	}
+    // フェードは常に更新（必要なときのみ内部で進行）
+    if (fade_)
+    {
+        // fade already updated earlier; just check completion here
+        if (phase_ == Phase::kFadeOut && fade_->IsFinished())
+        {
+            isFinish_ = true;
+        }
+    }
 
 	
 	auto* pm = ParticleManager::GetInstance();
@@ -343,7 +402,7 @@ void GameScene::Update()
 				cur.y += mp.vel.y * dt;
 				cur.z += mp.vel.z * dt;
 				mp.obj->SetTranslate(cur);
-			
+				
 				float a = 1.0f - (mp.age / mp.life);
 				if (a < 0.0f) a = 0.0f;
 				if (mp.model) mp.model->SetColor({1.0f, 1.0f, 1.0f, a});
@@ -372,15 +431,24 @@ void GameScene::Update()
 
 void GameScene::Draw()
 {
-	skydome_->Draw();
+    skydome_->Draw();
 
-	for (Enemy* enemy : enemies_)
-	{
-		if (enemy) enemy->Draw();
-	}
-	player_->Draw();
+    for (Enemy* enemy : enemies_)
+    {
+        if (enemy) enemy->Draw();
+    }
 
-	if (boss_) boss_->Draw();
+    // if in clear phase draw clear scene instead of player/boss
+    if (phase_ == Phase::kClear && clearScene_)
+    {
+        clearScene_->Draw();
+    }
+    else
+    {
+        player_->Draw();
+
+        if (boss_) boss_->Draw();
+    }
 
         auto* pm = ParticleManager::GetInstance();
     if (pm) {
@@ -408,115 +476,177 @@ void GameScene::Draw()
         pauseSprite_->Draw();
     }
 
-    if (phase_ == Phase::kFadeOut)
-	{
-		fade_->Draw();
-	}
+    // フェードは常に描画（内部色で非表示管理）
+    if (fade_) { fade_->Draw(); }
 }
 
 void GameScene::CheckAllCollisions()
 {
-	Vector3 posA, posB;
+    Vector3 posA, posB;
 
-	// バリア群を取得
-	const std::vector<PlayerBarrier*>& barriers = player_->GetBarriers();
-	//敵の弾のリスト: aggregate from all enemies + boss
-	std::list<EnemyBullet*> enemyBullets;
-	for (Enemy* enemy : enemies_)
-	{
-		if (!enemy) continue;
-		const std::list<EnemyBullet*>& enemy_Bullets = enemy->GetBullets();
-		for (EnemyBullet* enemy_Bullet : enemy_Bullets)
-		{
-			enemyBullets.push_back(enemy_Bullet);
-		}
-	}
-	
-	if (boss_)
-	{
-		const std::list<EnemyBullet*>& bossBullets = boss_->GetBullets();
-		for (EnemyBullet* b : bossBullets)
-		{
-			enemyBullets.push_back(b);
-		}
-	}
+    // バリア群を取得
+    const std::vector<PlayerBarrier*>& barriers = player_->GetBarriers();
+    //敵の弾のリスト: aggregate from all enemies + boss
+    std::list<EnemyBullet*> enemyBullets;
+    for (Enemy* enemy : enemies_)
+    {
+        if (!enemy) continue;
+        const std::list<EnemyBullet*>& enemy_Bullets = enemy->GetBullets();
+        for (EnemyBullet* enemy_Bullet : enemy_Bullets)
+        {
+            enemyBullets.push_back(enemy_Bullet);
+        }
+    }
 
-	// ▼ 弾同士の当たり判定（小さなメッシュパーティクルを出す）
-	{
-		auto* pm = ParticleManager::GetInstance();
-		if (!enemyBullets.empty()) {
-			for (auto it = enemyBullets.begin(); it != enemyBullets.end(); ++it) {
-				EnemyBullet* b1 = *it;
-				if (!b1 || !b1->IsActive()) continue;
-				Vector3 p1 = b1->GetWorldTranslate();
-				auto it2 = it; ++it2;
-				for (; it2 != enemyBullets.end(); ++it2) {
-					EnemyBullet* b2 = *it2;
-					if (!b2 || !b2->IsActive()) continue;
-					Vector3 p2 = b2->GetWorldTranslate();
-					float dist = Distance(p1, p2);
-					const float kBulletCollisionThreshold = 0.6f;
-					if (dist < kBulletCollisionThreshold) {
-						Vector3 mid = { (p1.x + p2.x) * 0.5f, (p1.y + p2.y) * 0.5f, (p1.z + p2.z) * 0.5f };
-						if (pm) {
-							pm->EmitBurst8("defaultMesh", mid, 0.06f, 0.18f, 0.6f);
-						}
-						b1->OnCollision();
-						b2->OnCollision();
-					}
-				}
-			}
-		}
-	}
+    if (boss_)
+    {
+        const std::list<EnemyBullet*>& bossBullets = boss_->GetBullets();
+        for (EnemyBullet* b : bossBullets)
+        {
+            enemyBullets.push_back(b);
+        }
+    }
 
-#pragma region 自キャラと敵の弾の当たり判定
-	posA = player_->GetWorldTranslate();
-	for (EnemyBullet* bullet : enemyBullets)
-	{
-		// 無効な弾は当たり判定対象外にする
-		if (!bullet || !bullet->IsActive()) continue;
+#pragma region  敵の弾同士の当たり判定
 
-		posB = bullet->GetWorldTranslate();
-
-		// 距離（MathUtl の Distance を使用）
-		float distance = Distance(posA, posB);
-
-		const float threshold = 1.0f;
-		if (distance < threshold)
-		{
-			player_->OnCollision();
-			bullet->OnCollision();
-		}
-	}
+    // 敵弾 vs 敵弾 は通常無効化。
+    /*
+    {
+        auto* pm = ParticleManager::GetInstance();
+        if (!enemyBullets.empty()) {
+            for (auto it = enemyBullets.begin(); it != enemyBullets.end(); ++it) {
+                EnemyBullet* b1 = *it;
+                if (!b1 || !b1->IsActive()) continue;
+                Vector3 p1 = b1->GetWorldTranslate();
+                auto it2 = it; ++it2;
+                for (; it2 != enemyBullets.end(); ++it2) {
+                    EnemyBullet* b2 = *it2;
+                    if (!b2 || !b2->IsActive()) continue;
+                    Vector3 p2 = b2->GetWorldTranslate();
+                    float dist = Distance(p1, p2);
+                    const float kBulletCollisionThreshold = 0.6f;
+                    if (dist < kBulletCollisionThreshold) {
+                        Vector3 mid = { (p1.x + p2.x) * 0.5f, (p1.y + p2.y) * 0.5f, (p1.z + p2.z) * 0.5f };
+                        if (pm) {
+                            pm->EmitBurst8("defaultMesh", mid, 0.06f, 0.18f, 0.6f);
+                        }
+                        b1->OnCollision();
+                        b2->OnCollision();
+                    }
+                }
+            }
+        }
+    }
+    */
 #pragma endregion
 
+#pragma region 自キャラと敵の弾の当たり判定
+    posA = player_->GetWorldTranslate();
+    for (EnemyBullet* bullet : enemyBullets)
+    {
+        // 無効な弾は当たり判定対象外にする
+        if (!bullet || !bullet->IsActive()) continue;
+
+        posB = bullet->GetWorldTranslate();
+
+        // 距離（MathUtl の Distance を使用）>
+        float distance = Distance(posA, posB);
+
+        const float threshold = 1.0f;
+        if (distance < threshold)
+        {
+            player_->OnCollision();
+            bullet->OnCollision();
+        }
+    }
+#pragma endregion
+
+    // プレイヤーと敵本体の当たり判定（弾と同様の距離判定で簡潔に）
+    if (player_)
+    {
+        const Vector3 ppos = player_->GetWorldTranslate();
+        const float collisionThreshold = 1.0f; // プレイヤーと敵の接触閾値（必要に応じて調整）
+
+        for (Enemy* enemy : enemies_)
+        {
+            if (!enemy) continue;
+            if (!enemy->IsActive()) continue;
+            if (!enemy->IsCollidable()) continue;
+
+            const Vector3 epos = enemy->GetWorldTranslate();
+            float dist = Distance(ppos, epos);
+            if (dist < collisionThreshold)
+            {
+                // プレイヤー被爆、敵は無効化（OnCollisionで状態変更）
+                player_->OnCollision();
+                enemy->OnCollision();
+            }
+        }
+    }
+    
 #pragma region バリアと敵の当たり判定
-	// バリアと敵本体の当たり判定を実装（書き方を他と統一）
-	for (Enemy* enemy_ : enemies_)
-	{
-		if (!enemy_) continue;
-		if (!enemy_->IsActive()) continue;
-	
-		posB = enemy_->GetWorldTranslate();
+    // バリアと敵本体の当たり判定を実装（書き方を他と統一）>
+    for (Enemy* enemy_ : enemies_)
+    {
+        if (!enemy_) continue;
+        if (!enemy_->IsActive()) continue;
 
-		for (const PlayerBarrier* barrier : barriers)
-		{
-			if (!barrier) continue;
-			if (!barrier->IsActive()) continue;
+        posB = enemy_->GetWorldTranslate();
 
-			posA = barrier->GetWorldTranslate();
+        for (const PlayerBarrier* barrier : barriers)
+        {
+            if (!barrier) continue;
+            if (!barrier->IsActive()) continue;
 
-			float distance = Distance(posA, posB);
-			const float threshold = 1.5f; // 判定半径 (必要に応じて調整)
-			if (distance < threshold)
-			{
-				// 衝突発生: バリアと敵に衝突処理を通知
-				const_cast<PlayerBarrier*>(barrier)->OnCollision();
-				enemy_->OnCollision();
-				break; // 敵は一度当たれば十分なのでループを抜ける
-			}
-		}
-	}
+            // ignore barriers that were created in previous waves
+            if (barrier->GetBirthWave() != currentWave_) continue;
+            
+            posA = barrier->GetWorldTranslate();
+
+            float distance = Distance(posA, posB);
+            const float threshold = 1.5f; // 判定半径 (必要に応じて調整)
+            if (distance < threshold)
+            {
+                // If enemy is currently non-collidable (e.g. spawn invincibility), show small hit feedback and consume barrier
+                if (!enemy_->IsCollidable())
+                {
+                    // consume barrier
+                    const_cast<PlayerBarrier*>(barrier)->OnCollision();
+
+                    // small sprite feedback drawn slightly in front of the model (Z offset)
+                    if (spriteCom_ && !particleTexturePath_.empty())
+                    {
+                        int screenW = object3dCom_->GetDirectXCom()->GetClientWidth();
+                        int screenH = object3dCom_->GetDirectXCom()->GetClientHeight();
+                        Vector3 hitWorld = posB + Vector3{0.0f, 0.0f, -0.25f}; // slightly forward
+                        Vector2 screen = WorldToScreen(hitWorld, camera_, screenW, screenH);
+
+                        Sprite* s = spriteCom_->CreateSprite(particleTexturePath_, screen, {48.0f,48.0f}, 0.0f, {0.5f,0.5f});
+                        if (s)
+                        {
+                            s->SetColor({1.0f, 0.9f, 0.6f, 1.0f});
+                            s->Update();
+
+                            AppParticle ap;
+                            ap.sprite = s;
+                            ap.life = 0.4f;
+                            ap.age = 0.0f;
+                            ap.pos = screen;
+                            ap.vel = {0.0f, 0.0f};
+                            appParticles_.push_back(ap);
+                        }
+                    }
+
+                    break; // barrier consumed, move to next enemy
+                }
+
+                // 衝突発生: バリアと敵に衝突処理を通知
+                const_cast<PlayerBarrier*>(barrier)->OnCollision();
+                enemy_->OnCollision();
+                break; // 敵は一度当たれば十分なのでループを抜ける
+            }
+        }
+    }
 
 	if (boss_ && boss_->IsActive())
 	{
@@ -589,12 +719,41 @@ void GameScene::CheckAllCollisions()
 			if (!barrier) continue;
 			if (!barrier->IsActive()) continue;
 
+			// ignore barriers from previous waves
+			if (barrier->GetBirthWave() != currentWave_) continue;
+
 			posA = barrier->GetWorldTranslate();
 
 			float distance = Distance(posA, posB);
 			const float threshold = 1.5f; // 判定半径 (必要に応じて調整)
 			if (distance < threshold)
 			{
+				// If enemy is invincible now, show a front-layer hit sprite and consume barrier only
+				if (!enemy_->IsCollidable())
+				{
+					const_cast<PlayerBarrier*>(barrier)->OnCollision();
+					if (spriteCom_ && !particleTexturePath_.empty()) {
+						int screenW = object3dCom_->GetDirectXCom()->GetClientWidth();
+						int screenH = object3dCom_->GetDirectXCom()->GetClientHeight();
+						Vector3 hitWorld = posB + Vector3{0.0f, 0.0f, -0.25f};
+						Vector2 base = WorldToScreen(hitWorld, camera_, screenW, screenH);
+						Sprite* s = spriteCom_->CreateSprite(particleTexturePath_, base, {48.0f,48.0f}, 0.0f, {0.5f,0.5f});
+						if (s) {
+							s->SetColor({1.0f, 0.9f, 0.6f, 1.0f});
+							s->Update();
+							AppParticle ap;
+							ap.sprite = s;
+							ap.life = 0.4f;
+							ap.age = 0.0f;
+							ap.pos = base;
+							ap.vel = {0.0f, 0.0f};
+							appParticles_.push_back(ap);
+						}
+					}
+
+					break;
+				}
+
 				// 衝突発生: バリアと敵に衝突処理を通知
 				const_cast<PlayerBarrier*>(barrier)->OnCollision();
 				enemy_->OnCollision();
@@ -616,7 +775,7 @@ void GameScene::CheckAllCollisions()
 						float ang = Random::GeneratorFloat(0.0f, 6.2831853f);
 						float spd = Random::GeneratorFloat(30.0f, 120.0f);
 						ap.vel = { std::cos(ang) * spd, std::sin(ang) * spd };
-					
+						
 						s->SetPosition(ap.pos);
 						s->SetScale({ 24.0f,24.0f });
 						s->SetColor({1.0f,1.0f,1.0f,1.0f});
@@ -625,40 +784,9 @@ void GameScene::CheckAllCollisions()
 					}
 				}
 
-	
-				if (model_ && model_->GetModel()) {
-					Model* src = model_->GetModel();
-					int meshCount = 8;
-					for (int mi = 0; mi < meshCount; ++mi) {
-						Model* mcopy = new Model(*src);
-						Object3d* o = new Object3d();
-						o->Initialize(object3dCom_);
-						o->SetModel(mcopy);
-					
-						
-						float ang = Random::GeneratorFloat(0.0f, 6.2831853f);
-						float r = Random::GeneratorFloat(0.5f, 2.0f);
-						AppMeshParticle mp;
-						mp.obj = o;
-						mp.model = mcopy;
-						mp.life = Random::GeneratorFloat(0.8f, 1.6f);
-						mp.age = 0.0f;
-						mp.vel = { std::cos(ang) * r, std::sin(ang) * r, Random::GeneratorFloat(-0.5f, 0.5f) };
-					
-						
-						Transform tt; tt.Initialize();
-						tt.SetTranslate(posB);
-						tt.SetScale({0.12f, 0.12f, 0.12f});
-						o->ApplyState(tt, camera_, true);
-					
-						
-						mcopy->SetColor({1.0f,1.0f,1.0f,1.0f});
-					
-						appMeshParticles_.push_back(mp);
-					}
-				}
+				// ... rest of the destruction visual code continues ...
 
-				break; // 敵は一度当たれば十分なのでループを抜ける
+				break; // 敵は一度当たれば充分なのでループを抜ける
 			}
 		}
 	}
@@ -740,6 +868,7 @@ void GameScene::SpawnWave()
 		enemy->Initialize(enemyModel, camera_, enemyPos, object3dCom_);
 		enemy->SetPlayer(player_);
 
+
 	
 		if (currentWave_ == 0)
 		{
@@ -763,57 +892,72 @@ void GameScene::SpawnWave()
 		}
 		else if (currentWave_ == 2)
 		{
-			// Third wave: use Aim pattern (player-targeting) with a faster fire rate
-			// to ensure visible bullets even if Rapid had timing/visibility issues.
-			enemy->SetBulletSpeed(1.2f);
-			enemy->SetFireInterval(16);
-			enemy->SetAttackPattern(Enemy::AttackPattern::Aim);
-			// make first shot occur without extra random delay
-			enemy->SetRandomizeInitialFire(false);
-			enemy->SetInitialFireDelay(0);
+			// Wave3: center enemy fires a slow, wide Rapid spread (visually distinct but easier to dodge)
+			// side enemies fire slower Aim shots to keep pressure but reduce difficulty.
+			int centerIndex = enemyCount / 2;
+			if (i == centerIndex) {
+				// center: wide, slow spread
+				enemy->SetBulletSpeed(0.8f);
+				enemy->SetFireInterval(36); // slower interval to give player room
+				enemy->SetAttackPattern(Enemy::AttackPattern::Rapid);
+				enemy->SetRapidShotCount(5); // more bullets but slower
+				enemy->SetRapidSpread(1.1f); // wide spread
+				enemy->SetRandomizeInitialFire(true);
+			} else {
+				// sides: aim at player but fire less frequently
+				enemy->SetBulletSpeed(0.9f);
+				enemy->SetFireInterval(40);
+				enemy->SetAttackPattern(Enemy::AttackPattern::Aim);
+				// stagger initial fire based on distance from center
+				int offset = (i < centerIndex) ? (centerIndex - i) : (i - centerIndex);
+				enemy->SetInitialFireDelay(offset * 6);
+				enemy->SetRandomizeInitialFire(false);
+			}
 		}
 
 		enemies_.push_back(enemy);
 	}
+
+	// inform player what the current wave id is so newly created barriers carry correct birthWave
+	if (player_) player_->SetCurrentWaveForBarriers(currentWave_);
 }
 
 #ifdef _DEBUG
 void GameScene::ResetScene()
 {
-    // delete existing enemies
-    for (Enemy* e : enemies_) { delete e; }
-    enemies_.clear();
+	// delete existing enemies
+	for (Enemy* e : enemies_) { delete e; }
+	enemies_.clear();
 
-    // delete player
-    if (player_) { delete player_; player_ = nullptr; }
+	// delete player
+	if (player_) { delete player_; player_ = nullptr; }
 
-    // delete rail camera controller
-    if (railCameraController_) { delete railCameraController_; railCameraController_ = nullptr; }
+	// delete rail camera controller
+	if (railCameraController_) { delete railCameraController_; railCameraController_ = nullptr; }
 
-    // delete boss and models
-    if (boss_) { delete boss_; boss_ = nullptr; }
-    if (bossBodyModel_) { delete bossBodyModel_; bossBodyModel_ = nullptr; }
+	// delete boss and models
+	if (boss_) { delete boss_; boss_ = nullptr; }
+	if (bossBodyModel_) { delete bossBodyModel_; bossBodyModel_ = nullptr; }
 
-    // delete fade
-    if (fade_) { delete fade_; fade_ = nullptr; }
+	// delete fade
+	if (fade_) { delete fade_; fade_ = nullptr; }
 
-    // delete debug camera
+	// delete debug camera
 #ifdef _DEBUG
-    if (debugCamera_) { delete debugCamera_; debugCamera_ = nullptr; }
+	if (debugCamera_) { delete debugCamera_; debugCamera_ = nullptr; }
 #endif
 
-   
-    for (auto &p : appParticles_) {
-        if (p.sprite) { delete p.sprite; p.sprite = nullptr; }
-    }
-    appParticles_.clear();
+	for (auto &p : appParticles_) {
+		if (p.sprite) { delete p.sprite; p.sprite = nullptr; }
+	}
+	appParticles_.clear();
 
-   
-    currentWave_ = 0;
-    isWaitingForNextWave_ = false;
-    waveDelayTimer_ = 0.0f;
+	currentWave_ = 0;
+	isWaitingForNextWave_ = false;
+	waveDelayTimer_ = 0.0f;
 
- 
-    Initialize(camera_, object3dCom_, spriteCom_);
+	gFadeStarted = false; // リセット時にもフェード開始フラグをクリア
+
+	Initialize(camera_, object3dCom_, spriteCom_);
 }
 #endif

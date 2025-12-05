@@ -18,7 +18,7 @@ public:
 		Spawn, // 出現モーション
 		Approach,//接近する
 		Leave,//離脱する
-	};;
+	};
 
 	// 攻撃パターンを外部から設定できるように追加
 	enum class AttackPattern
@@ -95,7 +95,7 @@ public:
 	// 敵の生存/アクティブ状態
 	bool IsActive() const { return isActive_; }
 	// 離脱中など当たり判定を無効にする場合に使用
-	bool IsCollidable() const { return collidable_; }
+	bool IsCollidable() const { return collidable_ && (invincibilityTimerFrames_ <= 0); }
 
 	// 攻撃パターンの設定
 	void SetAttackPattern(AttackPattern p) { attackPattern_ = p; }
@@ -112,6 +112,10 @@ public:
 	void SetLeaveDeactivateRadius(float r) { leaveDeactivateRadius_ = r; }
 	// 離脱フェーズのパーティクルを出すかどうか
 	void SetLeaveEmitParticles(bool v) { leaveEmitParticles_ = v; }
+
+	// Rapid パラメータの調整
+	void SetRapidSpread(float s) { rapidSpread_ = s; }
+	void SetRapidShotCount(int c) { rapidShotCount_ = c; }
 
 private:
 	
@@ -133,6 +137,11 @@ private:
 	float leaveParticleTimer_ = 0.0f;
 	float leaveParticleInterval_ = 0.08f; // 0.08s 間隔で小さなバースト
 	bool leaveEmitParticles_ = false; // 離脱時のパーティクル無効化（初期は出さない）
+
+	// 派手に逃がす（エスケープ）演出用
+	float leaveEscapeTimer_ = 0.0f;       // 経過秒
+	float leaveEscapeDuration_ = 0.6f;    // エスケープ演出の長さ（秒）
+	bool leaveEscapeStarted_ = false;     // エスケープ演出中フラグ
 
 	// 出現モーション用
 	Vector3 spawnStartPos_ = { 0.0f, 5.0f, 15.0f };
@@ -163,6 +172,31 @@ private:
 	// 離脱フェーズで非アクティブ化するしきい値（調整用）
 	float leaveDeactivateZ_ = -60.0f;      // 画面奥に十分行ってから
 	float leaveDeactivateRadius_ = 140.0f; // スパイラルが十分広がってから
+
+	// エスケープ時の開始スケールと色（フェード用）
+	Vector3 leaveStartScale_ = {1.0f, 1.0f, 1.0f};
+	Vector4 leaveStartColor_ = {1.0f, 1.0f, 1.0f, 1.0f};
+
+	// Rapid 設定（デフォルトは既存挙動）
+	float rapidSpread_ = 0.22f;
+	int rapidShotCount_ = 3;
+
+	// 発射前のチャージ表現フラグ
+	bool chargeEmitted_ = false;
+	static constexpr int kChargeFrames = 8; // 発射前の予告フレーム数
+	int chargeTimer_ = 0;
+
+	// Approach phase visual base state (for pulsing charge)
+	Vector3 approachBaseScale_ = {1.0f, 1.0f, 1.0f};
+	Vector4 approachBaseColor_ = {1.0f, 1.0f, 1.0f, 1.0f};
+
+	// How long the visual tint/pulse remains (frames) after charge
+	static constexpr int kChargeVisualFrames = 20; // default hold frames
+	int chargeVisualTimer_ = 0;
+
+	// temporary invincibility after spawn->approach transition (frames)
+	int invincibilityTimerFrames_ = 0;
+	static constexpr int kSpawnInvincibilityFrames = 30; // configurable small i-frames
 
 private:
 	Camera* camera_ = nullptr;

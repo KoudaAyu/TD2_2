@@ -88,6 +88,36 @@ void BodyPart::UpdateSpawn(float progress)
     };
     worldTransform_.SetTranslate(cur);
 
+    // During spawn, add rotation and pulsing scale for each sub-model
+    float spin = (1.0f - ease) * 2.5f; // faster at start, slows down
+    float pulse = 1.0f + 0.15f * std::sin(ease * 6.2831853f * 2.0f); // 2 cycles during spawn
+
+    for (size_t i = 0; i < localTransforms_.size() && i < models_.size(); ++i)
+    {
+        Transform t = localTransforms_[i];
+
+        // pulse scale
+        Vector3 baseScale = t.GetScale();
+        t.SetScale({ baseScale.x * pulse, baseScale.y * pulse, baseScale.z * pulse });
+        
+        // spin around Z
+        Vector3 r = t.GetRotate();
+        t.SetRotate({ r.x, r.y, r.z + spin });
+
+        // apply world position
+        if (owner_)
+        {
+            Vector3 bossPos = owner_->GetWorldTranslate();
+            Vector3 lt = t.GetTranslate();
+            t.SetTranslate({ lt.x + bossPos.x + worldTransform_.GetTranslate().x,
+                             lt.y + bossPos.y + worldTransform_.GetTranslate().y,
+                             lt.z + bossPos.z + worldTransform_.GetTranslate().z });
+        }
+
+        t.TransferMatrix();
+        if (camera_ && models_[i]) models_[i]->ApplyState(t, camera_, true);
+    }
+
     if (progress >= 1.0f)
     {
         isSpawning_ = false;

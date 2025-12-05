@@ -27,6 +27,10 @@ public:
 	// ワールド行列の取得
 	const Matrix4x4& GetWorldMatrix() const { return worldTransform.GetWorldMatrix(); }
 
+	// birth wave tracking so collisions can be ignored across waves
+	void SetBirthWave(int wave) { birthWave_ = wave; }
+	int GetBirthWave() const { return birthWave_; }
+
 private:
     // バリアの寿命（フレーム数）
 	static const int32_t kLifeTime = 60; 
@@ -42,5 +46,8 @@ private:
     Transform worldTransform = {};
 
     Vector3 velocity_;
+
+    // which wave this barrier was created in
+    int birthWave_ = 0;
 
 };

@@ -7,6 +7,7 @@
 #include"SrvManager.h"
 #include"Object3dCom.h"
 #include"WinApp.h"
+#include"Sprite.h"
 
 
 #include"Player.h"
@@ -17,6 +18,9 @@
 #include "SelectScene.h"
 #include "TutorialScene.h"
 #include "Baziru3_Engine/Particle/ParticleManager.h"
+#include "Baziru3_Engine/Audio/SoundManager.h"
+#include "ClearScene.h"
+
 
 using namespace StringUtility;
 
@@ -24,6 +28,9 @@ GameScene* gameScene = nullptr;
 TitleScene* titleScene = nullptr;
 SelectScene* selectScene = nullptr;
 TutorialScene* tutorialScene = nullptr;
+ClearScene* clearScene = nullptr;
+
+Sprite* gTransitionOverlay = nullptr; // fullscreen black overlay used during deferred transitions
 
 enum class Scene
 {
@@ -33,6 +40,7 @@ enum class Scene
 	kSelect,
 	kGame,
 	kTutorial,
+	kClear,
 };
 
 
@@ -44,6 +52,10 @@ SpriteCom* spriteCom = nullptr;
 #ifdef USE_IMGUI
 ImGuiManager* imguiManager = nullptr;
 #endif
+
+// Deferred transition helper
+static bool gPendingTransition = false;
+static Scene gPendingTarget = Scene::kUnknown;
 
 void ChangePhase();
 
@@ -95,12 +107,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 #endif
 
 #ifdef _DEBUG
-	scene = Scene::kGame;
-	gameScene = new GameScene();
-	gameScene->Initialize(camera,objCom,spriteCom);
-	/*scene = Scene::kTitle;
+	// In debug mode start at the Title to exercise the full scene flow (including ClearScene transitions)
+	scene = Scene::kTitle;
 	titleScene = new TitleScene();
-	titleScene->Initialize(spriteCom);*/
+	titleScene->Initialize(spriteCom);
 #else
 	scene = Scene::kTitle;
 	titleScene = new TitleScene();
@@ -121,14 +131,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 
 		// Update
 		camera->Update();
-#ifdef _DEBUG
-		gameScene->Update();
-		/*ChangePhase();
-		UpdateScene();*/
-#else
+
+		// Always use central scene management so transitions (including ClearScene) behave the same in debug and release
 		ChangePhase();
 		UpdateScene();
-#endif
 
 #ifdef USE_IMGUI
 		// ImGuiフレーム終了（内部コマンド生成）
@@ -139,17 +145,53 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 		dx->PreDraw();
 		srv->PreDraw();
 		objCom->ApplyCommonRenderState(); // カリング疑い時は ApplyCommonRenderState(false);
-#ifdef _DEBUG
-		gameScene->Draw();
-		//DrawScene();
-#else
+
 		DrawScene();
-#endif
-#ifdef USE_IMGUI
-		// ImGui描画（3D描画の後に）
-		imguiManager->Draw();
-#endif
-		dx->PostDraw();
+
+		// If a pending deferred transition is requested, present the current frame now (so fade/black is visible),
+		// then perform the heavy scene construction while the player sees the black frame.
+		bool presentedEarly = false;
+		if (gPendingTransition)
+		{
+			// present now
+			// Ensure the overlay exists and will be drawn: if not created in ChangePhase, create it here as fallback
+			if (!gTransitionOverlay && spriteCom)
+			{
+				int sw = spriteCom->GetDirectXCom()->GetClientWidth();
+				int sh = spriteCom->GetDirectXCom()->GetClientHeight();
+				gTransitionOverlay = spriteCom->CreateSprite("Resources/white.png", { 0.0f, 0.0f }, { static_cast<float>(sw), static_cast<float>(sh) }, 0.0f, { 0.0f, 0.0f }, false, false);
+				if (gTransitionOverlay) { gTransitionOverlay->SetColor({0.0f,0.0f,0.0f,1.0f}); gTransitionOverlay->Update(); }
+			}
+
+			// present current backbuffer (DrawScene already drew overlay if present)
+			dx->PostDraw();
+			presentedEarly = true;
+
+			// perform the pending transition synchronously (heavy init will happen now while black frame shown)
+			if (gPendingTarget == Scene::kGame)
+			{
+				// Delete selectScene and create gameScene while black is on screen
+				if (selectScene)
+				{
+					delete selectScene;
+					selectScene = nullptr;
+				}
+				// create and initialize GameScene (may be heavy)
+				gameScene = new GameScene();
+				gameScene->Initialize(camera, objCom, spriteCom);
+				scene = Scene::kGame;
+			}
+
+			// clear pending
+			gPendingTransition = false;
+			gPendingTarget = Scene::kUnknown;
+
+			// remove overlay now that heavy init is done (it will be recreated next time as needed)
+			if (gTransitionOverlay) { delete gTransitionOverlay; gTransitionOverlay = nullptr; }
+		}
+
+		// Normal PostDraw if we haven't already presented early
+		if (!presentedEarly) dx->PostDraw();
 	}
 
 	// finalize
@@ -158,11 +200,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 	delete titleScene;
 	delete selectScene;
 	delete tutorialScene;
+	delete clearScene;
 	delete camera;
 	delete keyInput; // 入力破棄
-#ifdef USE_IMGUI
+	#ifdef USE_IMGUI
 	if (imguiManager) { imguiManager->Finalize(); delete imguiManager; }
-#endif
+	#endif
 	ModelManager::GetInstance()->Finalize();
 	TextureManager::GetInstance()->Finalize();
 	delete objCom;
@@ -192,18 +235,26 @@ void ChangePhase()
 	case Scene::kSelect:
 		if (selectScene->IsFinish())
 		{
-			
 			SelectScene::Choice choice = selectScene->GetChoice();
-			delete selectScene;
-			selectScene = nullptr;
+			// For game choice we perform a deferred transition so we can display fade/black before heavy loading.
 			if (choice == SelectScene::Choice::kGame)
 			{
-				scene = Scene::kGame;
-				gameScene = new GameScene();
-				gameScene->Initialize(camera, objCom, spriteCom);
+				// mark pending and keep selectScene alive until we present one black frame
+				gPendingTransition = true;
+				gPendingTarget = Scene::kGame;
+
+				// create a fullscreen black overlay so next frame draws black
+				if (!gTransitionOverlay && spriteCom) {
+					int sw = spriteCom->GetDirectXCom()->GetClientWidth();
+					int sh = spriteCom->GetDirectXCom()->GetClientHeight();
+					gTransitionOverlay = spriteCom->CreateSprite("Resources/white.png", { 0.0f, 0.0f }, { static_cast<float>(sw), static_cast<float>(sh) }, 0.0f, { 0.0f, 0.0f }, false, false);
+					if (gTransitionOverlay) { gTransitionOverlay->SetColor({0.0f,0.0f,0.0f,1.0f}); gTransitionOverlay->Update(); }
+				}
 			}
 			else
 			{
+				delete selectScene;
+				selectScene = nullptr;
 				scene = Scene::kTutorial;
 				tutorialScene = new TutorialScene();
 				tutorialScene->Initialize(camera, objCom, spriteCom);
@@ -221,6 +272,21 @@ void ChangePhase()
 			titleScene->Initialize(spriteCom);
 		}
 
+		// detect boss clear and switch to clear scene
+		if (gameScene && gameScene->IsCleared())
+		{
+			// transition to clear scene
+			if (!clearScene)
+			{
+				clearScene = new ClearScene();
+			}
+			clearScene->Initialize(camera, objCom, spriteCom);
+			// tear down game scene
+			delete gameScene;
+			gameScene = nullptr;
+			scene = Scene::kClear;
+		}
+
 		break;
 
 	case Scene::kTutorial:
@@ -228,6 +294,18 @@ void ChangePhase()
 		{
 			delete tutorialScene;
 			tutorialScene = nullptr;
+			scene = Scene::kTitle;
+			titleScene = new TitleScene();
+			titleScene->Initialize(spriteCom);
+		}
+
+		break;
+
+	case Scene::kClear:
+		if (clearScene && clearScene->IsFinish())
+		{
+			delete clearScene;
+			clearScene = nullptr;
 			scene = Scene::kTitle;
 			titleScene = new TitleScene();
 			titleScene->Initialize(spriteCom);
@@ -253,6 +331,9 @@ void UpdateScene()
 	case Scene::kTutorial:
 		tutorialScene->Update();
 		break;
+	case Scene::kClear:
+		if (clearScene) clearScene->Update();
+		break;
 
 	}
 }
@@ -273,5 +354,13 @@ void DrawScene()
 	case Scene::kTutorial:
 		tutorialScene->Draw();
 		break;
+	case Scene::kClear:
+		if (clearScene) clearScene->Draw();
+		break;
+	}
+
+	// draw overlay if pending
+	if (gPendingTransition && gTransitionOverlay) {
+		gTransitionOverlay->Draw();
 	}
 }

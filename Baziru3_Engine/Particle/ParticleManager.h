@@ -30,8 +30,13 @@ struct Particle {
 	float   scale;
 	bool IsAlive() const { return current < lifeTime; }
 
+	// 2D billboard rotation (around Z)
 	float rotation = 0.0f;
 	float angularVel = 0.0f;
+
+	// 3D rotation for mesh particles
+	Vector3 rotation3 = {0.0f, 0.0f, 0.0f};
+	Vector3 angularVel3 = {0.0f, 0.0f, 0.0f};
 
 	// ★ 追加: 公転制御
 	Vector3 center = { 0,0,0 };   // 公転の中心（原点にしたいなら {0,0,0}）
@@ -128,6 +133,9 @@ public:
 
 	// 指定名のグループが存在するか
 	bool HasGroup(const std::string& name) const;
+
+	// Custom emitter for ad-hoc colored particles (used by Boss cinematic)
+	void EmitCustom(const std::string& name, const Vector3& position, uint32_t count, const Vector4& baseColor, float scaleMin, float scaleMax);
 
 private:
 	ParticleManager() = default;

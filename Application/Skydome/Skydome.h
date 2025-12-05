@@ -13,11 +13,18 @@ public:
 	void Update();
 	void Draw();
 
+	// set the rotation speed in radians per second (positive = rotate around Y)
+	void SetRotationSpeed(float radPerSec) { rotationSpeed_ = radPerSec; }
+
 private:
 	Transform worldTransform_;
 	Object3d* model_ = nullptr;
 	Object3dCom* object3dCom_ = nullptr;
 	Camera* camera_ = nullptr;
+
+	// rotation state (around Y axis)
+	float rotationAngle_ = 0.0f;
+	float rotationSpeed_ = 0.25f; // rad/s, default slow rotation
 
 
 };
