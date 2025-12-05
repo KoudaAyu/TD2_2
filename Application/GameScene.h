@@ -10,6 +10,7 @@
 #include"RailCameraController.h"
 #include"Fade.h"
 #include"Boss.h"
+#include "ClearScene.h"
 
 #include <vector>
 #include <string>
@@ -36,6 +37,8 @@ public:
 
 public:
 	bool IsFinish() const { return isFinish_; }
+	// whether boss was defeated and clear scene is active
+	bool IsCleared() const { return phase_ == Phase::kClear; }
 
 	// デバッグ用: ボスから開始するフラグを設定（Initialize前に設定しておく）
 	void SetStartAtBoss(bool enable) { startAtBoss_ = enable; }
@@ -98,7 +101,7 @@ private:
 	};
 	std::vector<AppMeshParticle> appMeshParticles_;
 
-	enum class Phase { kMain, kBoss, kFadeOut };
+	enum class Phase { kMain, kBoss, kFadeOut, kClear };
 	Phase phase_ = Phase::kMain;
 
 	
@@ -124,4 +127,7 @@ private:
 
 	// デバッグ用: 起動時にボスフェーズから開始するかどうか
 	bool startAtBoss_ = false;
+
+	// Clear scene
+	ClearScene* clearScene_ = nullptr;
 };

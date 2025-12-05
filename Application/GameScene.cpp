@@ -9,6 +9,7 @@
 #include "Logger.h"
 #include <format>
 #include "AABB.h"
+#include "ClearScene.h"
 
 // フェード開始フラグ
 static bool gFadeStarted = false;
@@ -29,6 +30,8 @@ GameScene::~GameScene()
 
 	if (boss_) delete boss_;
 	if (bossBodyModel_) delete bossBodyModel_;
+
+	if (clearScene_) { delete clearScene_; clearScene_ = nullptr; }
 }
 
 void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* spriteCom)
@@ -120,6 +123,9 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 
 	skydome_ = new Skydome();
 	skydome_->Initialize(object3dCom_, camera_);
+
+	// prepare clear scene but do not initialize until needed
+	clearScene_ = new ClearScene();
 }
 
 static Vector2 WorldToScreen(const Vector3& world, Camera* cam, int screenW, int screenH)
@@ -267,7 +273,7 @@ void GameScene::Update()
 	}
 	else
 	{
-		// 通常のレールカメラ更新（player の更新後に行う）　
+		// 通常のレールカメラ更新（player の更新後に行う）	
 		railCameraController_->Update();
 	}
 #else
@@ -323,18 +329,17 @@ void GameScene::Update()
 #endif
 
 
+
 	if (boss_)
 	{
 		boss_->Update();
 	
 		if (!boss_->IsActive() && phase_ == Phase::kBoss)
 		{
-			phase_ = Phase::kFadeOut;
-			// フェードアウト開始が一度だけ行われるようにガード
-			if (fade_ && !gFadeStarted)
-			{
-				fade_->Start(Fade::State::kFadeOut, 1.0f);
-				gFadeStarted = true;
+			// switch to clear scene (no fade requested)
+			phase_ = Phase::kClear;
+			if (clearScene_) {
+				clearScene_->Initialize(camera_, object3dCom_, spriteCom_);
 			}
 		}
 	}
@@ -397,7 +402,7 @@ void GameScene::Update()
 				cur.y += mp.vel.y * dt;
 				cur.z += mp.vel.z * dt;
 				mp.obj->SetTranslate(cur);
-			
+				
 				float a = 1.0f - (mp.age / mp.life);
 				if (a < 0.0f) a = 0.0f;
 				if (mp.model) mp.model->SetColor({1.0f, 1.0f, 1.0f, a});
@@ -432,9 +437,18 @@ void GameScene::Draw()
     {
         if (enemy) enemy->Draw();
     }
-    player_->Draw();
 
-    if (boss_) boss_->Draw();
+    // if in clear phase draw clear scene instead of player/boss
+    if (phase_ == Phase::kClear && clearScene_)
+    {
+        clearScene_->Draw();
+    }
+    else
+    {
+        player_->Draw();
+
+        if (boss_) boss_->Draw();
+    }
 
         auto* pm = ParticleManager::GetInstance();
     if (pm) {
@@ -535,7 +549,7 @@ void GameScene::CheckAllCollisions()
 
         posB = bullet->GetWorldTranslate();
 
-        // 距離（MathUtl の Distance を使用）
+        // 距離（MathUtl の Distance を使用）>
         float distance = Distance(posA, posB);
 
         const float threshold = 1.0f;
@@ -571,7 +585,7 @@ void GameScene::CheckAllCollisions()
     }
     
 #pragma region バリアと敵の当たり判定
-    // バリアと敵本体の当たり判定を実装（書き方を他と統一）
+    // バリアと敵本体の当たり判定を実装（書き方を他と統一）>
     for (Enemy* enemy_ : enemies_)
     {
         if (!enemy_) continue;

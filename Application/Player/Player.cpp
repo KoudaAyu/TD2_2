@@ -57,6 +57,9 @@ void Player::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Obje
 	invincible_ = false;
 	invincibleTimer_ = 0.0f;
 
+	// reset hit counter
+	hitCount_ = 0;
+
 }
 
 
@@ -360,11 +363,30 @@ void Player::OnCollision()
 	// if currently invincible, ignore
 	if (invincible_) return;
 
-#ifndef _DEBUG
-	isAlive_ = false;
-#endif
+	// increment hit counter and check death
+	++hitCount_;
+	if (hitCount_ >= kMaxHits)
+	{
+		isAlive_ = false;
+		// trigger death visual/effects similar to previous behavior
+		auto* pm = ParticleManager::GetInstance();
+		if (pm)
+		{
+			Vector3 emitPos = worldTransform_.GetTranslate();
+			emitPos.z += 0.5f; // 少し手前に出す
+			pm->EmitBurst8("defaultMesh", emitPos, 0.12f, 0.25f, 0.8f);
+		}
 
-	// start invincibility instead of immediate death in non-debug builds
+		if (camera_)
+		{
+			camera_->StartShake(kCollisionShakeAmplitude, kCollisionShakeDuration);
+		}
+
+		// stop here; don't start invincibility for death
+		return;
+	}
+
+	// start invincibility instead of immediate death
 	invincible_ = true;
 	invincibleTimer_ = kInvincibleDuration;
 

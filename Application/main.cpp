@@ -18,6 +18,7 @@
 #include "TutorialScene.h"
 #include "Baziru3_Engine/Particle/ParticleManager.h"
 #include "Baziru3_Engine/Audio/SoundManager.h"
+#include "ClearScene.h"
 
 
 using namespace StringUtility;
@@ -26,6 +27,7 @@ GameScene* gameScene = nullptr;
 TitleScene* titleScene = nullptr;
 SelectScene* selectScene = nullptr;
 TutorialScene* tutorialScene = nullptr;
+ClearScene* clearScene = nullptr;
 
 enum class Scene
 {
@@ -35,6 +37,7 @@ enum class Scene
 	kSelect,
 	kGame,
 	kTutorial,
+	kClear,
 };
 
 
@@ -97,12 +100,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 #endif
 
 #ifdef _DEBUG
-	scene = Scene::kGame;
-	gameScene = new GameScene();
-	gameScene->Initialize(camera,objCom,spriteCom);
-	/*scene = Scene::kTitle;
+	// In debug mode start at the Title to exercise the full scene flow (including ClearScene transitions)
+	scene = Scene::kTitle;
 	titleScene = new TitleScene();
-	titleScene->Initialize(spriteCom);*/
+	titleScene->Initialize(spriteCom);
 #else
 	scene = Scene::kTitle;
 	titleScene = new TitleScene();
@@ -123,14 +124,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 
 		// Update
 		camera->Update();
-#ifdef _DEBUG
-		gameScene->Update();
-		/*ChangePhase();
-		UpdateScene();*/
-#else
+
+		// Always use central scene management so transitions (including ClearScene) behave the same in debug and release
 		ChangePhase();
 		UpdateScene();
-#endif
 
 #ifdef USE_IMGUI
 		// ImGuiフレーム終了（内部コマンド生成）
@@ -141,12 +138,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 		dx->PreDraw();
 		srv->PreDraw();
 		objCom->ApplyCommonRenderState(); // カリング疑い時は ApplyCommonRenderState(false);
-#ifdef _DEBUG
-		gameScene->Draw();
-		//DrawScene();
-#else
+
 		DrawScene();
-#endif
+
 #ifdef USE_IMGUI
 		// ImGui描画（3D描画の後に）
 		imguiManager->Draw();
@@ -160,11 +154,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 	delete titleScene;
 	delete selectScene;
 	delete tutorialScene;
+	delete clearScene;
 	delete camera;
 	delete keyInput; // 入力破棄
-#ifdef USE_IMGUI
+	#ifdef USE_IMGUI
 	if (imguiManager) { imguiManager->Finalize(); delete imguiManager; }
-#endif
+	#endif
 	ModelManager::GetInstance()->Finalize();
 	TextureManager::GetInstance()->Finalize();
 	delete objCom;
@@ -223,6 +218,21 @@ void ChangePhase()
 			titleScene->Initialize(spriteCom);
 		}
 
+		// detect boss clear and switch to clear scene
+		if (gameScene && gameScene->IsCleared())
+		{
+			// transition to clear scene
+			if (!clearScene)
+			{
+				clearScene = new ClearScene();
+			}
+			clearScene->Initialize(camera, objCom, spriteCom);
+			// tear down game scene
+			delete gameScene;
+			gameScene = nullptr;
+			scene = Scene::kClear;
+		}
+
 		break;
 
 	case Scene::kTutorial:
@@ -230,6 +240,18 @@ void ChangePhase()
 		{
 			delete tutorialScene;
 			tutorialScene = nullptr;
+			scene = Scene::kTitle;
+			titleScene = new TitleScene();
+			titleScene->Initialize(spriteCom);
+		}
+
+		break;
+
+	case Scene::kClear:
+		if (clearScene && clearScene->IsFinish())
+		{
+			delete clearScene;
+			clearScene = nullptr;
 			scene = Scene::kTitle;
 			titleScene = new TitleScene();
 			titleScene->Initialize(spriteCom);
@@ -255,6 +277,9 @@ void UpdateScene()
 	case Scene::kTutorial:
 		tutorialScene->Update();
 		break;
+	case Scene::kClear:
+		if (clearScene) clearScene->Update();
+		break;
 
 	}
 }
@@ -274,6 +299,9 @@ void DrawScene()
 		break;
 	case Scene::kTutorial:
 		tutorialScene->Draw();
+		break;
+	case Scene::kClear:
+		if (clearScene) clearScene->Draw();
 		break;
 	}
 }

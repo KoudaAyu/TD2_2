@@ -157,4 +157,8 @@ private:
 	// track the current wave id so newly spawned barriers know which wave they belong to
 	int currentWaveForBarriers_ = 0;
 
+	// --- damage / life ---
+	int hitCount_ = 0; // number of times player has been hit
+	static constexpr int kMaxHits = 5; // after this many hits player dies
+
 };

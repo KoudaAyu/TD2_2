@@ -99,12 +99,28 @@ namespace {
             {
                 origLaserScale = owner->GetLaserModel()->GetScale();
             }
+            // initial charge bloom
+            auto* pm = ParticleManager::GetInstance();
+            if (pm) {
+                Vector3 bossPos = owner->GetWorldTranslatePublic();
+                pm->EmitCustom("default", bossPos, 26, { 0.72f, 0.08f, 0.82f, 1.0f }, 0.5f, 1.3f);
+                pm->EmitCustom("default", bossPos, 12, { 0.14f, 0.82f, 0.96f, 1.0f }, 0.1f, 0.4f);
+            }
         }
 
         void Update(Boss* owner, float /*dt*/) override
         {
             if (finished) return;
             ++timer;
+
+            // periodic micro-sparks during charge
+            if ((timer % 15) == 0) {
+                auto* pm = ParticleManager::GetInstance();
+                if (pm) {
+                    Vector3 bossPos = owner->GetWorldTranslatePublic();
+                    pm->EmitCustom("default", bossPos + Vector3{0.0f,0.0f,-1.0f}, 6, { 0.5f, 0.05f, 0.7f, 1.0f }, 0.08f, 0.22f);
+                }
+            }
 
             float t = static_cast<float>(timer) / static_cast<float>(duration);
             if (t > 1.0f) t = 1.0f;
@@ -121,6 +137,16 @@ namespace {
                 Vector4 c = { 1.0f * (1.0f - 0.4f * t) + 1.0f * (0.4f * t), 1.0f * (1.0f - 0.2f * t), 1.0f * (1.0f - 0.2f * t), 1.0f };
                 m->SetColor(c);
 
+                // add a rotation spin while charging
+                float spinFull = 2.0f * 3.14159265f; // one full rotation baseline
+                float rotAngle = (static_cast<float>(timer) / static_cast<float>(duration)) * spinFull * 0.75f; // up to 0.75 turn
+                Vector3 r = m->GetRotate();
+                r.y = rotAngle;
+                // slight precession on X/Z to feel more organic
+                r.x = 0.06f * std::sin(t * 3.14159265f * 2.0f);
+                r.z = 0.04f * std::cos(t * 3.14159265f * 2.0f);
+                m->SetRotate(r);
+
                 m->ApplyState(Transform{ m->GetScale(), m->GetRotate(), m->GetTranslate() }, owner->GetCamera(), true);
             }
 
@@ -135,6 +161,11 @@ namespace {
                 // small Z scale to hint beam growing
                 Vector3 ls = { owner->GetLaserWidth(), owner->GetLaserWidth(), 1.0f + owner->GetLaserMaxLength() * 0.2f * t };
                 lm->SetScale(ls);
+
+                // slight rotation wobble for the laser core
+                Vector3 lr = lm->GetRotate();
+                lr.y = 0.18f * std::sin(t * 3.14159265f * 3.0f + static_cast<float>(timer) * 0.02f);
+                lm->SetRotate(lr);
 
                 // position it in front of boss
                 Vector3 bossPos = owner->GetWorldTranslatePublic();
@@ -187,6 +218,13 @@ void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object
     {
         model_->ApplyState(worldTransform_, camera_, true);
     }
+
+    // mark cinematic spawn initial state
+    spawnCineTimer_ = 0;
+    spawnCineStage1_ = true;
+    spawnCineStage2_ = false;
+    spawnCineStage3_ = false;
+    // do NOT change camera FOV or position per user's request
 
     const int gridSizeX = 3;
     const int gridSizeY = 3;
@@ -728,6 +766,9 @@ void Boss::UpdatePhase4()
 
         auto* pm = ParticleManager::GetInstance();
         if (pm) pm->EmitBurst8("default", bossPos, 0.12f, 1.6f, 0.6f);
+        // central magenta charge and cyan flares for EVA feel
+        pm->EmitCustom("default", bossPos, 28, { 0.7f, 0.1f, 0.8f, 1.0f }, 0.6f, 1.2f);
+        pm->EmitCustom("default", bossPos, 14, { 0.12f, 0.9f, 0.95f, 1.0f }, 0.12f, 0.5f);
     }
 
     ++laserTimer_;
@@ -973,6 +1014,104 @@ void Boss::Update()
         float t = (spawnDuration_ <= 0) ? 1.0f : (float)spawnTimer_ / (float)spawnDuration_;
         if (t > 1.0f) t = 1.0f;
 
+        // cinematic spawn sequence
+        auto* pm = ParticleManager::GetInstance();
+        Vector3 center = worldTransform_.GetTranslate();
+
+        // stage timing thresholds
+        int stage1End = spawnDuration_ / 3;
+        int stage2Start = stage1End + 1;
+        int stage2End = (spawnDuration_ * 2) / 3;
+        int revealStart = stage2End + 1;
+
+        // initial burst at spawn start
+        if (spawnCineStage1_ && spawnTimer_ == 1)
+        {
+            if (pm && pm->HasGroup("defaultMesh")) {
+                pm->EmitBurst8RotatingInward("defaultMesh", center, 18.0f, 1.8f, 1.8f, 2.2f, 6.0f, 1.6f);
+                pm->EmitBurst8("defaultMesh", center, 0.18f, 2.2f, 1.4f);
+            }
+            if (pm && pm->HasGroup("default")) {
+                pm->EmitBurst8RotatingInward("default", center, 12.0f, 1.2f, 2.6f, 1.6f, 3.6f, 0.8f);
+                pm->EmitBurst8("default", center, 0.12f, 1.8f, 1.0f);
+            }
+            // Eva-like purple core + cyan sparks for variety
+            if (pm) {
+                pm->EmitCustom("default", center, 18, { 0.62f, 0.12f, 0.72f, 1.0f }, 0.6f, 1.4f); // deep magenta core
+                pm->EmitCustom("default", center, 10, { 0.18f, 0.86f, 0.95f, 1.0f }, 0.15f, 0.45f); // cyan micro sparks
+            }
+            if (camera_ && cameraShakeCooldown_ <= 0.0f)
+            {
+                camera_->StartShake(0.9f, 0.9f);
+                cameraShakeCooldown_ = kCameraShakeCooldownSeconds;
+            }
+        }
+
+        // progress stage2: inner convergence and stronger vibration
+        if (spawnTimer_ >= stage2Start && spawnTimer_ <= stage2End && !spawnCineStage2_)
+        {
+            spawnCineStage2_ = true;
+            if (pm && pm->HasGroup("defaultMesh")) {
+                pm->EmitBurst8RotatingInward("defaultMesh", center, 14.0f, 1.4f, -3.6f, 1.2f, 4.0f, 1.2f);
+            }
+            if (pm && pm->HasGroup("default")) {
+                pm->EmitBurst8RotatingInward("default", center, 9.0f, 1.0f, -3.2f, 1.0f, 2.8f, 0.6f);
+            }
+            // tighten pulse with purple-blue wash
+            if (pm) {
+                pm->EmitCustom("default", center, 22, { 0.55f, 0.08f, 0.7f, 1.0f }, 0.45f, 1.0f);
+                pm->EmitCustom("default", center, 12, { 0.2f, 0.6f, 0.95f, 1.0f }, 0.12f, 0.35f);
+            }
+            if (camera_ && cameraShakeCooldown_ <= 0.0f) { camera_->StartShake(1.0f, 0.9f); cameraShakeCooldown_ = kCameraShakeCooldownSeconds; }
+
+            // brief super-scale pulse + tint
+            if (model_) {
+                Vector3 s = model_->GetScale();
+                model_->SetScale({ s.x * 1.35f, s.y * 1.35f, s.z * 1.15f });
+                model_->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });
+            }
+        }
+
+        // reveal final: big outward burst and final model settle
+        if (spawnTimer_ >= revealStart && !spawnCineStage3_)
+        {
+            spawnCineStage3_ = true;
+            if (pm && pm->HasGroup("defaultMesh")) {
+                pm->EmitBurst8("defaultMesh", center, 0.22f, 2.6f, 1.4f);
+                pm->EmitBurst8Rotating("defaultMesh", center, 3.2f, 1.0f, 6.0f, 0.9f, false, 0.0f, 0.0f);
+            }
+            if (pm && pm->HasGroup("default")) {
+                pm->EmitBurst8("default", center, 0.18f, 2.4f, 1.2f);
+                pm->EmitBurst8Rotating("default", center, 4.0f, 1.0f, 5.5f, 1.0f, false, -0.8f, -0.4f);
+            }
+
+            // dramatic reveal: layered colored emissions
+            if (pm) {
+                pm->EmitCustom("default", center, 36, { 0.72f, 0.14f, 0.82f, 1.0f }, 0.8f, 1.6f);
+                pm->EmitCustom("default", center, 20, { 0.14f, 0.9f, 0.95f, 1.0f }, 0.2f, 0.6f);
+            }
+
+            // final model settle
+            if (model_) {
+                model_->SetScale({1.0f,1.0f,1.0f});
+                model_->SetColor({1.0f,1.0f,1.0f,1.0f});
+            }
+            if (camera_ && cameraShakeCooldown_ <= 0.0f) { camera_->StartShake(0.6f, 0.6f); cameraShakeCooldown_ = kCameraShakeCooldownSeconds; }
+        }
+
+        // advance spawn cinematic timer
+        ++spawnCineTimer_;
+
+        // add gentle rotation to model during spawn cinematic for visual interest
+        if (model_) {
+            float spinSpeed = 0.035f; // radians per frame ~ slow
+            float angle = static_cast<float>(spawnCineTimer_) * spinSpeed;
+            Vector3 rot = model_->GetRotate();
+            rot.y = angle;
+            model_->SetRotate(rot);
+            model_->ApplyState(Transform{ model_->GetScale(), model_->GetRotate(), model_->GetTranslate() }, camera_, true);
+        }
+
         for (auto& p : parts_)
         {
             if (p) p->UpdateSpawn(t);
@@ -990,6 +1129,9 @@ void Boss::Update()
             if (player_) {
                 player_->SetCanFire(true);
             }
+
+            // clear cinematic flags
+            spawnCineStage1_ = spawnCineStage2_ = spawnCineStage3_ = false;
         }
     }
 
@@ -1188,6 +1330,10 @@ void Boss::StartPhaseTransition()
             pm->EmitBurst8RotatingInward("default", center, 6.0f, 0.9f, 4.0f, 0.9f, 1.6f, 0.4f);
             pm->EmitBurst8("default", center, 0.08f, 1.2f, 0.9f);
         }
+
+        // add Eva-like colored wash and quick cyan shards
+        pm->EmitCustom("default", center, 20, { 0.66f, 0.08f, 0.78f, 1.0f }, 0.45f, 1.0f);
+        pm->EmitCustom("default", center, 12, { 0.16f, 0.82f, 0.96f, 1.0f }, 0.12f, 0.4f);
 
         // a final, tight rotating ring of small sprites for impact
         if (pm->HasGroup("default")) {

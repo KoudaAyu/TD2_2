@@ -109,7 +109,11 @@ private:
     Vector3 spawnStart_ = { 0.0f, 0.0f, 0.0f };
     Vector3 spawnTarget_ = { 0.0f, 0.0f, 0.0f };
     int spawnTimer_ = 0;
-    int spawnDuration_ = 180;
+    int spawnDuration_ = 240; // 増加デフォルト値
+
+    // cinematic spawn state
+    int spawnCineTimer_ = 0;
+    // don't modify camera transform or FOV per user request
 
     // --- HP / フェーズ関連 ---
     int maxHP_ = 100; // 最大HP（デフォルト）
@@ -271,4 +275,9 @@ private:
     int laserBulletInterval_ = 8;          // フレーム間隔
     int laserBulletTimer_ = 0;
     float phase4BulletSpeed_ = 1.2f;       // 発射される子弾の速度
+
+    // --- 新規: スポーン時の派手演出フラグ ---
+    bool spawnCineStage1_ = false; // outward burst
+    bool spawnCineStage2_ = false; // inward convergence
+    bool spawnCineStage3_ = false; // reveal
 };
