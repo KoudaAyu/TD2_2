@@ -107,10 +107,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 #endif
 
 #ifdef _DEBUG
-	// In debug mode start at the Title to exercise the full scene flow (including ClearScene transitions)
-	scene = Scene::kTitle;
-	titleScene = new TitleScene();
-	titleScene->Initialize(spriteCom);
+	// In debug mode start at the Game scene for faster debugging
+	scene = Scene::kGame;
+	gameScene = new GameScene();
+	gameScene->Initialize(camera, objCom, spriteCom);
 #else
 	scene = Scene::kTitle;
 	titleScene = new TitleScene();
