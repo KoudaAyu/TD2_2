@@ -160,5 +160,4 @@ private:
 	// --- damage / life ---
 	int hitCount_ = 0; // number of times player has been hit
 	static constexpr int kMaxHits = 5; // after this many hits player dies
-
 };
