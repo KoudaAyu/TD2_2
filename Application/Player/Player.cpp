@@ -398,6 +398,7 @@ void Player::OnCollision()
 		emitPos.z += 0.5f; // 少し手前に出す
 		// OBJベースの8方向バーストを生成（メッシュグループを使用）
 		pm->EmitBurst8("defaultMesh", emitPos, 0.12f, 0.25f, 0.8f);
+
 	}
 
 	// コントローラ振動を開始
