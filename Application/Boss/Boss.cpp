@@ -16,6 +16,11 @@
 // AABB collision
 #include "AABB.h"
 
+// Slightly increase boss depth (Z scale)
+static constexpr float kBossDepthScale = 100.0f;
+// Make silhouette thicker on screen by scaling X/Y as well
+static constexpr float kBossXYScale = 1.5f;
+
 Boss::Boss() {}
 
 Boss::~Boss()
@@ -216,6 +221,10 @@ void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object
 
     if (model_)
     {
+        // Thicken silhouette: scale X/Y as well as Z
+        Vector3 baseScale = model_->GetScale();
+        if (baseScale.z == 0.0f) baseScale = {1.0f,1.0f,1.0f};
+        model_->SetScale({ baseScale.x * kBossXYScale, baseScale.y * kBossXYScale, baseScale.z * kBossDepthScale });
         model_->ApplyState(worldTransform_, camera_, true);
     }
 
@@ -1093,7 +1102,7 @@ void Boss::Update()
 
             // final model settle
             if (model_) {
-                model_->SetScale({1.0f,1.0f,1.0f});
+                model_->SetScale({1.0f * kBossXYScale,1.0f * kBossXYScale,1.0f * kBossDepthScale});
                 model_->SetColor({1.0f,1.0f,1.0f,1.0f});
             }
             if (camera_ && cameraShakeCooldown_ <= 0.0f) { camera_->StartShake(0.6f, 0.6f); cameraShakeCooldown_ = kCameraShakeCooldownSeconds; }
