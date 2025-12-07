@@ -321,7 +321,7 @@ void Player::Barrier()
 		s_verticalHeldTime += (1.0f/60.0f);
 	}
 	if (horizontalHeld || !verticalHeld) {
-		// 横入力が入ったら即解除、縦入力が途切れても徐々の蓄積はリセット
+		// 横入力が入ったら即解除、縦入力が途切れてもしばらくの蓄積はリセット
 		s_verticalHeldTime = 0.0f;
 	}
 
@@ -349,15 +349,11 @@ void Player::Barrier()
 		}
 	}
 
-	// 長押し時は連射間隔で自動発射、トリガー時は即時1発
+	// 連打優遇を排除: トリガーでもクールダウンを満たしていないと発射しない
 	bool shouldFire = false;
-	if (fireTriggered) {
+	bool anyFireInput = fireTriggered || fireHeld;
+	if (anyFireInput && s_fireCooldownFrames <= 0) {
 		shouldFire = true;
-	}
-	else if (fireHeld) {
-		if (s_fireCooldownFrames <= 0) {
-			shouldFire = true;
-		}
 	}
 
 	if (shouldFire)
@@ -482,6 +478,11 @@ void Player::DrawImGui()
 	ImGui::End();
 }
 #endif
+
+
+
+
+
 
 
 
