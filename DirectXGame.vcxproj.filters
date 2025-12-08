@@ -63,6 +63,7 @@
     <ClCompile Include="Application\UI\UIManager.cpp" />
     <ClCompile Include="Application\ClearScene.cpp" />
     <ClCompile Include="Application\SelectScene.cpp" />
+    <ClCompile Include="Application\GameOverScene.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Baziru3_Engine\Base\D3DResourceLeakChecker.h" />
@@ -124,6 +125,7 @@
     <ClInclude Include="Application\UI\UIManager.h" />
     <ClInclude Include="Application\ClearScene.h" />
     <ClInclude Include="Application\SelectScene.h" />
+    <ClInclude Include="Application\GameOverScene.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\shaders\Object3d.hlsli" />

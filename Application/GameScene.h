@@ -40,6 +40,9 @@ public:
 	// whether boss was defeated and clear scene is active
 	bool IsCleared() const { return phase_ == Phase::kClear; }
 
+	// whether the scene requested a game over transition (player died)
+	bool IsGameOverRequested() const { return isGameOverRequested_; }
+
 	// デバッグ用: ボスから開始するフラグを設定（Initialize前に設定しておく）
 	void SetStartAtBoss(bool enable) { startAtBoss_ = enable; }
 	bool GetStartAtBoss() const { return startAtBoss_; }
@@ -130,4 +133,7 @@ private:
 
 	// Clear scene
 	ClearScene* clearScene_ = nullptr;
+
+	// flag raised when player death requests transition to GameOver
+	bool isGameOverRequested_ = false;
 };

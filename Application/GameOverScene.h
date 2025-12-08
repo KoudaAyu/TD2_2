@@ -1,27 +1,33 @@
 #pragma once
 
-#include "Sprite.h"
-#include "SpriteCom.h"
+#include "Camera.h"
+#include "Object3dCom.h"
+#include "Fade.h"
 
-class Camera;
-class Object3dCom;
-
+class SpriteCom;
+class Sprite;
 class GameOverScene
 {
 public:
+    enum class Phase { kFadeIn, kMain, kFadeOut };
+
     GameOverScene() = default;
     ~GameOverScene();
 
-    void Initialize(Object3dCom* object3dCom, SpriteCom* spriteCom);
+    void Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* spriteCom);
     void Update();
     void Draw();
 
-    bool IsFinished() const { return finished_; }
-    // compatibility with other scenes naming
-    bool IsFinish() const { return finished_; }
+    bool IsFinish() const { return isFinish_; }
 
 private:
+    bool isFinish_ = false;
+    Phase phase_ = Phase::kFadeIn;
+
+    Camera* camera_ = nullptr;
+    Object3dCom* object3dCom_ = nullptr;
     SpriteCom* spriteCom_ = nullptr;
-    Sprite* gameOverSprite_ = nullptr;
-    bool finished_ = false;
+
+    Fade* fade_ = nullptr;
+    Sprite* overlay_ = nullptr; // optional visual
 };

@@ -10,6 +10,7 @@
 #include <format>
 #include "AABB.h"
 #include "ClearScene.h"
+#include "GameOverScene.h"
 
 // フェード開始フラグ
 static bool gFadeStarted = false;
@@ -63,6 +64,9 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 	player_ = new Player();
 	player_->Initialize(playerModel_, camera, { 0.0f,0.0f,0.0f }, object3dCom);
 
+	// reset game-over request flag
+	isGameOverRequested_ = false;
+
 	{
 		auto* pm = ParticleManager::GetInstance();
 		if (pm) {
@@ -115,6 +119,9 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 	fade_->Initialize(spriteCom);
 	// SelectScene から遷移直後は画面が黒の可能性があるためフェードインを開始
 	fade_->Start(Fade::State::kFadeIn, 0.5f);
+
+	// disable player movement immediately when fade begins so player cannot move until fade ends
+	if (player_) player_->SetCanMove(false);
 
 	gFadeStarted = false; // シーン初期化時にフェード開始フラグをリセット
 
@@ -219,13 +226,13 @@ void GameScene::Update()
             }
         }
 
-		// Disable player movement while fade is active (only while fading)
-		if (player_) {
-			bool fadeActive = (fade_ && fade_->IsActive());
-			player_->SetCanMove(!fadeActive);
-		}
+	// Disable player movement while fade is active (only while fading)
+	if (player_) {
+		bool fadeActive = (fade_ && fade_->IsActive());
+		player_->SetCanMove(!fadeActive);
+	}
 
-		player_->Update();
+	player_->Update();
 
 
 	const float kEnemyActiveZThreshold = -5.0f;
@@ -273,7 +280,7 @@ void GameScene::Update()
 	}
 	else
 	{
-		// 通常のレールカメラ更新（player の更新後に行う）	
+		// 通常のレールカメラ更新（player の更新後に行う）		
 		railCameraController_->Update();
 	}
 #else
@@ -327,6 +334,7 @@ void GameScene::Update()
 		}
 	}
 #endif
+
 
 
 
@@ -427,6 +435,16 @@ void GameScene::Update()
 	skydome_->Update();
 
 	CheckAllCollisions();
+
+	// check player alive state and request game over if dead
+	if (player_ && !player_->IsAlive())
+	{
+		if (!isGameOverRequested_)
+		{
+			isGameOverRequested_ = true;
+			Logger::Log("GameScene: player died, requesting game over transition.");
+		}
+	}
 }
 
 void GameScene::Draw()

@@ -20,6 +20,14 @@ void TitleScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom*
 
 	camera_ = camera;
 
+	// Ensure camera is reset to a known default when entering the Title scene.
+	if (camera_) {
+		camera_->SetTranslate({ 0.0f, 0.0f, -5.0f });
+		camera_->SetRotate({ 0.0f, 0.0f, 0.0f });
+		camera_->Initialize();
+		camera_->Update();
+	}
+
 	model_ = Object3d::Create(object3dCom, "title/title.obj", { {1.0f,1.0f,1.0f},{-M_PI/2.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} }, camera);
 	
 
@@ -67,8 +75,8 @@ void TitleScene::Update()
 
 	case Phase::kMain:
 		model_->Update();
-		// スペースキーが押されたらフェードアウトへ
-		if (keyInput_->PushKey(DIK_SPACE)) {
+		// スペースキーまたはAボタンが押されたらフェードアウトへ
+		if (keyInput_->PushKey(DIK_SPACE) || keyInput_->IsPadButtonPressed(XINPUT_GAMEPAD_A)) {
 			phase_ = Phase::kFadeOut;
 			fade_->Start(Fade::State::kFadeOut, 1.0f);
 

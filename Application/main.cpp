@@ -16,6 +16,7 @@
 #include"TitleScene.h"
 #include"GameScene.h"
 #include "SelectScene.h"
+#include "GameOverScene.h"
 
 #include "Baziru3_Engine/Particle/ParticleManager.h"
 #include "Baziru3_Engine/Audio/SoundManager.h"
@@ -28,6 +29,7 @@ GameScene* gameScene = nullptr;
 TitleScene* titleScene = nullptr;
 SelectScene* selectScene = nullptr;
 ClearScene* clearScene = nullptr;
+GameOverScene* gameOverScene = nullptr;
 
 Sprite* gTransitionOverlay = nullptr; // fullscreen black overlay used during deferred transitions
 
@@ -38,6 +40,7 @@ enum class Scene
 	kTitle,
 	kSelect,
 	kGame,
+	kGameOver,
 	kClear,
 };
 
@@ -214,6 +217,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 	delete titleScene;
 	delete selectScene;
 	delete clearScene;
+	delete gameOverScene;
 	delete camera;
 	delete keyInput; // 入力破棄
 	#ifdef USE_IMGUI
@@ -298,6 +302,20 @@ void ChangePhase()
 			scene = Scene::kClear;
 		}
 
+		// detect player death -> switch to GameOver immediately
+		if (gameScene && gameScene->IsGameOverRequested())
+		{
+			// create GameOver scene
+			if (gameOverScene) { delete gameOverScene; gameOverScene = nullptr; }
+			gameOverScene = new GameOverScene();
+			gameOverScene->Initialize(camera, objCom, spriteCom);
+
+			// tear down game scene
+			delete gameScene;
+			gameScene = nullptr;
+			scene = Scene::kGameOver;
+		}
+
 		break;
 
 	case Scene::kClear:
@@ -310,6 +328,18 @@ void ChangePhase()
 			titleScene->Initialize(camera, objCom, spriteCom);
 		}
 
+		break;
+
+	case Scene::kGameOver:
+		if (gameOverScene && gameOverScene->IsFinish())
+		{
+			// return to title
+			delete gameOverScene;
+			gameOverScene = nullptr;
+			scene = Scene::kTitle;
+			titleScene = new TitleScene();
+			titleScene->Initialize(camera, objCom, spriteCom);
+		}
 		break;
 	}
 }
@@ -330,6 +360,9 @@ void UpdateScene()
 	case Scene::kClear:
 		if (clearScene) clearScene->Update();
 		break;
+	case Scene::kGameOver:
+		if (gameOverScene) gameOverScene->Update();
+		break;
 
 	}
 }
@@ -349,6 +382,9 @@ void DrawScene()
 		break;
 	case Scene::kClear:
 		if (clearScene) clearScene->Draw();
+		break;
+	case Scene::kGameOver:
+		if (gameOverScene) gameOverScene->Draw();
 		break;
 	}
 
