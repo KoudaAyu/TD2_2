@@ -7,12 +7,14 @@
 #include <cmath>
 #include "ModelManager.h"
 #include "ParticleManager.h"
+#include "Sprite.h"
 
 SelectScene::~SelectScene()
 {
     if (fade_) { delete fade_; fade_ = nullptr; }
     if (objectModel_) { delete objectModel_; objectModel_ = nullptr; }
     if (bombModel_) { delete bombModel_; bombModel_ = nullptr; }
+    if (selectSprite_) { delete selectSprite_; selectSprite_ = nullptr; }
 }
 
 
@@ -20,6 +22,7 @@ void SelectScene::Initialize(SpriteCom* spriteCom, Object3dCom* object3dCom, Cam
 {
     object3dCom_ = object3dCom;
     camera_ = camera;
+    spriteCom_ = spriteCom;
 
     fade_ = new Fade();
     fade_->Initialize(spriteCom);
@@ -42,6 +45,21 @@ void SelectScene::Initialize(SpriteCom* spriteCom, Object3dCom* object3dCom, Cam
     if (bombModel_) bombModel_->SetTranslate({ 3.0f, 0.0f, 0.0f });
     // always go to game after loading
     choice_ = Choice::kGame;
+
+    // Create a single fullscreen white sprite if spriteCom available
+    if (spriteCom_)
+    {
+        int sw = 1280;
+        int sh = 720;
+        if (object3dCom_ && object3dCom_->GetDirectXCom()) {
+            sw = object3dCom_->GetDirectXCom()->GetClientWidth();
+            sh = object3dCom_->GetDirectXCom()->GetClientHeight();
+        }
+
+        // create a sprite that covers the whole screen
+        selectSprite_ = spriteCom_->CreateSprite("Resources/white.png", { 0.0f, 0.0f }, { static_cast<float>(sw), static_cast<float>(sh) }, 0.0f, { 0.0f, 0.0f }, false, false);
+        if (selectSprite_) { selectSprite_->SetColor({1.0f,1.0f,1.0f,1.0f}); selectSprite_->Update(); }
+    }
 }
 
 
@@ -93,8 +111,9 @@ void SelectScene::Update()
 
 void SelectScene::Draw()
 {
-    if (objectModel_) objectModel_->Draw();
-    if (bombModel_) bombModel_->Draw();
+    // Only draw the single fullscreen sprite when available
+    if (selectSprite_) selectSprite_->Draw();
 
-    fade_->Draw();
+    // Draw fade overlay on top
+    if (fade_) fade_->Draw();
 }

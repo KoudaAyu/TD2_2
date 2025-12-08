@@ -76,6 +76,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 
 	TextureManager::GetInstance()->Initialize(dx, srv);
 
+	// Preload commonly used UI textures (avoid a texture load hitch during scene transitions)
+	TextureManager::GetInstance()->LoadTexture("Resources/white.png");
 	
 	objCom = new Object3dCom();
 	objCom->Initialize(dx);
@@ -131,8 +133,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 		camera->Update();
 
 		// Always use central scene management so transitions (including ClearScene) behave the same in debug and release
-		ChangePhase();
 		UpdateScene();
+		ChangePhase();
 
 #ifdef USE_IMGUI
 		// ImGuiフレーム終了（内部コマンド生成）
@@ -180,6 +182,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 				gameScene->Initialize(camera, objCom, spriteCom);
 				scene = Scene::kGame;
 			}
+			else if (gPendingTarget == Scene::kSelect)
+			{
+				// Delete titleScene and create selectScene while black is on screen
+				if (titleScene)
+				{
+					delete titleScene;
+					titleScene = nullptr;
+				}
+				// create and initialize SelectScene (may be heavy)
+				selectScene = new SelectScene();
+				selectScene->Initialize(spriteCom, objCom, camera);
+				scene = Scene::kSelect;
+			}
 
 			// clear pending
 			gPendingTransition = false;
@@ -222,11 +237,20 @@ void ChangePhase()
 	case Scene::kTitle:
 		if (titleScene->IsFinish())
 		{
-			delete titleScene;
-			titleScene = nullptr;
-			scene = Scene::kSelect;
-			selectScene = new SelectScene();
-			selectScene->Initialize(spriteCom, objCom, camera);
+			// Request a deferred transition to Select. The heavy init will be run while we present
+			// a fullscreen white overlay for one frame so the TitleScene doesn't flash.
+			gPendingTransition = true;
+			gPendingTarget = Scene::kSelect;
+
+			// create a fullscreen white overlay so next frame draws white while we initialize
+			if (!gTransitionOverlay && spriteCom) {
+				int sw = spriteCom->GetDirectXCom()->GetClientWidth();
+				int sh = spriteCom->GetDirectXCom()->GetClientHeight();
+				gTransitionOverlay = spriteCom->CreateSprite("Resources/white.png", { 0.0f, 0.0f }, { static_cast<float>(sw), static_cast<float>(sh) }, 0.0f, { 0.0f, 0.0f }, false, false);
+				if (gTransitionOverlay) { gTransitionOverlay->SetColor({1.0f,1.0f,1.0f,1.0f}); gTransitionOverlay->Update(); }
+			}
+
+			// actual deletion/creation of scenes will happen in the pending-transition handler in the main loop
 		}
 		break;
 

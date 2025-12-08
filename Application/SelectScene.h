@@ -8,6 +8,7 @@
 class Object3d;
 class Object3dCom;
 class Camera;
+class Sprite;
 
 class SelectScene
 {
@@ -50,4 +51,8 @@ private:
     Object3d* bombModel_ = nullptr;
     Object3dCom* object3dCom_ = nullptr;
     Camera* camera_ = nullptr;
+
+    // Sprite support: single fullscreen sprite for selection/background
+    SpriteCom* spriteCom_ = nullptr;
+    Sprite* selectSprite_ = nullptr;
 };
