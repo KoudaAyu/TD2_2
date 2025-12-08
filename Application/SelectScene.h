@@ -3,6 +3,7 @@
 #include "Fade.h"
 #include "KeyInput.h"
 #include "SpriteCom.h"
+#include "SoundManager.h"
 
 
 class Object3d;
@@ -55,4 +56,16 @@ private:
     // Sprite support: single fullscreen sprite for selection/background
     SpriteCom* spriteCom_ = nullptr;
     Sprite* selectSprite_ = nullptr;
+
+    // Audio (BGM for select scene)
+    SoundManager* soundManager_ = nullptr;
+    SoundData bgmData_ = {};
+    bool hasBgm_ = false;
+
+    // BGM fade control
+    float bgmCurrentVolume_ = 0.0f;
+    float bgmTargetVolume_ = 0.5f; // desired max BGM volume
+    float bgmFadeInDuration_ = 1.5f; // seconds to fade in
+    float bgmFadeOutDuration_ = 0.6f; // seconds to fade out on scene exit
+    bool bgmFadingOut_ = false;
 };

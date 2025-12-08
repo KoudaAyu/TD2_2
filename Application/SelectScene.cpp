@@ -11,6 +11,9 @@
 
 SelectScene::~SelectScene()
 {
+    // Do not forcibly stop/unload BGM here — ensure scene finishes only after BGM faded out
+    // and we already stopped/unloaded it in Update when appropriate.
+
     if (fade_) { delete fade_; fade_ = nullptr; }
     if (objectModel_) { delete objectModel_; objectModel_ = nullptr; }
     if (bombModel_) { delete bombModel_; bombModel_ = nullptr; }
@@ -60,6 +63,17 @@ void SelectScene::Initialize(SpriteCom* spriteCom, Object3dCom* object3dCom, Cam
         selectSprite_ = spriteCom_->CreateSprite("Resources/white.png", { 0.0f, 0.0f }, { static_cast<float>(sw), static_cast<float>(sh) }, 0.0f, { 0.0f, 0.0f }, false, false);
         if (selectSprite_) { selectSprite_->SetColor({1.0f,1.0f,1.0f,1.0f}); selectSprite_->Update(); }
     }
+
+    // start BGM for select scene (looped) using dedicated BGM API
+    soundManager_ = SoundManager::GetInstance();
+    if (soundManager_) {
+        const char* bgmPath = "Resources/Audio/BGM/SelectScene.wav"; // add your file to resources
+        bgmData_ = soundManager_->SoundLoadWave(bgmPath);
+        // start muted (volume 0) and we'll ramp up via SoundSetBGMVolume
+        bgmCurrentVolume_ = 0.0f;
+        soundManager_->SoundPlayBGM(bgmData_, true, bgmCurrentVolume_);
+        hasBgm_ = true;
+    }
 }
 
 
@@ -73,6 +87,25 @@ void SelectScene::Update()
 {
     if (objectModel_) objectModel_->Update();
     if (bombModel_) bombModel_->Update();
+
+    // Handle BGM fade-in/out each frame
+    const float dt = 1.0f / 60.0f; // assuming 60 FPS
+    if (soundManager_ && hasBgm_) {
+        if (bgmFadingOut_) {
+            // fade out towards 0
+            float step = (bgmFadeOutDuration_ > 0.0f) ? (dt / bgmFadeOutDuration_) : 1.0f;
+            bgmCurrentVolume_ -= step * bgmTargetVolume_;
+            if (bgmCurrentVolume_ < 0.0f) bgmCurrentVolume_ = 0.0f;
+            soundManager_->SoundSetBGMVolume(bgmCurrentVolume_);
+        }
+        else {
+            // fade in towards target
+            float step = (bgmFadeInDuration_ > 0.0f) ? (dt / bgmFadeInDuration_) : 1.0f;
+            bgmCurrentVolume_ += step * bgmTargetVolume_;
+            if (bgmCurrentVolume_ > bgmTargetVolume_) bgmCurrentVolume_ = bgmTargetVolume_;
+            soundManager_->SoundSetBGMVolume(bgmCurrentVolume_);
+        }
+    }
 
     switch (phase_)
     {
@@ -97,13 +130,29 @@ void SelectScene::Update()
         }
         phase_ = Phase::kFadeOut;
         fade_->Start(Fade::State::kFadeOut, 0.5f);
+        // start bgm fade out so it decreases as scene exits
+        bgmFadingOut_ = true;
         break;
 
     case Phase::kFadeOut:
         fade_->Update();
+        // Wait for BGM fade-out to complete before reporting scene finished
         if (fade_->IsFinished())
         {
-            isFinish_ = true;
+            const float kVolumeEpsilon = 0.001f;
+            if (!soundManager_ || !hasBgm_ || bgmCurrentVolume_ <= kVolumeEpsilon) {
+                // ensure BGM is stopped and unloaded only when volume has reached near-zero
+                if (soundManager_ && hasBgm_) {
+                    soundManager_->SoundStopBGM();
+                    soundManager_->SoundUnload(&bgmData_);
+                    hasBgm_ = false;
+                }
+                isFinish_ = true;
+            }
+            else {
+                // ensure bgm continues fading out until volume reaches zero
+                bgmFadingOut_ = true;
+            }
         }
         break;
     }
