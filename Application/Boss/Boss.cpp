@@ -303,6 +303,8 @@ void Boss::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object
     hp_ = maxHP_;
     hitCount_ = 0;
     hitCooldownTimer_ = 0;
+    // reset phase progress
+    phaseProgress_ = 0;
 
     // disable player firing during spawn motion
     if (player_) {
@@ -408,40 +410,58 @@ void Boss::OnHit()
     if (phase_ == Phase::Spawn || phase_ == Phase::Leave) return;
     if (hitCooldownTimer_ > 0) return;
 
+    // increment hits within current phase
     ++hitCount_;
-    if (hitCount_ > hitsPerFull) hitCount_ = hitsPerFull;
+    // cap total hits to avoid overflow
+    const int maxHitsTotal = hitsPerPhase_ * hitsPerFull;
+    if (hitCount_ > maxHitsTotal) hitCount_ = maxHitsTotal;
 
-    int clampedIndex = (std::min)(hitCount_, hitsPerFull - 1);
-    Phase newPhase = static_cast<Phase>(static_cast<int>(Phase::Phase1) + clampedIndex);
-    phase_ = newPhase;
+    // determine how many phase-steps have been completed by hits
+    int steps = hitCount_ / hitsPerPhase_; // 0..hitsPerFull
+    if (steps > hitsPerFull) steps = hitsPerFull;
 
-    // start visual transition
-    StartPhaseTransition();
-
-    if (camera_ && cameraShakeCooldown_ <= 0.0f)
+    // Only advance phase (and start transition) when we've crossed a threshold
+    if (steps > phaseProgress_)
     {
-        camera_->StartShake(0.2f, 0.2f);
-        cameraShakeCooldown_ = kCameraShakeCooldownSeconds;
-    }
+        phaseProgress_ = steps;
+        int phaseIndex = phaseProgress_;
+        if (phaseIndex > hitsPerFull - 1) phaseIndex = hitsPerFull - 1;
 
-    if (spriteCom_)
-    {
-        int currentPhaseIndex = (phase_ >= Phase::Phase1 && phase_ <= Phase::Phase5) ?
-            static_cast<int>(phase_) - static_cast<int>(Phase::Phase1) : 0;
-        for (int i = 0; i < 6; ++i)
+        Phase newPhase = static_cast<Phase>(static_cast<int>(Phase::Phase1) + phaseIndex);
+        if (newPhase != phase_)
         {
-            Sprite* s = phaseSprites_[i];
-            if (!s) continue;
-            Vector4 col = s->GetColor();
-            col.w = (currentPhaseIndex == i) ? 1.0f : 0.0f;
-            s->SetColor(col);
-            s->Update();
+            phase_ = newPhase;
+
+            // start visual transition only on actual phase change
+            StartPhaseTransition();
+
+            if (camera_ && cameraShakeCooldown_ <= 0.0f)
+            {
+                camera_->StartShake(0.2f, 0.2f);
+                cameraShakeCooldown_ = kCameraShakeCooldownSeconds;
+            }
+
+            if (spriteCom_)
+            {
+                int currentPhaseIndex = (phase_ >= Phase::Phase1 && phase_ <= Phase::Phase5) ?
+                    static_cast<int>(phase_) - static_cast<int>(Phase::Phase1) : 0;
+                for (int i = 0; i < 6; ++i)
+                {
+                    Sprite* s = phaseSprites_[i];
+                    if (!s) continue;
+                    Vector4 col = s->GetColor();
+                    col.w = (currentPhaseIndex == i) ? 1.0f : 0.0f;
+                    s->SetColor(col);
+                    s->Update();
+                }
+            }
         }
     }
 
     hitCooldownTimer_ = kHitCooldownFrames;
 
-    if (hitCount_ >= hitsPerFull)
+    // if total phase progress reaches final, destroy boss
+    if (phaseProgress_ >= hitsPerFull)
     {
         OnCollision();
     }
@@ -1313,16 +1333,20 @@ void Boss::StartPhaseTransition()
     auto* pm = ParticleManager::GetInstance();
     Vector3 center = worldTransform_.GetTranslate();
 
+    // If we're already in a phase transition, don't restart it
+    if (inPhaseTransition_)
+    {
+        return;
+    }
+
     // mark transition state and set timer
     inPhaseTransition_ = true;
     phaseTransitionTimer_ = 0; // will be incremented in Update
 
-    // disable player firing during transition if player exists
-    if (player_) {
-        player_->SetCanFire(false);
-        // also clear any active barriers to avoid instant collision during transition
-        player_->ClearBarriers();
-    }
+    // NOTE: Do NOT disable player firing here. GameScene controls whether
+    // player can fire during spawn; disabling here caused the player's
+    // shot input to be canceled when boss was hit. Avoid modifying player
+    // input state from boss transitions to prevent cancelling shots.
 
     if (pm) {
         // If mesh-group exists, favor mesh particles (OBJ) for richer visuals
@@ -1368,10 +1392,12 @@ void Boss::UpdatePhaseByHP()
 {
     if (phase_ == Phase::Spawn || phase_ == Phase::Leave) return;
 
+    // if player-hit based progression is used, interpret hitCount_ as per-phase hits
     if (hitCount_ > 0)
     {
-        int clampedIndex = (std::min)(hitCount_, hitsPerFull - 1);
-        Phase newPhase = static_cast<Phase>(static_cast<int>(Phase::Phase1) + clampedIndex);
+        int steps = hitCount_ / hitsPerPhase_;
+        if (steps > hitsPerFull - 1) steps = hitsPerFull - 1;
+        Phase newPhase = static_cast<Phase>(static_cast<int>(Phase::Phase1) + steps);
         if (newPhase != phase_)
         {
             phase_ = newPhase;

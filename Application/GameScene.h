@@ -19,6 +19,9 @@
 // UI
 #include "Application/UI/UIManager.h"
 
+// Audio
+#include "SoundManager.h"
+
 class GameScene
 {
 public:
@@ -136,4 +139,9 @@ private:
 
 	// flag raised when player death requests transition to GameOver
 	bool isGameOverRequested_ = false;
+
+	// --- Audio: BGM support ---
+	SoundManager* soundManager_ = nullptr;
+	SoundData bgmData_ = {};
+	bool hasBgm_ = false;
 };

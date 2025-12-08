@@ -17,6 +17,14 @@ static bool gFadeStarted = false;
 
 GameScene::~GameScene()
 {
+	// stop and unload bgm if playing
+	if (soundManager_ && hasBgm_) {
+		// Stop all voices to ensure BGM stops
+		soundManager_->StopAllVoices();
+		soundManager_->SoundUnload(&bgmData_);
+		hasBgm_ = false;
+	}
+
 	for (Enemy* enemy : enemies_)
 	{
 		delete enemy;
@@ -47,7 +55,7 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 
 	InitializeUI(spriteCom);
 	
-
+	
 #ifdef _DEBUG
 	// 画面サイズから DebugCamera を初期化 (幅/高さは DirectXCom 経由で取得する想定)
 	float width = static_cast<float>(object3dCom_->GetDirectXCom()->GetClientWidth());
@@ -78,6 +86,10 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 				if (!texPath.empty()) {
 					pm->CreateParticleGroup("defaultSprite", texPath);
 					particleTexturePath_ = texPath;
+					// give player a sprite for invincibility feedback
+					if (player_) {
+						player_->SetSpriteCom(spriteCom, particleTexturePath_);
+					}
 				}
 
 				pm->CreateParticleGroupFromModel("defaultMesh", "apple.obj");
@@ -91,6 +103,18 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 
 	currentWave_ = 0;
 	phase_ = Phase::kMain;
+
+	// initialize audio and start bgm
+	soundManager_ = SoundManager::GetInstance();
+	if (soundManager_) {
+		// attempt to load BGM file; path must exist in project resources
+		const char* bgmPath = "Resources/Audio/BGM/GameScene.wav";
+		// load but guard against failure using try/catch-like asserts not available; we assume file exists
+		bgmData_ = soundManager_->SoundLoadWave(bgmPath);
+		// start looped playback at modest volume
+		soundManager_->SoundPlayWave(bgmData_, true, 0.5f);
+		hasBgm_ = true;
+	}
 
 #ifdef _DEBUG
 	// デバッグフラグでボスから開始（DEBUG限定）
@@ -111,7 +135,12 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 
 	railCameraController_ = new RailCameraController();
 	railCameraController_->SetCamera(camera_);
-	railCameraController_->Initialize({ 0.0f, 5.0f, -10.0f }, { 20.0f, 0.0f, 0.0f });	railCameraController_->SetTarget(player_);
+	// Lower camera height and reduce downward tilt so enemies appear more parallel
+	// Previous attempts: {0.0f, 5.0f, -10.0f}, {15.0f,0.0f,0.0f} and {0.0f,6.5f,-13.0f},{22.0f,0.0f,0.0f}
+	// New setting: slightly lower and less pitched for a more side-on view
+	// Y (height) lowered from 4.0f to 2.5f
+	railCameraController_->Initialize({ 0.0f, 3.5f, -12.0f }, { 10.0f, 0.0f, 0.0f });
+	railCameraController_->SetTarget(player_);
 	bossBodyModel_ = bossBodyModel_;
 	boss_ = boss_;
 
@@ -129,7 +158,7 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 	waveDelayTimer_ = 0.0f;
 
 	skydome_ = new Skydome();
-	skydome_->Initialize(object3dCom_, camera_);
+ skydome_->Initialize(object3dCom_, camera_);
 
 	// prepare clear scene but do not initialize until needed
 	clearScene_ = new ClearScene();
@@ -328,7 +357,7 @@ void GameScene::Update()
 			{
 				bossBodyModel_ = Object3d::Create(object3dCom_, "bomb.obj", { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,15.0f} }, camera_);
 				boss_ = new Boss();
-				boss_->Initialize(bossBodyModel_, camera_, { 0.0f, 0.0f, 15.0f }, object3dCom_, spriteCom_);
+				boss_->Initialize(bossBodyModel_, camera_, { 0.0f, 0.0f, 15.0f }, object3dCom_, spriteCom_;
 				boss_->SetPlayer(player_);
 			}
 		}
@@ -559,6 +588,9 @@ void GameScene::CheckAllCollisions()
 #pragma endregion
 
 #pragma region 自キャラと敵の弾の当たり判定
+    // record whether player was invincible at start of this collision pass
+    bool playerWasInvincible = (player_ && player_->IsInvincible());
+
     posA = player_->GetWorldTranslate();
     for (EnemyBullet* bullet : enemyBullets)
     {
@@ -573,8 +605,45 @@ void GameScene::CheckAllCollisions()
         const float threshold = 1.0f;
         if (distance < threshold)
         {
-            player_->OnCollision();
-            bullet->OnCollision();
+            // If player was invincible before this collision check started, show a front-layer sprite feedback
+            if (player_ && playerWasInvincible && player_->IsInvincible() && player_->GetInvincibleAgeFrames() > 0)
+             {
+
+                // spawn a small HUD sprite at player's screen position
+                if (spriteCom_ && !particleTexturePath_.empty() && object3dCom_ && camera_)
+                {
+                    int screenW = object3dCom_->GetDirectXCom()->GetClientWidth();
+                    int screenH = object3dCom_->GetDirectXCom()->GetClientHeight();
+                    // move the spawn point slightly toward +Z so the sprite projects a bit in front of the
+                    // player model (prevents exact overlap with model's screen position)
+                    Vector3 spriteWorld = posA + Vector3{0.0f, -1.0f, 3.0f};
+                    Vector2 screen = WorldToScreen(spriteWorld, camera_, screenW, screenH);
+
+                    // larger HUD feedback sprite for visibility
+                    Sprite* s = spriteCom_->CreateSprite(particleTexturePath_, screen, {96.0f,96.0f}, 0.0f, {0.5f,0.5f});
+                    if (s)
+                    {
+                        s->SetColor({1.0f, 0.9f, 0.6f, 1.0f});
+                        s->Update();
+
+                        AppParticle ap;
+                        ap.sprite = s;
+                        ap.life = 0.35f;
+                        ap.age = 0.0f;
+                        ap.pos = screen;
+                        ap.vel = {0.0f, 0.0f};
+                        appParticles_.push_back(ap);
+                    }
+                }
+
+                // still consume the bullet
+                bullet->OnCollision();
+            }
+            else
+            {
+                player_->OnCollision();
+                bullet->OnCollision();
+            }
         }
     }
 #pragma endregion
@@ -636,10 +705,11 @@ void GameScene::CheckAllCollisions()
                     {
                         int screenW = object3dCom_->GetDirectXCom()->GetClientWidth();
                         int screenH = object3dCom_->GetDirectXCom()->GetClientHeight();
-                        Vector3 hitWorld = posB + Vector3{0.0f, 0.0f, -0.25f}; // slightly forward
+                        Vector3 hitWorld = posB + Vector3{0.0f, 0.0f, 0.5f}; // moved slightly toward +Z for clearer screen placement
                         Vector2 screen = WorldToScreen(hitWorld, camera_, screenW, screenH);
 
-                        Sprite* s = spriteCom_->CreateSprite(particleTexturePath_, screen, {48.0f,48.0f}, 0.0f, {0.5f,0.5f});
+                        // larger hit feedback sprite
+                        Sprite* s = spriteCom_->CreateSprite(particleTexturePath_, screen, {96.0f,96.0f}, 0.0f, {0.5f,0.5f});
                         if (s)
                         {
                             s->SetColor({1.0f, 0.9f, 0.6f, 1.0f});
@@ -661,7 +731,7 @@ void GameScene::CheckAllCollisions()
                 // 衝突発生: バリアと敵に衝突処理を通知
                 const_cast<PlayerBarrier*>(barrier)->OnCollision();
                 enemy_->OnCollision();
-                break; // 敵は一度当たれば十分なのでループを抜ける
+                break; // 敵は一度当たれば充分なのでループを抜ける
             }
         }
     }
@@ -717,7 +787,8 @@ void GameScene::CheckAllCollisions()
                     }
 
                     // 弾は無効化する（バリア自体は状態を変えない）
-                    bullet->OnCollision();
+                    //                    bullet->OnCollision();
+					bullet->OnCollision();
                     break; // この弾は処理済みなので次の弾へ
                 }
             }
@@ -753,20 +824,25 @@ void GameScene::CheckAllCollisions()
 					if (spriteCom_ && !particleTexturePath_.empty()) {
 						int screenW = object3dCom_->GetDirectXCom()->GetClientWidth();
 						int screenH = object3dCom_->GetDirectXCom()->GetClientHeight();
-						Vector3 hitWorld = posB + Vector3{0.0f, 0.0f, -0.25f};
+						Vector3 hitWorld = posB + Vector3{0.0f, 0.0f, 0.5f}; // moved slightly toward +Z for clearer screen placement
 						Vector2 base = WorldToScreen(hitWorld, camera_, screenW, screenH);
-						Sprite* s = spriteCom_->CreateSprite(particleTexturePath_, base, {48.0f,48.0f}, 0.0f, {0.5f,0.5f});
-						if (s) {
-							s->SetColor({1.0f, 0.9f, 0.6f, 1.0f});
-							s->Update();
-							AppParticle ap;
-							ap.sprite = s;
-							ap.life = 0.4f;
-							ap.age = 0.0f;
-							ap.pos = base;
-							ap.vel = {0.0f, 0.0f};
-							appParticles_.push_back(ap);
-						}
+						// larger destruction particles
+						Sprite* s = spriteCom_->CreateSprite(particleTexturePath_, {0.0f,0.0f}, {64.0f,64.0f}, 0.0f, {0.5f,0.5f});
+						AppParticle ap;
+						ap.sprite = s;
+						ap.life = Random::GeneratorFloat(0.6f, 1.2f);
+						ap.age = 0.0f;
+						ap.pos = base;
+						
+						float ang = Random::GeneratorFloat(0.0f, 6.2831853f);
+						float spd = Random::GeneratorFloat(30.0f, 120.0f);
+						ap.vel = { std::cos(ang) * spd, std::sin(ang) * spd };
+						
+						s->SetPosition(ap.pos);
+						s->SetScale({ 48.0f,48.0f });
+						s->SetColor({1.0f,1.0f,1.0f,1.0f});
+						s->Update();
+						appParticles_.push_back(ap);
 					}
 
 					break;
@@ -783,31 +859,32 @@ void GameScene::CheckAllCollisions()
 					int screenH = object3dCom_->GetDirectXCom()->GetClientHeight();
 					Vector2 base = WorldToScreen(posB, camera_, screenW, screenH);
 					for (int i = 0; i < count; ++i) {
-						Sprite* s = spriteCom_->CreateSprite(particleTexturePath_, {0.0f,0.0f}, {32.0f,32.0f}, 0.0f, {0.5f,0.5f});
-						AppParticle ap;
-						ap.sprite = s;
-						ap.life = Random::GeneratorFloat(0.6f, 1.2f);
-						ap.age = 0.0f;
-						ap.pos = base;
-						
-						float ang = Random::GeneratorFloat(0.0f, 6.2831853f);
-						float spd = Random::GeneratorFloat(30.0f, 120.0f);
-						ap.vel = { std::cos(ang) * spd, std::sin(ang) * spd };
-						
-						s->SetPosition(ap.pos);
-						s->SetScale({ 24.0f,24.0f });
-						s->SetColor({1.0f,1.0f,1.0f,1.0f});
-						s->Update();
-						appParticles_.push_back(ap);
-					}
-				}
+						// larger destruction particles
+						Sprite* s = spriteCom_->CreateSprite(particleTexturePath_, {0.0f,0.0f}, {64.0f,64.0f}, 0.0f, {0.5f,0.5f});
+                                 AppParticle ap;
+                                 ap.sprite = s;
+                                 ap.life = Random::GeneratorFloat(0.6f, 1.2f);
+                                 ap.age = 0.0f;
+                                 ap.pos = base;
+                                 
+                                 float ang = Random::GeneratorFloat(0.0f, 6.2831853f);
+                                 float spd = Random::GeneratorFloat(30.0f, 120.0f);
+                                 ap.vel = { std::cos(ang) * spd, std::sin(ang) * spd };
+                                 
+                                 s->SetPosition(ap.pos);
+                                 s->SetScale({ 48.0f,48.0f });
+                                 s->SetColor({1.0f,1.0f,1.0f,1.0f});
+                                 s->Update();
+                                 appParticles_.push_back(ap);
+                             }
+                         }
 
-				// ... rest of the destruction visual code continues ...
+                 // ... rest of the destruction visual code continues ...
 
-				break; // 敵は一度当たれば充分なのでループを抜ける
-			}
-		}
-	}
+                 break; // 敵は一度当たれば充分なのでループを抜ける
+             }
+         }
+     }
 
 	if (boss_ && boss_->IsActive())
 	{
@@ -838,36 +915,45 @@ void GameScene::InitializeUI(SpriteCom* spriteCom)
     int sw = object3dCom_->GetDirectXCom()->GetClientWidth();
     int sh = object3dCom_->GetDirectXCom()->GetClientHeight();
 
- 
+    // WASD UI (bottom-right)
     {
-        wasdSprite_ = spriteCom->CreateSprite("Resources/UI/WASDUI.png",
-            { static_cast<float>(sw) - 10.0f, static_cast<float>(sh) - 10.0f },
-            { 225.0f, 40.0f }, 0.0f, {1.0f, 1.0f});
+        Vector2 size = { 320.0f, 64.0f };
+        Vector2 pos = { static_cast<float>(sw) - 10.0f, static_cast<float>(sh) - 10.0f };
+        wasdSprite_ = spriteCom->CreateSprite("Resources/UI/WASDUI.png", {0.0f,0.0f}, size, 0.0f, {1.0f, 1.0f});
         if (wasdSprite_) {
+            wasdSprite_->SetAnchorPoint({1.0f, 1.0f});
+            wasdSprite_->SetScale(size);
+            wasdSprite_->SetPosition(pos);
             wasdSprite_->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });
             wasdSprite_->Update();
         }
     }
 
-  
+    // SPACE UI (slightly above bottom-right)
     {
-        spaceSprite_ = spriteCom->CreateSprite("Resources/UI/SPACEUI.png",
-            { static_cast<float>(sw) - 0.0f, static_cast<float>(sh) - 60.0f },
-            { 270.0f, 40.0f }, 0.0f, {1.0f, 1.0f});
+        Vector2 size = { 320.0f, 64.0f };
+        Vector2 pos = { static_cast<float>(sw) - 10.0f, static_cast<float>(sh) - 60.0f };
+        spaceSprite_ = spriteCom->CreateSprite("Resources/UI/SPACEUI.png", {0.0f,0.0f}, size, 0.0f, {1.0f, 1.0f});
         if (spaceSprite_) {
+            spaceSprite_->SetAnchorPoint({1.0f, 1.0f});
+            spaceSprite_->SetScale(size);
+            spaceSprite_->SetPosition(pos);
             spaceSprite_->SetColor({ 0.2f, 0.8f, 1.0f, 1.0f });
             spaceSprite_->Update();
         }
     }
 
-   
+    // Pause overlay (center)
     {
-        pauseSprite_ = spriteCom->CreateSprite("Resources/UI/Pose.png",
-            { static_cast<float>(sw) * 0.5f, static_cast<float>(sh) * 0.5f },
-            { 600.0f, 400.0f }, 0.0f, {0.5f, 0.5f});
+        Vector2 size = { 800.0f, 600.0f };
+        Vector2 pos = { static_cast<float>(sw) * 0.5f, static_cast<float>(sh) * 0.5f };
+        pauseSprite_ = spriteCom->CreateSprite("Resources/UI/Pose.png", {0.0f,0.0f}, size, 0.0f, {0.5f, 0.5f});
         if (pauseSprite_) {
+            pauseSprite_->SetAnchorPoint({0.5f, 0.5f});
+            pauseSprite_->SetScale(size);
+            pauseSprite_->SetPosition(pos);
             Vector4 c = pauseSprite_->GetColor();
-            c.w = 0.0f; 
+            c.w = 0.0f; // start hidden
             pauseSprite_->SetColor(c);
             pauseSprite_->Update();
         }
@@ -914,19 +1000,41 @@ void GameScene::SpawnWave()
 			// side enemies fire slower Aim shots to keep pressure but reduce difficulty.
 			int centerIndex = enemyCount / 2;
 			if (i == centerIndex) {
-				// center: wide, slow spread
-				enemy->SetBulletSpeed(0.8f);
-				enemy->SetFireInterval(36); // slower interval to give player room
+				// center: wider and noticeably slower bullets
+				enemy->SetBulletSpeed(0.6f);
+				enemy->SetFireInterval(36); // slightly slower interval
 				enemy->SetAttackPattern(Enemy::AttackPattern::Rapid);
 				enemy->SetRapidShotCount(5); // more bullets but slower
 				enemy->SetRapidSpread(1.1f); // wide spread
 				enemy->SetRandomizeInitialFire(true);
 			} else {
-				// sides: aim at player but fire less frequently
-				enemy->SetBulletSpeed(0.9f);
+				// sides: aim at player but fire less frequently and slightly slower bullets
+				enemy->SetBulletSpeed(0.7f);
 				enemy->SetFireInterval(40);
 				enemy->SetAttackPattern(Enemy::AttackPattern::Aim);
 				// stagger initial fire based on distance from center
+				int offset = (i < centerIndex) ? (centerIndex - i) : (i - centerIndex);
+				enemy->SetInitialFireDelay(offset * 6);
+				enemy->SetRandomizeInitialFire(false);
+			}
+		}
+		else if (currentWave_ == 3)
+		{
+			// Wave4: make bullets a bit slower than Wave3 to reduce overall speed
+			int centerIndex = enemyCount / 2;
+			if (i == centerIndex) {
+				// center: slow but more frequent bursts for visual challenge
+				enemy->SetBulletSpeed(0.5f);
+				enemy->SetFireInterval(32);
+				enemy->SetAttackPattern(Enemy::AttackPattern::Rapid);
+				enemy->SetRapidShotCount(6);
+				enemy->SetRapidSpread(1.0f);
+				enemy->SetRandomizeInitialFire(true);
+			} else {
+				// sides: slightly slower aim shots
+				enemy->SetBulletSpeed(0.65f);
+				enemy->SetFireInterval(44);
+				enemy->SetAttackPattern(Enemy::AttackPattern::Aim);
 				int offset = (i < centerIndex) ? (centerIndex - i) : (i - centerIndex);
 				enemy->SetInitialFireDelay(offset * 6);
 				enemy->SetRandomizeInitialFire(false);
@@ -975,6 +1083,14 @@ void GameScene::ResetScene()
 	waveDelayTimer_ = 0.0f;
 
 	gFadeStarted = false; // リセット時にもフェード開始フラグをクリア
+
+	// Ensure BGM is stopped and unloaded to prevent duplicate playback after re-init
+	if (soundManager_ && hasBgm_) {
+		soundManager_->StopAllVoices();
+		soundManager_->SoundUnload(&bgmData_);
+		hasBgm_ = false;
+		bgmData_ = {};
+	}
 
 	Initialize(camera_, object3dCom_, spriteCom_);
 }

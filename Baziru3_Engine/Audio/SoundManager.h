@@ -49,6 +49,11 @@ public:
 	// 音量指定版（0.0f ～ 1.0f 推奨）
 	void SoundPlayWave(const SoundData& soundData, bool loop, float volume);
 
+	// BGM専用API: 再生・音量更新・停止
+	void SoundPlayBGM(const SoundData& soundData, bool loop = true, float volume = 1.0f);
+	void SoundSetBGMVolume(float volume);
+	void SoundStopBGM();
+
 	void StopAllVoices(); // すべての再生音を停止・破棄
 
 	// SEのデフォルト音量を設定（0.0f ～ 1.0f）
@@ -61,6 +66,7 @@ private:
 	Microsoft::WRL::ComPtr<IXAudio2> xAudio2_;
 	IXAudio2MasteringVoice* masterVoice_ = nullptr;
 	std::vector<IXAudio2SourceVoice*> voices_{}; // アクティブなSourceVoice
+	IXAudio2SourceVoice* bgmVoice_ = nullptr; // dedicated BGM voice
 	float seVolume_ = 1.0f; // デフォルトSE音量
 
 	// シングルトンインスタンス

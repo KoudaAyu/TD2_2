@@ -38,6 +38,7 @@ bool SoundManager::Initialize() {
 }
 
 void SoundManager::Finalize() {
+    SoundStopBGM();
     StopAllVoices();
     if (masterVoice_) {
         masterVoice_->DestroyVoice();
@@ -152,6 +153,53 @@ void SoundManager::SoundPlayWave(const SoundData& soundData, bool loop, float vo
     voices_.push_back(pSourceVoice);
 }
 
+// BGM dedicated API implementations
+void SoundManager::SoundPlayBGM(const SoundData& soundData, bool loop, float volume)
+{
+    // If a BGM is already playing, stop it first
+    SoundStopBGM();
+
+    IXAudio2SourceVoice* pSourceVoice = nullptr;
+    const WAVEFORMATEX* pWf = soundData.fmtRaw ? reinterpret_cast<const WAVEFORMATEX*>(soundData.fmtRaw)
+                                               : &soundData.wfex;
+    HRESULT hr = xAudio2_->CreateSourceVoice(&pSourceVoice, pWf);
+    assert(SUCCEEDED(hr));
+
+    XAUDIO2_BUFFER buf{};
+    buf.pAudioData = soundData.pBuffer;
+    buf.AudioBytes = soundData.bufferSize;
+    buf.Flags = XAUDIO2_END_OF_STREAM;
+    buf.LoopCount = loop ? XAUDIO2_LOOP_INFINITE : 0;
+
+    hr = pSourceVoice->SubmitSourceBuffer(&buf);
+    assert(SUCCEEDED(hr));
+
+    float clamped = (volume < 0.0f) ? 0.0f : (volume > 1.0f ? 1.0f : volume);
+    pSourceVoice->SetVolume(clamped);
+
+    hr = pSourceVoice->Start();
+    assert(SUCCEEDED(hr));
+
+    // store dedicated BGM voice
+    bgmVoice_ = pSourceVoice;
+}
+
+void SoundManager::SoundSetBGMVolume(float volume)
+{
+    if (!bgmVoice_) return;
+    float clamped = (volume < 0.0f) ? 0.0f : (volume > 1.0f ? 1.0f : volume);
+    bgmVoice_->SetVolume(clamped);
+}
+
+void SoundManager::SoundStopBGM()
+{
+    if (!bgmVoice_) return;
+    bgmVoice_->Stop();
+    bgmVoice_->FlushSourceBuffers();
+    bgmVoice_->DestroyVoice();
+    bgmVoice_ = nullptr;
+}
+
 void SoundManager::StopAllVoices()
 {
     for (auto* v : voices_) {
@@ -176,6 +224,7 @@ void SoundManager::SetMasterVolume(float volume)
     if (!masterVoice_) return;
     if (volume < 0.0f) volume = 0.0f;
     if (volume > 1.0f) volume = 1.0f;
+    // IXAudio2MasteringVoice has SetVolume method
     masterVoice_->SetVolume(volume);
 }
 
