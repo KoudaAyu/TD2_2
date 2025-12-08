@@ -117,6 +117,10 @@ public:
 	void SetRapidSpread(float s) { rapidSpread_ = s; }
 	void SetRapidShotCount(int c) { rapidShotCount_ = c; }
 
+	// 出現時のY座標ランダム化を設定
+	void SetRandomizeSpawnY(bool v) { randomizeSpawnY_ = v; }
+	void SetSpawnYRandomRange(float r) { spawnYRandomRange_ = r; }
+
 private:
 	
 	//フェーズ
@@ -149,7 +153,7 @@ private:
 	int32_t spawnTimer_ = 0;
 	int32_t spawnDuration_ = 60; // フレーム数での出現時間
 
-	//弾関係
+	// 弾関係
 	//発射間隔
 	static const int kFireInterval = 60; 
 	//発射タイマー
@@ -197,6 +201,10 @@ private:
 	// temporary invincibility after spawn->approach transition (frames)
 	int invincibilityTimerFrames_ = 0;
 	static constexpr int kSpawnInvincibilityFrames = 30; // configurable small i-frames
+
+	// 出現時のY座標ランダム化設定
+	bool randomizeSpawnY_ = true;
+	float spawnYRandomRange_ = 2.5f; // +- range in world units
 
 private:
 	Camera* camera_ = nullptr;

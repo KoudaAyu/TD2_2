@@ -59,7 +59,6 @@ void Player::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Obje
 
 	// reset hit counter
 	hitCount_ = 0;
-
 }
 
 
@@ -299,24 +298,65 @@ void Player::Barrier()
 	// respect canFire_ flag
 	if (!canFire_) return;
 
+	// 静的ローカルでクールダウン管理（メンバを増やさず対応）
+	static int s_fireCooldownFrames = 0;
+	static const int kBaseInterval = 12;   // 基準間隔
+	static const int kMinInterval  = 5;    // 最短間隔
 
+	if (s_fireCooldownFrames > 0) {
+		--s_fireCooldownFrames;
+	}
 
-	// バリア発射キーを変更: 例として LEFT CONTROL を使用（Triggerで発射）
+	// 入力状態で連射間隔を調整: 縦移動継続で徐々に短縮、横移動でリセット
+	bool verticalHeld = keyInput_->PushKey(DIK_W) || keyInput_->PushKey(DIK_S);
+	bool horizontalHeld = keyInput_->PushKey(DIK_A) || keyInput_->PushKey(DIK_D);
+	if (controller_ && controller_->IsConnected()) {
+		Controller::Stick ls = controller_->GetLeftStick();
+		verticalHeld   = verticalHeld   || (std::abs(ls.y) > 0.3f);
+		horizontalHeld = horizontalHeld || (std::abs(ls.x) > 0.3f);
+	}
 
-	bool fireTriggered = keyInput_->TriggerKey(DIK_LCONTROL);
-	// コントローラの A ボタンでも発射可能にする
-	if (!fireTriggered && controller_ && controller_->IsConnected())
+	static float s_verticalHeldTime = 0.0f; // 秒
+	if (verticalHeld) {
+		s_verticalHeldTime += (1.0f/60.0f);
+	}
+	if (horizontalHeld || !verticalHeld) {
+		// 横入力が入ったら即解除、縦入力が途切れてもしばらくの蓄積はリセット
+		s_verticalHeldTime = 0.0f;
+	}
+
+	// 経過時間に応じて段階的に短縮（わかりやすい階段式）
+	// 0.0s~: 12f, 0.5s~: 10f, 1.0s~: 8f, 1.5s~: 6f, 2.0s~: 5f
+	int dynamicInterval = kBaseInterval;
+	if (s_verticalHeldTime >= 2.0f)      dynamicInterval = 5;
+	else if (s_verticalHeldTime >= 1.5f) dynamicInterval = 6;
+	else if (s_verticalHeldTime >= 1.0f) dynamicInterval = 8;
+	else if (s_verticalHeldTime >= 0.5f) dynamicInterval = 10;
+
+	// 発射入力: トリガー or 長押し
+	bool fireTriggered = keyInput_->TriggerKey(DIK_LCONTROL) || keyInput_->TriggerKey(DIK_SPACE);
+	bool fireHeld = keyInput_->PushKey(DIK_LCONTROL) || keyInput_->PushKey(DIK_SPACE);
+	// コントローラの A ボタン
+	if (controller_ && controller_->IsConnected())
 	{
 		if (controller_->WasButtonPressedThisFrame(XINPUT_GAMEPAD_A))
 		{
 			fireTriggered = true;
-			soundManager_->SoundPlayWave(shotBarrierSoundData_, false, 0.2f);
+		}
+		if (controller_->IsButtonDown(XINPUT_GAMEPAD_A))
+		{
+			fireHeld = true;
 		}
 	}
 
-	// キーボードの 'SPACE' キーでも発射できるようにする
-	if (fireTriggered || keyInput_->TriggerKey(DIK_SPACE))
+	// 連打優遇を排除: トリガーでもクールダウンを満たしていないと発射しない
+	bool shouldFire = false;
+	bool anyFireInput = fireTriggered || fireHeld;
+	if (anyFireInput && s_fireCooldownFrames <= 0) {
+		shouldFire = true;
+	}
 
+	if (shouldFire)
 	{
 		const float kBarrierSpeed = 0.5f;
 
@@ -328,13 +368,9 @@ void Player::Barrier()
 		if (camera_)
 		{
 			const Matrix4x4& camWorld = camera_->GetWorldMatrix();
-			// camWorld の列 2 を前方向ベクトルとして利用
 			Vector3 camForward = { camWorld.m[0][2], camWorld.m[1][2], camWorld.m[2][2] };
-			// 垂直成分を取り除いて真っ直ぐ飛ぶようにする
 			camForward.y = 0.0f;
-			// 正規化
 			Vector3 dir = Normalize(camForward);
-			// 長さが0に近ければフォールバック
 			if (Length(dir) <= 1e-6f)
 			{
 				dir = { 0.0f, 0.0f, 1.0f };
@@ -343,18 +379,16 @@ void Player::Barrier()
 		}
 		else
 		{
-			// フォールバック: z正方向
 			velocity = { 0.0f, 0.0f, kBarrierSpeed };
 		}
 
 		PlayerBarrier* barrier = new PlayerBarrier();
 		barrier->Initialize(model_, worldTransform_.GetTranslate(), object3dCom_, velocity);
-
-		// set birth wave so it won't hit next-wave enemies
 		barrier->SetBirthWave(currentWaveForBarriers_);
-
-		// 新しいバリアを配列に追加
 		barriers_.push_back(barrier);
+
+		// クールダウンリセット（動的間隔を使用）
+		s_fireCooldownFrames = dynamicInterval;
 	}
 }
 
@@ -398,6 +432,7 @@ void Player::OnCollision()
 		emitPos.z += 0.5f; // 少し手前に出す
 		// OBJベースの8方向バーストを生成（メッシュグループを使用）
 		pm->EmitBurst8("defaultMesh", emitPos, 0.12f, 0.25f, 0.8f);
+
 	}
 
 	// コントローラ振動を開始
@@ -443,7 +478,6 @@ void Player::DrawImGui()
 	ImGui::End();
 }
 #endif
-
 
 
 

@@ -1,18 +1,18 @@
 #pragma once
 
-#include <string>
+#include "Camera.h"
+#include "Object3dCom.h"
+#include "Fade.h"
 
-class Camera;
-class Object3dCom;
 class SpriteCom;
 class Sprite;
-class Fade;
-
-class ClearScene
+class GameOverScene
 {
 public:
-    ClearScene() = default;
-    ~ClearScene();
+    enum class Phase { kFadeIn, kMain, kFadeOut };
+
+    GameOverScene() = default;
+    ~GameOverScene();
 
     void Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* spriteCom);
     void Update();
@@ -22,8 +22,6 @@ public:
 
 private:
     bool isFinish_ = false;
-
-    enum class Phase { kFadeIn, kMain, kFadeOut };
     Phase phase_ = Phase::kFadeIn;
 
     Camera* camera_ = nullptr;
@@ -31,5 +29,5 @@ private:
     SpriteCom* spriteCom_ = nullptr;
 
     Fade* fade_ = nullptr;
-    Sprite* clearSprite_ = nullptr;
+    Sprite* overlay_ = nullptr; // optional visual
 };

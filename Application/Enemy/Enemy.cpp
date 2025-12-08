@@ -236,7 +236,15 @@ void Enemy::SpawnInitialize(const Vector3& targetPos)
 {
 	// 出現アニメーションの開始位置を画面外上方に固定、あるいはランダム化しても良い
 	spawnTargetPos_ = targetPos;
-	spawnStartPos_ = { targetPos.x, targetPos.y + 8.0f, targetPos.z + 10.0f };
+
+	// If configured, apply a random vertical offset to spawn target Y
+	if (randomizeSpawnY_)
+	{
+		float r = Random::GeneratorFloat(-spawnYRandomRange_, spawnYRandomRange_);
+		spawnTargetPos_.y += r;
+	}
+
+	spawnStartPos_ = { spawnTargetPos_.x, spawnTargetPos_.y + 8.0f, spawnTargetPos_.z + 10.0f };
 	spawnTimer_ = 0;
 	phase_ = Phase::Spawn;
 

@@ -7,12 +7,14 @@
 #include <cmath>
 #include "ModelManager.h"
 #include "ParticleManager.h"
+#include "Sprite.h"
 
 SelectScene::~SelectScene()
 {
     if (fade_) { delete fade_; fade_ = nullptr; }
     if (objectModel_) { delete objectModel_; objectModel_ = nullptr; }
     if (bombModel_) { delete bombModel_; bombModel_ = nullptr; }
+    if (selectSprite_) { delete selectSprite_; selectSprite_ = nullptr; }
 }
 
 
@@ -20,6 +22,7 @@ void SelectScene::Initialize(SpriteCom* spriteCom, Object3dCom* object3dCom, Cam
 {
     object3dCom_ = object3dCom;
     camera_ = camera;
+    spriteCom_ = spriteCom;
 
     fade_ = new Fade();
     fade_->Initialize(spriteCom);
@@ -40,7 +43,23 @@ void SelectScene::Initialize(SpriteCom* spriteCom, Object3dCom* object3dCom, Cam
   
     if (objectModel_) objectModel_->SetTranslate({ 0.0f, 0.0f, 0.0f });
     if (bombModel_) bombModel_->SetTranslate({ 3.0f, 0.0f, 0.0f });
-    choice_ = Choice::kTutorial;
+    // always go to game after loading
+    choice_ = Choice::kGame;
+
+    // Create a single fullscreen white sprite if spriteCom available
+    if (spriteCom_)
+    {
+        int sw = 1280;
+        int sh = 720;
+        if (object3dCom_ && object3dCom_->GetDirectXCom()) {
+            sw = object3dCom_->GetDirectXCom()->GetClientWidth();
+            sh = object3dCom_->GetDirectXCom()->GetClientHeight();
+        }
+
+        // create a sprite that covers the whole screen
+        selectSprite_ = spriteCom_->CreateSprite("Resources/white.png", { 0.0f, 0.0f }, { static_cast<float>(sw), static_cast<float>(sh) }, 0.0f, { 0.0f, 0.0f }, false, false);
+        if (selectSprite_) { selectSprite_->SetColor({1.0f,1.0f,1.0f,1.0f}); selectSprite_->Update(); }
+    }
 }
 
 
@@ -63,42 +82,21 @@ void SelectScene::Update()
         break;
 
     case Phase::kMain:
-        // 左右で選択、スペースで決定
-        // 左矢印を押すとチュートリアル（左をTutorialに変更）
-        if (keyInput_->TriggerKey(DIK_LEFT))
-        {
-            choice_ = Choice::kTutorial;
-            ApplySelectionPosition(objectModel_, bombModel_);
-        }
-        // 右矢印を押すとゲーム（右をGameに変更）
-        if (keyInput_->TriggerKey(DIK_RIGHT))
-        {
-            choice_ = Choice::kGame;
-
-            if (bombModel_) bombModel_->SetTranslate({ 0.0f, 0.0f, 0.0f });
-            if (objectModel_) objectModel_->SetTranslate({ -3.0f, 0.0f, 0.0f });
-
-            // Start preloading heavy GameScene assets now so actual transition (SPACE) isn't blocked
+        // remove input selection; auto preload and start fade out
+        if (!preloaded_) {
+            preloaded_ = true;
             ModelManager::GetInstance()->LoadModel("player/player.obj");
             ModelManager::GetInstance()->LoadModel("wall.obj");
             ModelManager::GetInstance()->LoadModel("bomb.obj");
-
             auto* pm = ParticleManager::GetInstance();
             if (pm) {
-                // create particle groups early (idempotent)
                 pm->CreateParticleGroupFromModel("default", "apple.obj");
                 pm->CreateParticleGroupFromModel("defaultMesh", "apple.obj");
                 if (!pm->HasGroup("enemyMesh")) pm->CreateParticleGroupFromModel("enemyMesh", "wall.obj");
             }
         }
-
-        // 決定
-        if (keyInput_->TriggerKey(DIK_SPACE))
-        {
-            phase_ = Phase::kFadeOut;
-            fade_->Start(Fade::State::kFadeOut, 0.5f);
-            // NOTE: avoid heavy synchronous loads here to prevent blocking the frame; preloads occur on selection.
-        }
+        phase_ = Phase::kFadeOut;
+        fade_->Start(Fade::State::kFadeOut, 0.5f);
         break;
 
     case Phase::kFadeOut:
@@ -113,8 +111,9 @@ void SelectScene::Update()
 
 void SelectScene::Draw()
 {
-    if (objectModel_) objectModel_->Draw();
-    if (bombModel_) bombModel_->Draw();
+    // Only draw the single fullscreen sprite when available
+    if (selectSprite_) selectSprite_->Draw();
 
-    fade_->Draw();
+    // Draw fade overlay on top
+    if (fade_) fade_->Draw();
 }

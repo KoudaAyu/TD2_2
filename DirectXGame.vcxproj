@@ -20,12 +20,12 @@
     <ClCompile Include="Application\Boss\HeadPart.cpp" />
     <ClCompile Include="Application\Boss\TurretPart.cpp" />
     <ClCompile Include="Application\Fade.cpp" />
+    <ClCompile Include="Application\GameOverScene.cpp" />
     <ClCompile Include="Application\GameScene.cpp" />
     <ClCompile Include="Application\Player\Player.cpp" />
     <ClCompile Include="Application\SelectScene.cpp" />
     <ClCompile Include="Application\Skydome\Skydome.cpp" />
     <ClCompile Include="Application\TitleScene.cpp" />
-    <ClCompile Include="Application\TutorialScene.cpp" />
     <ClCompile Include="Application\UI\UIButton.cpp" />
     <ClCompile Include="Application\UI\UIImage.cpp" />
     <ClCompile Include="Application\UI\UIManager.cpp" />
@@ -106,12 +106,12 @@
     <ClInclude Include="Application\Boss\HeadPart.h" />
     <ClInclude Include="Application\Boss\TurretPart.h" />
     <ClInclude Include="Application\Fade.h" />
+    <ClInclude Include="Application\GameOverScene.h" />
     <ClInclude Include="Application\GameScene.h" />
     <ClInclude Include="Application\Player\Player.h" />
     <ClInclude Include="Application\SelectScene.h" />
     <ClInclude Include="Application\Skydome\Skydome.h" />
     <ClInclude Include="Application\TitleScene.h" />
-    <ClInclude Include="Application\TutorialScene.h" />
     <ClInclude Include="Application\UI\UIButton.h" />
     <ClInclude Include="Application\UI\UIElement.h" />
     <ClInclude Include="Application\UI\UIImage.h" />

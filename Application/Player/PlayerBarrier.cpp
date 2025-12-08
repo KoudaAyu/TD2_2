@@ -22,6 +22,16 @@ void PlayerBarrier::Initialize(Object3d* model, const Vector3 pos, Object3dCom* 
     object3dCom_ = object3dCom;
 	velocity_ = velocity;
 
+    // 縦方向ショットなら弾速アップ（DPSメリットの一部：速度のみ）
+    {
+        const float kVerticalSpeedBoost = 1.35f; // 調整可
+        if (std::abs(velocity_.y) > std::abs(velocity_.x) * 0.75f) {
+            velocity_.x *= kVerticalSpeedBoost;
+            velocity_.y *= kVerticalSpeedBoost;
+            velocity_.z *= kVerticalSpeedBoost;
+        }
+    }
+
     worldTransform.Initialize();
     worldTransform.SetTranslate(pos);
 
@@ -38,7 +48,6 @@ void PlayerBarrier::Initialize(Object3d* model, const Vector3 pos, Object3dCom* 
     }
 
 	birthWave_ = 0; // initialize member
-
 }
 
 void PlayerBarrier::Update()

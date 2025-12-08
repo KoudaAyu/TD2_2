@@ -28,6 +28,8 @@ void EnemyBullet::Initialize(Object3d* model, const Vector3 pos, Object3dCom* ob
 		const Vector4 bulletColor{ 1.0f, 0.2f, 0.2f, 1.0f };
 		model_->GetModel()->SetColor(bulletColor);
 		model_->SetColor(bulletColor);
+		// scale down enemy bullet visual
+		model_->SetScale({ 0.2f, 0.2f, 0.2f });
 	}
 
 

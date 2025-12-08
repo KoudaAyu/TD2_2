@@ -1,7 +1,11 @@
 #pragma once
 
+#include"Camera.h"
+#include"Object3dCom.h"
+#include"Object3d.h"
 #include"Fade.h"
 #include"KeyInput.h"
+#include "ParticleManager.h"
 
 class TitleScene
 {
@@ -16,7 +20,7 @@ public:
 
 	TitleScene() = default;
 	~TitleScene();
-	void Initialize(SpriteCom* spriteCom);
+	void Initialize(Camera* camera, Object3dCom* object3dCom,SpriteCom* spriteCom);
 	void Update();
 	void Draw();
 
@@ -32,4 +36,11 @@ private:
 	KeyInput* keyInput_ = nullptr;
 
 	Phase phase_ = Phase::kFadeIn;
+
+	Camera* camera_ = nullptr;
+
+	Object3dCom* object3dCom_ = nullptr;
+	Object3d* model_ = nullptr;
+
+	float motionTime_ = 0.0f; // モデル動作用タイマー
 };
