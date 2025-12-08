@@ -5,6 +5,7 @@
 #include"Object3d.h"
 #include"Fade.h"
 #include"KeyInput.h"
+#include "ParticleManager.h"
 
 class TitleScene
 {
@@ -40,4 +41,6 @@ private:
 
 	Object3dCom* object3dCom_ = nullptr;
 	Object3d* model_ = nullptr;
+
+	float motionTime_ = 0.0f; // モデル動作用タイマー
 };

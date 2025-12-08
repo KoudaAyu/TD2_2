@@ -16,7 +16,7 @@
 #include"TitleScene.h"
 #include"GameScene.h"
 #include "SelectScene.h"
-#include "TutorialScene.h"
+
 #include "Baziru3_Engine/Particle/ParticleManager.h"
 #include "Baziru3_Engine/Audio/SoundManager.h"
 #include "ClearScene.h"
@@ -27,7 +27,6 @@ using namespace StringUtility;
 GameScene* gameScene = nullptr;
 TitleScene* titleScene = nullptr;
 SelectScene* selectScene = nullptr;
-TutorialScene* tutorialScene = nullptr;
 ClearScene* clearScene = nullptr;
 
 Sprite* gTransitionOverlay = nullptr; // fullscreen black overlay used during deferred transitions
@@ -39,7 +38,6 @@ enum class Scene
 	kTitle,
 	kSelect,
 	kGame,
-	kTutorial,
 	kClear,
 };
 
@@ -107,14 +105,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 #endif
 
 #ifdef _DEBUG
-    // In debug mode start at the Title scene for faster debugging
-    scene = Scene::kTitle;
-    titleScene = new TitleScene();
-    titleScene->Initialize(camera, objCom,spriteCom);
+	// In debug mode start at the Title scene for faster debugging
+	scene = Scene::kTitle;
+	titleScene = new TitleScene();
+	titleScene->Initialize(camera, objCom,spriteCom);
 #else
-    scene = Scene::kTitle;
-    titleScene = new TitleScene();
-    titleScene->Initialize(spriteCom);
+	scene = Scene::kTitle;
+	titleScene = new TitleScene();
+	titleScene->Initialize(spriteCom);
 #endif
 
 
@@ -159,7 +157,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 			{
 				int sw = spriteCom->GetDirectXCom()->GetClientWidth();
 				int sh = spriteCom->GetDirectXCom()->GetClientHeight();
-				gTransitionOverlay = spriteCom->CreateSprite("Resources/white.png", { 0.0f, 0.0f }, { static_cast<float>(sw), static_cast<float>(sh) }, 0.0f, { 0.0f, 0.0f }, false, false);
+				// Use a guaranteed-existing UI texture for black overlay to avoid Texture load assert
+				gTransitionOverlay = spriteCom->CreateSprite("Resources/UI/SPACEUI.png", { 0.0f, 0.0f }, { static_cast<float>(sw), static_cast<float>(sh) }, 0.0f, { 0.0f, 0.0f }, false, false);
 				if (gTransitionOverlay) { gTransitionOverlay->SetColor({0.0f,0.0f,0.0f,1.0f}); gTransitionOverlay->Update(); }
 			}
 
@@ -199,7 +198,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 	delete gameScene;
 	delete titleScene;
 	delete selectScene;
-	delete tutorialScene;
 	delete clearScene;
 	delete camera;
 	delete keyInput; // 入力破棄
@@ -235,29 +233,18 @@ void ChangePhase()
 	case Scene::kSelect:
 		if (selectScene->IsFinish())
 		{
-			SelectScene::Choice choice = selectScene->GetChoice();
-			// For game choice we perform a deferred transition so we can display fade/black before heavy loading.
-			if (choice == SelectScene::Choice::kGame)
-			{
-				// mark pending and keep selectScene alive until we present one black frame
-				gPendingTransition = true;
-				gPendingTarget = Scene::kGame;
+			// Always go to Game with deferred transition
+			gPendingTransition = true;
+			gPendingTarget = Scene::kGame;
 
-				// create a fullscreen black overlay so next frame draws black
-				if (!gTransitionOverlay && spriteCom) {
-					int sw = spriteCom->GetDirectXCom()->GetClientWidth();
-					int sh = spriteCom->GetDirectXCom()->GetClientHeight();
-					gTransitionOverlay = spriteCom->CreateSprite("Resources/white.png", { 0.0f, 0.0f }, { static_cast<float>(sw), static_cast<float>(sh) }, 0.0f, { 0.0f, 0.0f }, false, false);
-					if (gTransitionOverlay) { gTransitionOverlay->SetColor({0.0f,0.0f,0.0f,1.0f}); gTransitionOverlay->Update(); }
-				}
-			}
-			else
-			{
-				delete selectScene;
-				selectScene = nullptr;
-				scene = Scene::kTutorial;
-				tutorialScene = new TutorialScene();
-				tutorialScene->Initialize(camera, objCom, spriteCom);
+
+			// create a fullscreen black overlay so next frame draws black
+			if (!gTransitionOverlay && spriteCom) {
+				int sw = spriteCom->GetDirectXCom()->GetClientWidth();
+				int sh = spriteCom->GetDirectXCom()->GetClientHeight();
+				// Use a guaranteed-existing UI texture for black overlay to avoid Texture load assert
+				gTransitionOverlay = spriteCom->CreateSprite("white.png", { 0.0f, 0.0f }, { static_cast<float>(sw), static_cast<float>(sh) }, 0.0f, { 0.0f, 0.0f }, false, false);
+				if (gTransitionOverlay) { gTransitionOverlay->SetColor({0.0f,0.0f,0.0f,1.0f}); gTransitionOverlay->Update(); }
 			}
 		}
 		break;
@@ -289,18 +276,6 @@ void ChangePhase()
 
 		break;
 
-	case Scene::kTutorial:
-		if (tutorialScene->IsFinish())
-		{
-			delete tutorialScene;
-			tutorialScene = nullptr;
-			scene = Scene::kTitle;
-			titleScene = new TitleScene();
-			titleScene->Initialize(camera, objCom, spriteCom);
-		}
-
-		break;
-
 	case Scene::kClear:
 		if (clearScene && clearScene->IsFinish())
 		{
@@ -328,9 +303,6 @@ void UpdateScene()
 	case Scene::kGame:
 		gameScene->Update();
 		break;
-	case Scene::kTutorial:
-		tutorialScene->Update();
-		break;
 	case Scene::kClear:
 		if (clearScene) clearScene->Update();
 		break;
@@ -350,9 +322,6 @@ void DrawScene()
 		break;
 	case Scene::kGame:
 		gameScene->Draw();
-		break;
-	case Scene::kTutorial:
-		tutorialScene->Draw();
 		break;
 	case Scene::kClear:
 		if (clearScene) clearScene->Draw();

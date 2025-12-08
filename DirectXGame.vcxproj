@@ -25,7 +25,6 @@
     <ClCompile Include="Application\SelectScene.cpp" />
     <ClCompile Include="Application\Skydome\Skydome.cpp" />
     <ClCompile Include="Application\TitleScene.cpp" />
-    <ClCompile Include="Application\TutorialScene.cpp" />
     <ClCompile Include="Application\UI\UIButton.cpp" />
     <ClCompile Include="Application\UI\UIImage.cpp" />
     <ClCompile Include="Application\UI\UIManager.cpp" />
@@ -111,7 +110,6 @@
     <ClInclude Include="Application\SelectScene.h" />
     <ClInclude Include="Application\Skydome\Skydome.h" />
     <ClInclude Include="Application\TitleScene.h" />
-    <ClInclude Include="Application\TutorialScene.h" />
     <ClInclude Include="Application\UI\UIButton.h" />
     <ClInclude Include="Application\UI\UIElement.h" />
     <ClInclude Include="Application\UI\UIImage.h" />

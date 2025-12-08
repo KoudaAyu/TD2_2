@@ -69,6 +69,14 @@ void TextureManager::LoadTexture(const std::string& filePath)
 	bool isAbsoluteUnix = (!filePath.empty() && (filePath[0] == '/' || filePath[0] == '\\'));
 	if (!startsWithResources && !isAbsoluteWin && !isAbsoluteUnix) {
 		candidates.push_back(std::string("Resources/") + filePath);
+		// 実行パスが x64/Debug 等の場合に備えて、上位ディレクトリからの相対パスも試行
+		candidates.push_back(std::string("../Resources/") + filePath);
+		candidates.push_back(std::string("../../Resources/") + filePath);
+	}
+	else if (startsWithResources) {
+		// 既に Resources から始まっている場合でも、ビルド出力フォルダからの相対参照に対応
+		candidates.push_back(std::string("../") + filePath);
+		candidates.push_back(std::string("../../") + filePath);
 	}
 
 	// 候補パスからの読み込みを試行

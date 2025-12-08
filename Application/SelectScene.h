@@ -41,8 +41,10 @@ private:
     Fade* fade_ = nullptr;
     KeyInput* keyInput_ = nullptr;
     Phase phase_ = Phase::kFadeIn;
-    Choice choice_ = Choice::kGame;
+    Choice choice_ = Choice::kGame; // 常にゲームへ
 
+    // 一度だけプリロードするためのフラグ
+    bool preloaded_ = false;
   
     Object3d* objectModel_ = nullptr;
     Object3d* bombModel_ = nullptr;
