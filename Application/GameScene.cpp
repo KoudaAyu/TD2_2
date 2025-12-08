@@ -1084,6 +1084,14 @@ void GameScene::ResetScene()
 
 	gFadeStarted = false; // リセット時にもフェード開始フラグをクリア
 
+	// Ensure BGM is stopped and unloaded to prevent duplicate playback after re-init
+	if (soundManager_ && hasBgm_) {
+		soundManager_->StopAllVoices();
+		soundManager_->SoundUnload(&bgmData_);
+		hasBgm_ = false;
+		bgmData_ = {};
+	}
+
 	Initialize(camera_, object3dCom_, spriteCom_);
 }
 #endif
