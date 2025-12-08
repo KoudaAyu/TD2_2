@@ -135,7 +135,12 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 
 	railCameraController_ = new RailCameraController();
 	railCameraController_->SetCamera(camera_);
-	railCameraController_->Initialize({ 0.0f, 5.0f, -10.0f }, { 20.0f, 0.0f, 0.0f });	railCameraController_->SetTarget(player_);
+	// Lower camera height and reduce downward tilt so enemies appear more parallel
+	// Previous attempts: {0.0f, 5.0f, -10.0f}, {15.0f,0.0f,0.0f} and {0.0f,6.5f,-13.0f},{22.0f,0.0f,0.0f}
+	// New setting: slightly lower and less pitched for a more side-on view
+	// Y (height) lowered from 4.0f to 2.5f
+	railCameraController_->Initialize({ 0.0f, 3.5f, -12.0f }, { 10.0f, 0.0f, 0.0f });
+	railCameraController_->SetTarget(player_);
 	bossBodyModel_ = bossBodyModel_;
 	boss_ = boss_;
 
@@ -352,7 +357,7 @@ void GameScene::Update()
 			{
 				bossBodyModel_ = Object3d::Create(object3dCom_, "bomb.obj", { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,15.0f} }, camera_);
 				boss_ = new Boss();
-				boss_->Initialize(bossBodyModel_, camera_, { 0.0f, 0.0f, 15.0f }, object3dCom_, spriteCom_);
+				boss_->Initialize(bossBodyModel_, camera_, { 0.0f, 0.0f, 15.0f }, object3dCom_, spriteCom_;
 				boss_->SetPlayer(player_);
 			}
 		}
@@ -609,7 +614,10 @@ void GameScene::CheckAllCollisions()
                 {
                     int screenW = object3dCom_->GetDirectXCom()->GetClientWidth();
                     int screenH = object3dCom_->GetDirectXCom()->GetClientHeight();
-                    Vector2 screen = WorldToScreen(posA, camera_, screenW, screenH);
+                    // move the spawn point slightly toward +Z so the sprite projects a bit in front of the
+                    // player model (prevents exact overlap with model's screen position)
+                    Vector3 spriteWorld = posA + Vector3{0.0f, -1.0f, 3.0f};
+                    Vector2 screen = WorldToScreen(spriteWorld, camera_, screenW, screenH);
 
                     // larger HUD feedback sprite for visibility
                     Sprite* s = spriteCom_->CreateSprite(particleTexturePath_, screen, {96.0f,96.0f}, 0.0f, {0.5f,0.5f});
@@ -907,36 +915,45 @@ void GameScene::InitializeUI(SpriteCom* spriteCom)
     int sw = object3dCom_->GetDirectXCom()->GetClientWidth();
     int sh = object3dCom_->GetDirectXCom()->GetClientHeight();
 
- 
+    // WASD UI (bottom-right)
     {
-        wasdSprite_ = spriteCom->CreateSprite("Resources/UI/WASDUI.png",
-            { static_cast<float>(sw) - 10.0f, static_cast<float>(sh) - 10.0f },
-            { 320.0f, 64.0f }, 0.0f, {1.0f, 1.0f});
+        Vector2 size = { 320.0f, 64.0f };
+        Vector2 pos = { static_cast<float>(sw) - 10.0f, static_cast<float>(sh) - 10.0f };
+        wasdSprite_ = spriteCom->CreateSprite("Resources/UI/WASDUI.png", {0.0f,0.0f}, size, 0.0f, {1.0f, 1.0f});
         if (wasdSprite_) {
+            wasdSprite_->SetAnchorPoint({1.0f, 1.0f});
+            wasdSprite_->SetScale(size);
+            wasdSprite_->SetPosition(pos);
             wasdSprite_->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });
             wasdSprite_->Update();
         }
     }
 
-  
+    // SPACE UI (slightly above bottom-right)
     {
-        spaceSprite_ = spriteCom->CreateSprite("Resources/UI/SPACEUI.png",
-            { static_cast<float>(sw) - 0.0f, static_cast<float>(sh) - 60.0f },
-            { 320.0f, 64.0f }, 0.0f, {1.0f, 1.0f});
+        Vector2 size = { 320.0f, 64.0f };
+        Vector2 pos = { static_cast<float>(sw) - 10.0f, static_cast<float>(sh) - 60.0f };
+        spaceSprite_ = spriteCom->CreateSprite("Resources/UI/SPACEUI.png", {0.0f,0.0f}, size, 0.0f, {1.0f, 1.0f});
         if (spaceSprite_) {
+            spaceSprite_->SetAnchorPoint({1.0f, 1.0f});
+            spaceSprite_->SetScale(size);
+            spaceSprite_->SetPosition(pos);
             spaceSprite_->SetColor({ 0.2f, 0.8f, 1.0f, 1.0f });
             spaceSprite_->Update();
         }
     }
 
-   
+    // Pause overlay (center)
     {
-        pauseSprite_ = spriteCom->CreateSprite("Resources/UI/Pose.png",
-            { static_cast<float>(sw) * 0.5f, static_cast<float>(sh) * 0.5f },
-            { 800.0f, 600.0f }, 0.0f, {0.5f, 0.5f});
+        Vector2 size = { 800.0f, 600.0f };
+        Vector2 pos = { static_cast<float>(sw) * 0.5f, static_cast<float>(sh) * 0.5f };
+        pauseSprite_ = spriteCom->CreateSprite("Resources/UI/Pose.png", {0.0f,0.0f}, size, 0.0f, {0.5f, 0.5f});
         if (pauseSprite_) {
+            pauseSprite_->SetAnchorPoint({0.5f, 0.5f});
+            pauseSprite_->SetScale(size);
+            pauseSprite_->SetPosition(pos);
             Vector4 c = pauseSprite_->GetColor();
-            c.w = 0.0f; 
+            c.w = 0.0f; // start hidden
             pauseSprite_->SetColor(c);
             pauseSprite_->Update();
         }
@@ -983,19 +1000,41 @@ void GameScene::SpawnWave()
 			// side enemies fire slower Aim shots to keep pressure but reduce difficulty.
 			int centerIndex = enemyCount / 2;
 			if (i == centerIndex) {
-				// center: wide, slow spread
-				enemy->SetBulletSpeed(0.8f);
-				enemy->SetFireInterval(36); // slower interval to give player room
+				// center: wider and noticeably slower bullets
+				enemy->SetBulletSpeed(0.6f);
+				enemy->SetFireInterval(36); // slightly slower interval
 				enemy->SetAttackPattern(Enemy::AttackPattern::Rapid);
 				enemy->SetRapidShotCount(5); // more bullets but slower
 				enemy->SetRapidSpread(1.1f); // wide spread
 				enemy->SetRandomizeInitialFire(true);
 			} else {
-				// sides: aim at player but fire less frequently
-				enemy->SetBulletSpeed(0.9f);
+				// sides: aim at player but fire less frequently and slightly slower bullets
+				enemy->SetBulletSpeed(0.7f);
 				enemy->SetFireInterval(40);
 				enemy->SetAttackPattern(Enemy::AttackPattern::Aim);
 				// stagger initial fire based on distance from center
+				int offset = (i < centerIndex) ? (centerIndex - i) : (i - centerIndex);
+				enemy->SetInitialFireDelay(offset * 6);
+				enemy->SetRandomizeInitialFire(false);
+			}
+		}
+		else if (currentWave_ == 3)
+		{
+			// Wave4: make bullets a bit slower than Wave3 to reduce overall speed
+			int centerIndex = enemyCount / 2;
+			if (i == centerIndex) {
+				// center: slow but more frequent bursts for visual challenge
+				enemy->SetBulletSpeed(0.5f);
+				enemy->SetFireInterval(32);
+				enemy->SetAttackPattern(Enemy::AttackPattern::Rapid);
+				enemy->SetRapidShotCount(6);
+				enemy->SetRapidSpread(1.0f);
+				enemy->SetRandomizeInitialFire(true);
+			} else {
+				// sides: slightly slower aim shots
+				enemy->SetBulletSpeed(0.65f);
+				enemy->SetFireInterval(44);
+				enemy->SetAttackPattern(Enemy::AttackPattern::Aim);
 				int offset = (i < centerIndex) ? (centerIndex - i) : (i - centerIndex);
 				enemy->SetInitialFireDelay(offset * 6);
 				enemy->SetRandomizeInitialFire(false);
