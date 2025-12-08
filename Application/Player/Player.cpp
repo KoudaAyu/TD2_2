@@ -3,6 +3,8 @@
 #include<cassert>
 #include "Controller.h"
 #include "ParticleManager.h"
+#include "Sprite.h"
+#include "SpriteCom.h"
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
@@ -24,6 +26,29 @@ Player::~Player()
 	{
 		delete controller_;
 		controller_ = nullptr;
+	}
+
+	if (invincibleSprite_) { delete invincibleSprite_; invincibleSprite_ = nullptr; }
+}
+
+void Player::SetSpriteCom(SpriteCom* spriteCom, const std::string& texturePath)
+{
+	spriteCom_ = spriteCom;
+	invincibleTexturePath_ = texturePath;
+	// create sprite if texture available
+	if (spriteCom_ && !invincibleTexturePath_.empty()) {
+		int screenW = 1280; int screenH = 720;
+		if (object3dCom_ && object3dCom_->GetDirectXCom()) {
+			screenW = object3dCom_->GetDirectXCom()->GetClientWidth();
+			screenH = object3dCom_->GetDirectXCom()->GetClientHeight();
+		}
+		invincibleSprite_ = spriteCom_->CreateSprite(invincibleTexturePath_, { static_cast<float>(screenW)/2.0f, static_cast<float>(screenH)/2.0f }, { 128.0f, 128.0f }, 0.0f, {0.5f,0.5f});
+		if (invincibleSprite_) {
+			Vector4 c = invincibleSprite_->GetColor();
+			c.w = 0.0f; // hidden by default
+			invincibleSprite_->SetColor(c);
+			invincibleSprite_->Update();
+		}
 	}
 }
 
@@ -59,12 +84,20 @@ void Player::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Obje
 
 	// reset hit counter
 	hitCount_ = 0;
+
+	// create default invincible sprite if possible (deferred until GameScene sets spriteCom)
 }
-
-
 
 void Player::Update()
 {
+	// reset per-frame became-invincible flag at start of Update
+	becameInvincibleThisFrame_ = false;
+	// advance invincibility age frame counter if active
+	if (invincible_)
+	{
+		if (invincibleAgeFrames_ >= 0) invincibleAgeFrames_++;
+	}
+
 	//Playerが死亡している場合早期return
 	if (!isAlive_)
 	{
@@ -118,8 +151,6 @@ void Player::Update()
 
 	Barrier();
 
-
-
 	// ワールド行列の更新（必要なら維持）
 	worldTransform_.TransferMatrix();
 
@@ -131,14 +162,11 @@ void Player::Update()
 	}
 
 	// Update barriers and remove inactive
-	for (auto it = barriers_.begin(); it != barriers_.end();)
-	{
+	for (auto it = barriers_.begin(); it != barriers_.end();) {
 		PlayerBarrier* b = *it;
-		if (b)
-		{
+		if (b) {
 			b->Update();
-			if (!b->IsActive())
-			{
+			if (!b->IsActive()) {
 				delete b;
 				it = barriers_.erase(it);
 				continue;
@@ -184,10 +212,17 @@ void Player::Update()
 				model_->SetColor(col);
 				model_->GetModel()->SetColor(col);
 			}
+			// keep invincible HUD sprite hidden
+			if (invincibleSprite_) {
+				Vector4 c = invincibleSprite_->GetColor();
+				c.w = 0.0f;
+				invincibleSprite_->SetColor(c);
+				invincibleSprite_->Update();
+			}
 		}
 		else
 		{
-			// blinking visual effect
+			// blinking visual effect on model only
 			float phase = fmodf(invincibleTimer_, kInvincibleBlinkPeriod) / kInvincibleBlinkPeriod;
 			float alpha = (phase < 0.5f) ? 0.25f : 1.0f;
 			if (model_) {
@@ -195,6 +230,7 @@ void Player::Update()
 				model_->SetColor(c);
 				if (model_->GetModel()) model_->GetModel()->SetColor(c);
 			}
+			// do NOT show or update invincibleSprite here; temporary feedback sprites are created by GameScene
 		}
 	}
 }
@@ -210,6 +246,9 @@ void Player::Draw()
 	{
 		model_->Draw();
 	}
+
+	// do not draw persistent invincible HUD sprite here; GameScene spawns temporary HUD sprites when appropriate
+	// if (invincibleSprite_) { invincibleSprite_->Draw(); }
 }
 
 void Player::ClearBarriers()
@@ -279,16 +318,10 @@ void Player::Rotate()
 	Vector3 rot = worldTransform_.GetRotate();
 
 	// 方向キー左でY軸回転を減算（左回転）
-	/*if (keyInput_->PushKey(DIK_LEFT))
-	{
-		rot.y -= kRotSpeed;
-	}*/
+
 
 	// 方向キー右でY軸回転を加算（右回転）
-	/*if (keyInput_->PushKey(DIK_RIGHT))
-	{
-		rot.y += kRotSpeed;
-	}*/
+
 
 	worldTransform_.SetRotate(rot);
 }
@@ -423,6 +456,8 @@ void Player::OnCollision()
 	// start invincibility instead of immediate death
 	invincible_ = true;
 	invincibleTimer_ = kInvincibleDuration;
+	becameInvincibleThisFrame_ = true; // mark that invincibility began this frame
+	invincibleAgeFrames_ = 0; // age 0 indicates started this frame
 
 	// 小さなメッシュ(OBJ)パーティクルエフェクトを追加
 	auto* pm = ParticleManager::GetInstance();
@@ -434,6 +469,8 @@ void Player::OnCollision()
 		pm->EmitBurst8("defaultMesh", emitPos, 0.12f, 0.25f, 0.8f);
 
 	}
+
+	// remove sprite creation here: sprite should be shown only when an enemy attack hits while already invincible (handled in GameScene)
 
 	// コントローラ振動を開始
 	if (controller_ && controller_->IsConnected())
@@ -454,8 +491,8 @@ void Player::DrawImGui()
 {
 	if (!ImGui::Begin("Player"))
 	{
-		ImGui::End();
-		return;
+	 ImGui::End();
+	 return;
 	}
 
 	// 基本情報表示

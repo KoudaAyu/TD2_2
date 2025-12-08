@@ -9,8 +9,11 @@
 #include"SoundManager.h"
 
 #include <vector>
+#include <string>
 
 class Controller; // forward declaration for controller pointer
+class SpriteCom;
+class Sprite;
 
 class Player
 {
@@ -51,6 +54,9 @@ public:
 
 	// set current wave id for newly spawned barriers
 	void SetCurrentWaveForBarriers(int wave) { currentWaveForBarriers_ = wave; }
+
+	// Set sprite system and texture for invincibility visual
+	void SetSpriteCom(SpriteCom* spriteCom, const std::string& texturePath);
 
 #ifdef USE_IMGUI
 	
@@ -110,6 +116,11 @@ private:
 
 	Controller* controller_ = nullptr; // added controller pointer
 
+	// Sprite for invincibility visual
+	SpriteCom* spriteCom_ = nullptr;
+	Sprite* invincibleSprite_ = nullptr;
+	std::string invincibleTexturePath_;
+
 	// 単一のバリアから複数のバリアに変更
 	std::vector<PlayerBarrier*> barriers_;
 
@@ -147,10 +158,18 @@ private:
 	// seconds remaining for invincibility
 	float invincibleTimer_ = 0.0f;
 	static constexpr float kInvincibleDuration = 1.2f; // seconds of i-frames
-	// blink period while invincible
+	// blink period while invincibility
 	static constexpr float kInvincibleBlinkPeriod = 0.12f;
 
+	// invincibility flag indicating invincibility started during the current frame
+	bool becameInvincibleThisFrame_ = false;
 	
+	// invincibility age in frames (-1 = not invincible, 0 = set this frame)
+	int invincibleAgeFrames_ = -1;
+public:
+	// Return how many Update frames have passed since invincibility began (-1 if not invincible)
+	int GetInvincibleAgeFrames() const { return invincibleAgeFrames_; }
+
 	SoundManager* soundManager_;
 	SoundData shotBarrierSoundData_;
 
