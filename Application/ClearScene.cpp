@@ -79,6 +79,6 @@ void ClearScene::Update()
 
 void ClearScene::Draw()
 {
-    if (clearSprite_) clearSprite_->Draw();
+    /*if (clearSprite_) clearSprite_->Draw();*/
     if (fade_) fade_->Draw();
 }

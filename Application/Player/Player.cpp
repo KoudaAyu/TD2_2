@@ -79,8 +79,11 @@ void Player::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Obje
 	shotBarrierSoundData_ = soundManager_->SoundLoadWave("Resources/Audio/SE/Shot.wav");
 
 	// ensure invincibility starts off
-	invincible_ = false;
-	invincibleTimer_ = 0.0f;
+	// For safety/testing: make player permanently invincible by default
+	// Set a very long invincibility timer so Update won't expire it during play
+	invincible_ = true;
+	invincibleTimer_ = 1e8f; // effectively permanent for regular gameplay
+	invincibleAgeFrames_ = 0;
 
 	// reset hit counter
 	hitCount_ = 0;

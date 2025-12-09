@@ -144,6 +144,9 @@ private:
 	// alternate smoothing: current total visible pixels across all 3 sprites (used for continuous shrink)
 	float bossHpTotalPixelsCurrent_ = 0.0f;
 
+	// remember last shown boss phase so UI can snap on phase change
+	Boss::Phase lastBossPhaseShown_ = Boss::Phase::Spawn;
+
 	// デバッグ用: 起動時にボスフェーズから開始するかどうか
 	bool startAtBoss_ = false;
 

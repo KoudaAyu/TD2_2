@@ -344,8 +344,8 @@ void GameScene::Update()
 	if (!anyActive && phase_ == Phase::kMain)
 	{
 
-		if (currentWave_ + 1 < maxWaves_)
-		{
+			if (currentWave_ + 1 < maxWaves_)
+			{
 
 			
 			for (Enemy* enemy : enemies_) { delete enemy; }
@@ -491,29 +491,50 @@ void GameScene::Update()
         if (hitsPerFull <= 0) hitsPerFull = 1;
 
         float remainingRatio = 1.0f;
+        int maxHP = boss_->GetMaxHP();
+        int hp = boss_->GetHP();
 
-        // Map boss current phase (Phase1..Phase5 including Phase2_5) to a 6-step progression
-        // so 6 phases are represented across 3 sprites (each sprite == 2 phases).
+        // Clean mapping: 6 phases (Phase1..Phase6) map to 6 equal steps across the full bar.
+        // Each phase step reduces total pixels by (totalPixelsFull / 6) == baseW/2 (half a sprite).
         {
             auto bphase = boss_->GetPhase();
-            // ensure we only map when in Phase1..Phase5 inclusive
-            if (bphase >= Boss::Phase::Phase1 && bphase <= Boss::Phase::Phase5)
+            if (bphase >= Boss::Phase::Phase1 && bphase <= Boss::Phase::Phase6)
             {
-                int phaseIndex = static_cast<int>(bphase) - static_cast<int>(Boss::Phase::Phase1); // 0..5
-                int numPhases = static_cast<int>(Boss::Phase::Phase5) - static_cast<int>(Boss::Phase::Phase1) + 1; // 6
-                if (numPhases <= 1) numPhases = 6; // safety
-                // remaining ratio goes from 1.0 (phaseIndex==0) down to 0.0 (phaseIndex==numPhases-1)
-                remainingRatio = 1.0f - (static_cast<float>(phaseIndex) / static_cast<float>(numPhases - 1));
+                const int phaseIndex = static_cast<int>(bphase) - static_cast<int>(Boss::Phase::Phase1); // 0..5
+                const float totalPhaseSteps = 6.0f; // number of steps across the whole bar
+
+                // intra-phase progress in [0,1], prefer hitsPerPhase if provided
+                float intra = 0.0f;
+                int hitsPerPhase = boss_->GetHitsPerPhase();
+                if (hitsPerPhase > 0)
+                {
+                    // use hit count within the current phase so transitions don't instantly count as full intra
+                    int hitCountRaw = hitCount;
+                    int hitCountInPhase = hitCountRaw % hitsPerPhase; // remainder within phase
+                    float frac = static_cast<float>(hitCountInPhase) / static_cast<float>(hitsPerPhase);
+                    intra = std::clamp(frac, 0.0f, 1.0f);
+                }
+                // phaseProgress ranges 0..6 (Phase1 start -> 0, Phase6 end -> 6)
+                float phaseProgress = static_cast<float>(phaseIndex) + intra;
+                remainingRatio = 1.0f - (phaseProgress / totalPhaseSteps);
             }
-            else
+            else if (maxHP > 0)
             {
-                // fallback: use hit count fraction as before
-                remainingRatio = 1.0f - (static_cast<float>(hitCount) / static_cast<float>(hitsPerFull));
+                // fallback to actual HP fraction
+                remainingRatio = static_cast<float>(hp) / static_cast<float>(maxHP);
+            }
+            else if (hitCount > 0 && hitsPerFull > 0)
+            {
+                float frac = static_cast<float>(hitCount) / static_cast<float>(hitsPerFull);
+                remainingRatio = 1.0f - std::clamp(frac, 0.0f, 1.0f);
             }
         }
 
-        if (remainingRatio < 0.0f) remainingRatio = 0.0f;
-        if (remainingRatio > 1.0f) remainingRatio = 1.0f;
+        // if boss HP explicitly zero, force empty
+        if (maxHP > 0 && hp <= 0) remainingRatio = 0.0f;
+
+        // clamp
+        remainingRatio = std::clamp(remainingRatio, 0.0f, 1.0f);
 
         // Compute target total pixels across the 3 sprites and smooth that value
         const float totalPixelsFull = baseW * 3.0f;

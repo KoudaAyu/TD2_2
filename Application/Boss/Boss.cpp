@@ -443,7 +443,7 @@ void Boss::OnHit()
 
             if (spriteCom_)
             {
-                int currentPhaseIndex = (phase_ >= Phase::Phase1 && phase_ <= Phase::Phase5) ?
+                int currentPhaseIndex = (phase_ >= Phase::Phase1 && phase_ <= Phase::Phase6) ?
                     static_cast<int>(phase_) - static_cast<int>(Phase::Phase1) : 0;
                 for (int i = 0; i < 6; ++i)
                 {
@@ -1167,7 +1167,8 @@ void Boss::Update()
     UpdatePhaseByHP();
 
     // if entering Phase4 start pre-motion
-    if (phase_ == Phase::Phase4 && lastPhase_ != Phase::Phase4 && !currentMotion_)
+    // laser pre-motion should trigger when entering the laser phase (old Phase4 -> new Phase5)
+    if (phase_ == Phase::Phase5 && lastPhase_ != Phase::Phase5 && !currentMotion_)
     {
         StartLaserPreMotion();
     }
@@ -1179,8 +1180,9 @@ void Boss::Update()
             Sprite* s = phaseSprites_[i];
             if (!s) continue;
             Vector4 c = s->GetColor();
+            // now supports Phase1..Phase6
             int currentPhaseIndex = 0;
-            if (phase_ >= Phase::Phase1 && phase_ <= Phase::Phase5)
+            if (phase_ >= Phase::Phase1 && phase_ <= Phase::Phase6)
             {
                 currentPhaseIndex = static_cast<int>(phase_) - static_cast<int>(Phase::Phase1);
             }
@@ -1221,23 +1223,27 @@ void Boss::Update()
     {
         UpdatePhase2();
     }
-    else if (phase_ == Phase::Phase2_5)
-    {
-        UpdatePhase2_5();
-    }
     else if (phase_ == Phase::Phase3)
     {
-        UpdatePhase3();
+        // Phase3 now maps to the former Phase2_5 behavior
+        UpdatePhase2_5();
     }
     else if (phase_ == Phase::Phase4)
     {
+        // Phase4 now maps to the former Phase3 (drones)
+        UpdatePhase3();
+    }
+    else if (phase_ == Phase::Phase5)
+    {
+        // Phase5 now maps to the former Phase4 (laser). Ensure pre-motion completed before firing
         if (!currentMotion_)
         {
             UpdatePhase4();
         }
     }
-    else if (phase_ == Phase::Phase5)
+    else if (phase_ == Phase::Phase6)
     {
+        // Phase6 maps to the former Phase5 behavior
         UpdatePhase5();
     }
 
@@ -1284,7 +1290,8 @@ void Boss::Draw()
     }
 
    
-    if (phase_ == Phase::Phase3)
+    // drones belonged to old Phase3 which is now Phase4
+    if (phase_ == Phase::Phase4)
     {
         for (auto* o : droneObjs_)
         {
@@ -1292,7 +1299,8 @@ void Boss::Draw()
         }
     }
 
-    if (phase_ == Phase::Phase4 && laserModel_ && laserActive_)
+    // laser belonged to old Phase4 which is now Phase5
+    if (phase_ == Phase::Phase5 && laserModel_ && laserActive_)
     {
         // draw turrets first
         for (auto &t : phase4Turrets_)
@@ -1311,6 +1319,7 @@ void Boss::Draw()
             s->Draw();
         }
     }
+
 }
 
 void Boss::OnCollision()

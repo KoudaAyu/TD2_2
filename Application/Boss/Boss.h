@@ -80,15 +80,20 @@ public:
     void SetMaxHP(int maxHP) { maxHP_ = maxHP; if (hp_ > maxHP_) hp_ = maxHP_; }
     // 現在HP を取得
     int GetHP() const { return hp_; }
+    // 最大HP を取得（UI 用）
+    int GetMaxHP() const { return maxHP_; }
     // ダメージを与える（フェーズ判定は Update 内で自動的に行われる）
     void ApplyDamage(int dmg) { hp_ -= dmg; if (hp_ < 0) hp_ = 0; }
 
     // expose hitCount for UI
     int GetHitCount() const { return hitCount_; }
     int GetHitsPerFull() const { return hitsPerFull; }
+    // number of hits required to advance a single phase
+    int GetHitsPerPhase() const { return hitsPerPhase_; }
 
     // 現在のフェーズを取得
-    enum class Phase { Spawn, Phase1, Phase2, Phase2_5, Phase3, Phase4, Phase5, Leave };
+    // Phase2_5 was promoted to Phase3 and later phases shifted; phases are continuous Phase1..Phase6
+    enum class Phase { Spawn, Phase1, Phase2, Phase3, Phase4, Phase5, Phase6, Leave };
     Phase GetPhase() const { return phase_; }
 
     // Start a fancy visual/sound/particle transition when phases change
@@ -138,7 +143,7 @@ private:
     // フェーズ進行回数（何回フェーズが上がったか）
     int phaseProgress_ = 0;
 
-    const int hitsPerFull = 6; // 6 ヒットでボス撃破（フェーズ5 到達で切替）
+    const int hitsPerFull = 6; // total phase steps (Phase1..Phase6)
 
     // ヒットの短期無敵（多重カウント防止）
     int hitCooldownTimer_ = 0; // フレームカウント
@@ -149,7 +154,7 @@ private:
 
 
     // --- デバッグ用スプライト ---
-    // Phase1~Phase5 のときに画面に対応する番号画像を重ねて描画する
+    // Phase1~Phase6 のときに画面に対応する番号画像を重ねて描画する
     SpriteCom* spriteCom_ = nullptr; // Sprite作成用コンポーネント
     std::array<Sprite*, 6> phaseSprites_ = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
     // スプライトの描画位置・スケールは簡単に変更できるようにメンバ化
