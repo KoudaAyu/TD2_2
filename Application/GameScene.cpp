@@ -41,6 +41,11 @@ GameScene::~GameScene()
 	if (bossBodyModel_) delete bossBodyModel_;
 
 	if (clearScene_) { delete clearScene_; clearScene_ = nullptr; }
+
+	// cleanup boss hp sprites
+	if (bossHpSprite1_) { delete bossHpSprite1_; bossHpSprite1_ = nullptr; }
+	if (bossHpSprite2_) { delete bossHpSprite2_; bossHpSprite2_ = nullptr; }
+	if (bossHpSprite3_) { delete bossHpSprite3_; bossHpSprite3_ = nullptr; }
 }
 
 void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* spriteCom)
@@ -205,7 +210,7 @@ void GameScene::Update()
         
         uiManager_.UpdateAll();
         // 常にフェードを更新（アクティブ時のみ内部で進行）
-        if (fade_) { fade_->Update(); }
+//         if (fade_) { fade_->Update(); }
         if (phase_ == Phase::kFadeOut && fade_) {
             if (fade_->IsFinished()) { isFinish_ = true; }
         }
@@ -357,7 +362,7 @@ void GameScene::Update()
 			{
 				bossBodyModel_ = Object3d::Create(object3dCom_, "bomb.obj", { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,15.0f} }, camera_);
 				boss_ = new Boss();
-				boss_->Initialize(bossBodyModel_, camera_, { 0.0f, 0.0f, 15.0f }, object3dCom_, spriteCom_;
+				boss_->Initialize(bossBodyModel_, camera_, { 0.0f, 0.0f, 15.0f }, object3dCom_, spriteCom_);
 				boss_->SetPlayer(player_);
 			}
 		}
@@ -474,6 +479,85 @@ void GameScene::Update()
 			Logger::Log("GameScene: player died, requesting game over transition.");
 		}
 	}
+
+	// Show/hide and update boss HP sprites depending on boss presence and active state
+    if (boss_ && boss_->IsActive() && phase_ == Phase::kBoss)
+    {
+        const float baseW = 640.0f;
+        const float baseH = 64.0f;
+
+        int hitCount = boss_->GetHitCount();
+        int hitsPerFull = boss_->GetHitsPerFull();
+        if (hitsPerFull <= 0) hitsPerFull = 1;
+
+        float remainingRatio = 1.0f;
+
+        // Map boss current phase (Phase1..Phase5 including Phase2_5) to a 6-step progression
+        // so 6 phases are represented across 3 sprites (each sprite == 2 phases).
+        {
+            auto bphase = boss_->GetPhase();
+            // ensure we only map when in Phase1..Phase5 inclusive
+            if (bphase >= Boss::Phase::Phase1 && bphase <= Boss::Phase::Phase5)
+            {
+                int phaseIndex = static_cast<int>(bphase) - static_cast<int>(Boss::Phase::Phase1); // 0..5
+                int numPhases = static_cast<int>(Boss::Phase::Phase5) - static_cast<int>(Boss::Phase::Phase1) + 1; // 6
+                if (numPhases <= 1) numPhases = 6; // safety
+                // remaining ratio goes from 1.0 (phaseIndex==0) down to 0.0 (phaseIndex==numPhases-1)
+                remainingRatio = 1.0f - (static_cast<float>(phaseIndex) / static_cast<float>(numPhases - 1));
+            }
+            else
+            {
+                // fallback: use hit count fraction as before
+                remainingRatio = 1.0f - (static_cast<float>(hitCount) / static_cast<float>(hitsPerFull));
+            }
+        }
+
+        if (remainingRatio < 0.0f) remainingRatio = 0.0f;
+        if (remainingRatio > 1.0f) remainingRatio = 1.0f;
+
+        // Compute target total pixels across the 3 sprites and smooth that value
+        const float totalPixelsFull = baseW * 3.0f;
+        float targetTotalPixels = remainingRatio * totalPixelsFull;
+
+        // initialize current total if first frame
+        if (bossHpTotalPixelsCurrent_ <= 0.0f) bossHpTotalPixelsCurrent_ = targetTotalPixels;
+
+        // smooth toward target total pixels
+        float alpha = bossHpSmoothFactor_;
+        bossHpTotalPixelsCurrent_ += (targetTotalPixels - bossHpTotalPixelsCurrent_) * alpha;
+        // snap small differences
+        if (std::fabs(bossHpTotalPixelsCurrent_ - targetTotalPixels) < 0.5f) bossHpTotalPixelsCurrent_ = targetTotalPixels;
+
+        // distribute current total pixels into 3 sprites left-to-right
+        float remainingPixels = bossHpTotalPixelsCurrent_;
+        for (int i = 0; i < 3; ++i)
+        {
+            float thisPixels = std::clamp(remainingPixels, 0.0f, baseW);
+            remainingPixels -= thisPixels;
+
+            float thisFill = (baseW <= 0.0f) ? 0.0f : (thisPixels / baseW);
+            bossHpFill_[i] = thisFill; // keep for potential other use
+
+            Sprite* s = (i == 0) ? bossHpSprite1_ : (i == 1) ? bossHpSprite2_ : bossHpSprite3_;
+            if (!s) continue;
+
+            s->SetScale({ baseW, baseH });
+            // Make quad width match cropped texture width so it visually shrinks from the right
+            s->SetScale({ baseW * thisFill, baseH });
+            s->SetTextureSize({ baseW * thisFill, baseH });
+            Vector4 col = s->GetColor();
+            col.w = (thisFill > 0.001f) ? 1.0f : 0.0f;
+            s->SetColor(col);
+            s->Update();
+        }
+    }
+    else
+    {
+        // hide sprites when no boss
+        if (bossHpSprite1_) { Vector4 c = bossHpSprite1_->GetColor(); c.w = 0.0f; bossHpSprite1_->SetColor(c); bossHpSprite1_->Update(); }
+        if (bossHpSprite2_) { Vector4 c = bossHpSprite2_->GetColor(); c.w = 0.0f; bossHpSprite2_->SetColor(c); bossHpSprite2_->Update(); }
+        if (bossHpSprite3_) { Vector4 c = bossHpSprite3_->GetColor(); c.w = 0.0f; bossHpSprite3_->SetColor(c); bossHpSprite3_->Update(); }
+    }
 }
 
 void GameScene::Draw()
@@ -515,6 +599,11 @@ void GameScene::Draw()
     // Draw UI sprites
     if (wasdSprite_) wasdSprite_->Draw();
     if (spaceSprite_) spaceSprite_->Draw();
+
+    // draw boss HP UI on top of other UI
+    if (bossHpSprite1_) bossHpSprite1_->Draw();
+    if (bossHpSprite2_) bossHpSprite2_->Draw();
+    if (bossHpSprite3_) bossHpSprite3_->Draw();
 
     // Existing UI manager draw can remain for other elements
     uiManager_.DrawAll();
@@ -958,6 +1047,42 @@ void GameScene::InitializeUI(SpriteCom* spriteCom)
             pauseSprite_->Update();
         }
     }
+
+    // BOSS HP UI (stacked sprites: bottom -> middle -> top). Anchor to left so the width reduction
+    // shrinks from right side only.
+    {
+        Vector2 size = { 640.0f, 64.0f };
+        // compute left position so the grouped sprites are centered as before
+        float leftX = static_cast<float>(sw) * 0.5f - size.x * 0.5f;
+        Vector2 leftPos = { leftX, 20.0f };
+
+        bossHpSprite1_ = spriteCom->CreateSprite("Resources/UI/BOSSHP1.png", {0.0f,0.0f}, size, 0.0f, {0.0f, 0.0f});
+        if (bossHpSprite1_) {
+            bossHpSprite1_->SetAnchorPoint({0.0f, 0.0f});
+            bossHpSprite1_->SetScale(size);
+            bossHpSprite1_->SetPosition(leftPos);
+            Vector4 c = bossHpSprite1_->GetColor(); c.w = 0.0f; bossHpSprite1_->SetColor(c);
+            bossHpSprite1_->Update();
+        }
+
+        bossHpSprite2_ = spriteCom->CreateSprite("Resources/UI/BOSSHP2.png", {0.0f,0.0f}, size, 0.0f, {0.0f, 0.0f});
+        if (bossHpSprite2_) {
+            bossHpSprite2_->SetAnchorPoint({0.0f, 0.0f});
+            bossHpSprite2_->SetScale(size);
+            bossHpSprite2_->SetPosition(leftPos);
+            Vector4 c = bossHpSprite2_->GetColor(); c.w = 0.0f; bossHpSprite2_->SetColor(c);
+            bossHpSprite2_->Update();
+        }
+
+        bossHpSprite3_ = spriteCom->CreateSprite("Resources/UI/BOSSHP3.png", {0.0f,0.0f}, size, 0.0f, {0.0f, 0.0f});
+        if (bossHpSprite3_) {
+            bossHpSprite3_->SetAnchorPoint({0.0f, 0.0f});
+            bossHpSprite3_->SetScale(size);
+            bossHpSprite3_->SetPosition(leftPos);
+            Vector4 c = bossHpSprite3_->GetColor(); c.w = 0.0f; bossHpSprite3_->SetColor(c);
+            bossHpSprite3_->Update();
+        }
+    }
 }
 
 
@@ -1091,6 +1216,11 @@ void GameScene::ResetScene()
 		hasBgm_ = false;
 		bgmData_ = {};
 	}
+
+	// delete boss HP sprites
+	if (bossHpSprite1_) { delete bossHpSprite1_; bossHpSprite1_ = nullptr; }
+	if (bossHpSprite2_) { delete bossHpSprite2_; bossHpSprite2_ = nullptr; }
+	if (bossHpSprite3_) { delete bossHpSprite3_; bossHpSprite3_ = nullptr; }
 
 	Initialize(camera_, object3dCom_, spriteCom_);
 }

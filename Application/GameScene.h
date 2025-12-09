@@ -131,6 +131,19 @@ private:
 	Sprite* wasdSprite_ = nullptr;
 	Sprite* spaceSprite_ = nullptr;
 
+	// BOSS HP UI sprites (stacked: 1 bottom, 2 middle, 3 top)
+	Sprite* bossHpSprite1_ = nullptr;
+	Sprite* bossHpSprite2_ = nullptr;
+	Sprite* bossHpSprite3_ = nullptr;
+
+	// UI fill state for smooth shrinking (0..1 per sprite)
+	float bossHpFill_[3] = { 0.0f, 0.0f, 0.0f };
+	// smoothing factor per frame (0..1) for exponential smoothing. Larger = faster.
+	float bossHpSmoothFactor_ = 0.12f;
+
+	// alternate smoothing: current total visible pixels across all 3 sprites (used for continuous shrink)
+	float bossHpTotalPixelsCurrent_ = 0.0f;
+
 	// デバッグ用: 起動時にボスフェーズから開始するかどうか
 	bool startAtBoss_ = false;
 

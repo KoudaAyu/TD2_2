@@ -83,6 +83,10 @@ public:
     // ダメージを与える（フェーズ判定は Update 内で自動的に行われる）
     void ApplyDamage(int dmg) { hp_ -= dmg; if (hp_ < 0) hp_ = 0; }
 
+    // expose hitCount for UI
+    int GetHitCount() const { return hitCount_; }
+    int GetHitsPerFull() const { return hitsPerFull; }
+
     // 現在のフェーズを取得
     enum class Phase { Spawn, Phase1, Phase2, Phase2_5, Phase3, Phase4, Phase5, Leave };
     Phase GetPhase() const { return phase_; }
