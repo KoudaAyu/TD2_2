@@ -882,8 +882,11 @@ void Boss::UpdatePhase4()
 
             if (IsCollisionAABBAABB(laserBox, playerBox))
             {
-                player_->OnCollision();
-                if (camera_) camera_->StartShake(0.6f, 0.45f);
+                if (player_ && !player_->IsInvincible())
+                {
+                    player_->OnCollision();
+                    if (camera_) camera_->StartShake(0.6f, 0.45f);
+                }
             }
         }
     }
@@ -920,8 +923,11 @@ void Boss::UpdatePhase4()
 
             if (IsCollisionAABBAABB(laserBox, playerBox))
             {
-                player_->OnCollision();
-                if (camera_) camera_->StartShake(0.45f, 0.35f);
+                if (player_ && !player_->IsInvincible())
+                {
+                    player_->OnCollision();
+                    if (camera_) camera_->StartShake(0.45f, 0.35f);
+                }
             }
         }
     }

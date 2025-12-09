@@ -5,6 +5,7 @@
 #include "ParticleManager.h"
 #include "Sprite.h"
 #include "SpriteCom.h"
+#include "Logger.h"
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
@@ -78,12 +79,11 @@ void Player::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Obje
 
 	shotBarrierSoundData_ = soundManager_->SoundLoadWave("Resources/Audio/SE/Shot.wav");
 
-	// ensure invincibility starts off
-	// For safety/testing: make player permanently invincible by default
-	// Set a very long invincibility timer so Update won't expire it during play
-	invincible_ = true;
-	invincibleTimer_ = 1e8f; // effectively permanent for regular gameplay
-	invincibleAgeFrames_ = 0;
+	// 通常は初期状態で無敵ではない（被弾時のみ短時間の無敵付与）
+	invincible_ = false;
+	invincibleTimer_ = 0.0f;
+	invincibleAgeFrames_ = -1;
+	becameInvincibleThisFrame_ = false;
 
 	// reset hit counter
 	hitCount_ = 0;
@@ -201,7 +201,7 @@ void Player::Update()
 		}
 	}
 
-	// invincibility timer update
+	// invincibility timer update (now unused since invincibility is disabled)
 	if (invincible_)
 	{
 		invincibleTimer_ -= 1.0f / 60.0f;
@@ -209,6 +209,7 @@ void Player::Update()
 		{
 			invincible_ = false;
 			invincibleTimer_ = 0.0f;
+			invincibleAgeFrames_ = -1;
 			// ensure model alpha restored
 			if (model_ && model_->GetModel()) {
 				Vector4 col = {1.0f,1.0f,1.0f,1.0f};
@@ -233,7 +234,13 @@ void Player::Update()
 				model_->SetColor(c);
 				if (model_->GetModel()) model_->GetModel()->SetColor(c);
 			}
-			// do NOT show or update invincibleSprite here; temporary feedback sprites are created by GameScene
+			// Optionally show a subtle sprite overlay while invincible
+			if (invincibleSprite_) {
+				Vector4 sc = invincibleSprite_->GetColor();
+				sc.w = 0.6f; // semi-visible during invincibility
+				invincibleSprite_->SetColor(sc);
+				invincibleSprite_->Update();
+			}
 		}
 	}
 }
@@ -346,28 +353,58 @@ void Player::Barrier()
 	// 入力状態で連射間隔を調整: 縦移動継続で徐々に短縮、横移動でリセット
 	bool verticalHeld = keyInput_->PushKey(DIK_W) || keyInput_->PushKey(DIK_S);
 	bool horizontalHeld = keyInput_->PushKey(DIK_A) || keyInput_->PushKey(DIK_D);
+
+	// read controller stick once
+	Controller::Stick ls{0.0f, 0.0f};
 	if (controller_ && controller_->IsConnected()) {
-		Controller::Stick ls = controller_->GetLeftStick();
-		verticalHeld   = verticalHeld   || (std::abs(ls.y) > 0.3f);
-		horizontalHeld = horizontalHeld || (std::abs(ls.x) > 0.3f);
+		ls = controller_->GetLeftStick();
 	}
+	// also read XInput via KeyInput as a fallback (more lenient deadzone normalization)
+	if (keyInput_) {
+		KeyInput::Stick kis = keyInput_->GetLeftStick(0);
+		// merge the strongest signal per-axis
+		ls.x = (std::abs(kis.x) > std::abs(ls.x)) ? kis.x : ls.x;
+		ls.y = (std::abs(kis.y) > std::abs(ls.y)) ? kis.y : ls.y;
+	}
+
+	// controller detection tuned: vertical should respond more leniently than keyboard
+	constexpr float kStickVerticalHeldThresh = 0.05f;  // very responsive for Y
+	constexpr float kStickHorizontalHeldThresh = 0.15f; // avoid accidental horizontal
+	verticalHeld   = verticalHeld   || (std::abs(ls.y) > kStickVerticalHeldThresh);
+	horizontalHeld = horizontalHeld || (std::abs(ls.x) > kStickHorizontalHeldThresh);
 
 	static float s_verticalHeldTime = 0.0f; // 秒
+	static float s_verticalHoldGrace = 0.0f; // 秒: grace window to avoid dropping accumulation
+	const float dt = 1.0f/60.0f;
+	// Grace-based accumulation: allow brief interruptions while maintaining hold sensation
 	if (verticalHeld) {
-		s_verticalHeldTime += (1.0f/60.0f);
+		s_verticalHeldTime += dt;
+		s_verticalHoldGrace = 0.25f; // 250ms grace after last vertical input
+	} else {
+		if (s_verticalHoldGrace > 0.0f) {
+			s_verticalHoldGrace -= dt;
+			// during grace, keep accumulating slowly to avoid feeling drops at stick reversal
+			s_verticalHeldTime += dt * 0.5f;
+		} else {
+			// no grace: decay instead of hard reset so acceleration feels forgiving
+			s_verticalHeldTime -= dt * 1.0f;
+			if (s_verticalHeldTime < 0.0f) s_verticalHeldTime = 0.0f;
+		}
 	}
-	if (horizontalHeld || !verticalHeld) {
-		// 横入力が入ったら即解除、縦入力が途切れてもしばらくの蓄積はリセット
+	// strong horizontal cancels hold immediately
+	constexpr float kStrongHorizontalResetThresh = 0.5f;
+	if (std::abs(ls.x) > kStrongHorizontalResetThresh || horizontalHeld) {
 		s_verticalHeldTime = 0.0f;
+		s_verticalHoldGrace = 0.0f;
 	}
 
-	// 経過時間に応じて段階的に短縮（わかりやすい階段式）
+	// 経過時間に応じて段階的に短縮（おまけ要素として差を小さく保つ）
 	// 0.0s~: 12f, 0.5s~: 10f, 1.0s~: 8f, 1.5s~: 6f, 2.0s~: 5f
-	int dynamicInterval = kBaseInterval;
-	if (s_verticalHeldTime >= 2.0f)      dynamicInterval = 5;
-	else if (s_verticalHeldTime >= 1.5f) dynamicInterval = 6;
-	else if (s_verticalHeldTime >= 1.0f) dynamicInterval = 8;
-	else if (s_verticalHeldTime >= 0.5f) dynamicInterval = 10;
+	int dynamicInterval = kBaseInterval; // start at 12
+	int reductionSteps = 0;
+	if (s_verticalHeldTime >= 1.5f)      reductionSteps = 2;  // -2f
+	else if (s_verticalHeldTime >= 0.5f) reductionSteps = 1;  // -1f
+	dynamicInterval = (std::max)(kBaseInterval - reductionSteps, 10); // 最短10f
 
 	// 発射入力: トリガー or 長押し
 	bool fireTriggered = keyInput_->TriggerKey(DIK_LCONTROL) || keyInput_->TriggerKey(DIK_SPACE);
@@ -394,9 +431,41 @@ void Player::Barrier()
 
 	if (shouldFire)
 	{
-		const float kBarrierSpeed = 0.5f;
+		// --- 新機能: 縦移動に応じてバリア（弾）の速度を増加させる ---
+		// 非常に控えめな加速ボーナスに留める（おまけ要素）
+		// holdRatio が完全に溜まるまでに長めの時間を必要とする（4秒）
+		float holdRatio = std::clamp(s_verticalHeldTime / 4.0f, 0.0f, 1.0f);
+
+		// instant press detection: keyboard or moderate stick tilt (more lenient than before)
+		float instantVertical = 0.0f;
+		if (keyInput_->PushKey(DIK_W) || keyInput_->PushKey(DIK_S)) {
+			instantVertical = 1.0f;
+		}
+		constexpr float kStickInstantThresh = 0.2f; // lenient instant for Y
+		if (std::abs(ls.y) > kStickInstantThresh) {
+			instantVertical = 1.0f;
+		}
+
+		// combined metric biased toward sustained hold
+		float combined = std::clamp(holdRatio * 0.7f + instantVertical * 0.3f, 0.0f, 1.0f);
+		float eased = combined * combined; // quadratic ease
+
+		// very small maximum speed bonus so it's only a light flavor effect
+		float speedFactor = 1.0f + eased * 0.08f; // up to ~1.08x
+		const float kBarrierSpeedBase = 0.25f; // base speed
+		float barrierSpeed = kBarrierSpeedBase * speedFactor;
 
 		Vector3 velocity;
+
+		// debug log to verify runtime values
+		{
+			std::string msg = std::string("Player::Barrier - holdTime=") + std::to_string(s_verticalHeldTime)
+				+ std::string(" combined=") + std::to_string(combined)
+				+ std::string(" eased=") + std::to_string(eased)
+				+ std::string(" speedFactor=") + std::to_string(speedFactor)
+				+ std::string(" barrierSpeed=") + std::to_string(barrierSpeed);
+			Logger::Log(msg);
+		}
 
 		soundManager_->SoundPlayWave(shotBarrierSoundData_, false, 0.2f);
 
@@ -411,11 +480,11 @@ void Player::Barrier()
 			{
 				dir = { 0.0f, 0.0f, 1.0f };
 			}
-			velocity = { dir.x * kBarrierSpeed, dir.y * kBarrierSpeed, dir.z * kBarrierSpeed };
+			velocity = { dir.x * barrierSpeed, dir.y * barrierSpeed, dir.z * barrierSpeed };
 		}
 		else
 		{
-			velocity = { 0.0f, 0.0f, kBarrierSpeed };
+			velocity = { 0.0f, 0.0f, barrierSpeed };
 		}
 
 		PlayerBarrier* barrier = new PlayerBarrier();
@@ -424,14 +493,24 @@ void Player::Barrier()
 		barriers_.push_back(barrier);
 
 		// クールダウンリセット（動的間隔を使用）
-		s_fireCooldownFrames = dynamicInterval;
+		int finalInterval = dynamicInterval;
+		if (finalInterval < kMinInterval) finalInterval = kMinInterval;
+		s_fireCooldownFrames = finalInterval;
 	}
 }
 
 void Player::OnCollision()
 {
-	// if currently invincible, ignore
-	if (invincible_) return;
+	// if currently invincible, ignore further damage
+	if (invincible_) {
+		return;
+	}
+
+	// Start invincibility window
+	invincible_ = true;
+	invincibleTimer_ = kInvincibleDuration;
+	invincibleAgeFrames_ = 0; // mark start this frame
+	becameInvincibleThisFrame_ = true;
 
 	// increment hit counter and check death
 	++hitCount_;
@@ -456,13 +535,7 @@ void Player::OnCollision()
 		return;
 	}
 
-	// start invincibility instead of immediate death
-	invincible_ = true;
-	invincibleTimer_ = kInvincibleDuration;
-	becameInvincibleThisFrame_ = true; // mark that invincibility began this frame
-	invincibleAgeFrames_ = 0; // age 0 indicates started this frame
-
-	// 小さなメッシュ(OBJ)パーティクルエフェクトを追加
+	// 小さなメッシュ(OBJ)パーティクルエフェクトを追加（被弾演出）
 	auto* pm = ParticleManager::GetInstance();
 	if (pm)
 	{
@@ -472,8 +545,6 @@ void Player::OnCollision()
 		pm->EmitBurst8("defaultMesh", emitPos, 0.12f, 0.25f, 0.8f);
 
 	}
-
-	// remove sprite creation here: sprite should be shown only when an enemy attack hits while already invincible (handled in GameScene)
 
 	// コントローラ振動を開始
 	if (controller_ && controller_->IsConnected())
@@ -518,6 +589,8 @@ void Player::DrawImGui()
 	ImGui::End();
 }
 #endif
+
+
 
 
 

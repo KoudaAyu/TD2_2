@@ -664,43 +664,7 @@ void GameScene::CheckAllCollisions()
         }
     }
 
-#pragma region  敵の弾同士の当たり判定
-
-    // 敵弾 vs 敵弾 は通常無効化。
-    /*
-    {
-        auto* pm = ParticleManager::GetInstance();
-        if (!enemyBullets.empty()) {
-            for (auto it = enemyBullets.begin(); it != enemyBullets.end(); ++it) {
-                EnemyBullet* b1 = *it;
-                if (!b1 || !b1->IsActive()) continue;
-                Vector3 p1 = b1->GetWorldTranslate();
-                auto it2 = it; ++it2;
-                for (; it2 != enemyBullets.end(); ++it2) {
-                    EnemyBullet* b2 = *it2;
-                    if (!b2 || !b2->IsActive()) continue;
-                    Vector3 p2 = b2->GetWorldTranslate();
-                    float dist = Distance(p1, p2);
-                    const float kBulletCollisionThreshold = 0.6f;
-                    if (dist < kBulletCollisionThreshold) {
-                        Vector3 mid = { (p1.x + p2.x) * 0.5f, (p1.y + p2.y) * 0.5f, (p1.z + p2.z) * 0.5f };
-                        if (pm) {
-                            pm->EmitBurst8("defaultMesh", mid, 0.06f, 0.18f, 0.6f);
-                        }
-                        b1->OnCollision();
-                        b2->OnCollision();
-                    }
-                }
-            }
-        }
-    }
-    */
-#pragma endregion
-
 #pragma region 自キャラと敵の弾の当たり判定
-    // record whether player was invincible at start of this collision pass
-    bool playerWasInvincible = (player_ && player_->IsInvincible());
-
     posA = player_->GetWorldTranslate();
     for (EnemyBullet* bullet : enemyBullets)
     {
@@ -715,21 +679,17 @@ void GameScene::CheckAllCollisions()
         const float threshold = 1.0f;
         if (distance < threshold)
         {
-            // If player was invincible before this collision check started, show a front-layer sprite feedback
-            if (player_ && playerWasInvincible && player_->IsInvincible() && player_->GetInvincibleAgeFrames() > 0)
-             {
-
+            // 現在の無敵状態を直接参照して判定（スナップショットでなく常時反映）
+            if (player_ && player_->IsInvincible())
+            {
                 // spawn a small HUD sprite at player's screen position
                 if (spriteCom_ && !particleTexturePath_.empty() && object3dCom_ && camera_)
                 {
                     int screenW = object3dCom_->GetDirectXCom()->GetClientWidth();
                     int screenH = object3dCom_->GetDirectXCom()->GetClientHeight();
-                    // move the spawn point slightly toward +Z so the sprite projects a bit in front of the
-                    // player model (prevents exact overlap with model's screen position)
                     Vector3 spriteWorld = posA + Vector3{0.0f, -1.0f, 3.0f};
                     Vector2 screen = WorldToScreen(spriteWorld, camera_, screenW, screenH);
 
-                    // larger HUD feedback sprite for visibility
                     Sprite* s = spriteCom_->CreateSprite(particleTexturePath_, screen, {96.0f,96.0f}, 0.0f, {0.5f,0.5f});
                     if (s)
                     {
@@ -746,7 +706,7 @@ void GameScene::CheckAllCollisions()
                     }
                 }
 
-                // still consume the bullet
+                // consume the bullet but不要なダメージ処理はしない
                 bullet->OnCollision();
             }
             else
@@ -774,13 +734,16 @@ void GameScene::CheckAllCollisions()
             float dist = Distance(ppos, epos);
             if (dist < collisionThreshold)
             {
-                // プレイヤー被爆、敵は無効化（OnCollisionで状態変更）
-                player_->OnCollision();
+                // 無敵中はダメージ処理をスキップ
+                if (!player_->IsInvincible())
+                {
+                    player_->OnCollision();
+                }
                 enemy->OnCollision();
             }
         }
     }
-    
+
 #pragma region バリアと敵の当たり判定
     // バリアと敵本体の当たり判定を実装（書き方を他と統一）>
     for (Enemy* enemy_ : enemies_)

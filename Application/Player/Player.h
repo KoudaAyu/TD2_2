@@ -157,7 +157,7 @@ private:
 	bool invincible_ = false;
 	// seconds remaining for invincibility
 	float invincibleTimer_ = 0.0f;
-	static constexpr float kInvincibleDuration = 1.2f; // seconds of i-frames
+	static constexpr float kInvincibleDuration = 2.4f; // seconds of i-frames (extended more)
 	// blink period while invincibility
 	static constexpr float kInvincibleBlinkPeriod = 0.12f;
 
