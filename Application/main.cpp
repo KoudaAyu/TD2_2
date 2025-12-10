@@ -110,14 +110,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 #endif
 
 #ifdef _DEBUG
-	// In debug mode start at the Title scene for faster debugging
-	scene = Scene::kTitle;
-	titleScene = new TitleScene();
-	titleScene->Initialize(camera, objCom,spriteCom);
+	// Debug: start directly in GameScene
+	scene = Scene::kGame;
+	gameScene = new GameScene();
+	gameScene->Initialize(camera, objCom, spriteCom);
 #else
 	scene = Scene::kTitle;
 	titleScene = new TitleScene();
-	titleScene->Initialize(spriteCom);
+	titleScene->Initialize(camera, objCom, spriteCom);
 #endif
 
 

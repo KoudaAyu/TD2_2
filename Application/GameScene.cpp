@@ -1033,28 +1033,32 @@ void GameScene::InitializeUI(SpriteCom* spriteCom)
 
     // WASD UI (bottom-right)
     {
-        Vector2 size = { 320.0f, 64.0f };
-        Vector2 pos = { static_cast<float>(sw) - 10.0f, static_cast<float>(sh) - 10.0f };
+        Vector2 size = { 500.0f, 30.0f };
+        // move even closer to the right edge
+        float rightX = static_cast<float>(sw) - 2.0f; // shared right-aligned X
+        Vector2 pos = { rightX, static_cast<float>(sh) - 10.0f };
         wasdSprite_ = spriteCom->CreateSprite("Resources/UI/WASDUI.png", {0.0f,0.0f}, size, 0.0f, {1.0f, 1.0f});
         if (wasdSprite_) {
             wasdSprite_->SetAnchorPoint({1.0f, 1.0f});
             wasdSprite_->SetScale(size);
             wasdSprite_->SetPosition(pos);
-            wasdSprite_->SetColor({ 1.0f, 0.2f, 0.2f, 1.0f });
+            wasdSprite_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
             wasdSprite_->Update();
         }
     }
 
     // SPACE UI (slightly above bottom-right)
     {
-        Vector2 size = { 320.0f, 64.0f };
-        Vector2 pos = { static_cast<float>(sw) - 10.0f, static_cast<float>(sh) - 60.0f };
+        Vector2 size = { 400.0f, 30.0f };
+        // nudge slightly further left from the right edge
+        float rightX = static_cast<float>(sw) - 18.0f; // was 14px
+        Vector2 pos = { rightX, static_cast<float>(sh) - 60.0f };
         spaceSprite_ = spriteCom->CreateSprite("Resources/UI/SPACEUI.png", {0.0f,0.0f}, size, 0.0f, {1.0f, 1.0f});
         if (spaceSprite_) {
             spaceSprite_->SetAnchorPoint({1.0f, 1.0f});
             spaceSprite_->SetScale(size);
             spaceSprite_->SetPosition(pos);
-            spaceSprite_->SetColor({ 0.2f, 0.8f, 1.0f, 1.0f });
+            spaceSprite_->SetColor({ 1.0f, 1.0f, 1.0f, 1.0f });
             spaceSprite_->Update();
         }
     }

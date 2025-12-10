@@ -6,6 +6,9 @@
 
 class SpriteCom;
 class Sprite;
+class Object3d; // forward declaration for Object3d pointer
+class KeyInput; // forward declaration for KeyInput
+
 class GameOverScene
 {
 public:
@@ -29,5 +32,18 @@ private:
     SpriteCom* spriteCom_ = nullptr;
 
     Fade* fade_ = nullptr;
+    // Background sprite (BackScreen.png)
+    Sprite* background_ = nullptr;
     Sprite* overlay_ = nullptr; // optional visual
+
+    // GameOver text model
+    Object3d* gameOverModel_ = nullptr;
+    // SPACE text model shown below game over
+    Object3d* spaceModel_ = nullptr;
+
+    // input
+    KeyInput* keyInput_ = nullptr;
+
+    // simple animation timer
+    float animTime_ = 0.0f;
 };

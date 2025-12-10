@@ -14,7 +14,9 @@ TitleScene::~TitleScene()
 		soundManager_->SoundUnload(&bgmData_);
 		hasBgm_ = false;
 	}
+	if (background_) { delete background_; background_ = nullptr; }
 	delete fade_;
+	if (spaceModel_) { delete spaceModel_; spaceModel_ = nullptr; }
 }
 
 void TitleScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* spriteCom)
@@ -34,7 +36,28 @@ void TitleScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom*
 		camera_->Update();
 	}
 
+	// background setup
+	if (spriteCom) {
+		int sw = object3dCom ? object3dCom->GetDirectXCom()->GetClientWidth() : 1280;
+		int sh = object3dCom ? object3dCom->GetDirectXCom()->GetClientHeight() : 720;
+		background_ = spriteCom->CreateSprite("Resources/TitleBackScreen.png", { 0.0f, 0.0f }, { static_cast<float>(sw), static_cast<float>(sh) }, 0.0f, { 0.0f, 0.0f }, false, false);
+		if (background_) {
+			background_->SetColor({1.0f,1.0f,1.0f,1.0f});
+			background_->Update();
+		}
+	}
+
 	model_ = Object3d::Create(object3dCom, "title/title.obj", { {1.0f,1.0f,1.0f},{-M_PI/2.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} }, camera);
+	
+	// add SPACE.obj below the title
+	{
+		const float kPi = 3.1415927f;
+		spaceModel_ = Object3d::Create(object3dCom, "SPACE.obj", { {1.0f,1.0f,1.0f},{-kPi * 0.5f, 0.0f, 0.0f},{0.0f, -1.0f, 0.0f} }, camera);
+		if (spaceModel_) {
+			spaceModel_->SetScale({0.5f, 0.5f, 0.5f});
+			spaceModel_->SetTranslate({0.0f, -1.0f, 0.0f});
+		}
+	}
 	
 
 	keyInput_ = KeyInput::GetInstance();
@@ -64,6 +87,11 @@ void TitleScene::Update()
 	float shakeY = std::sin(motionTime_ * 2.5f) * 0.02f;
 	model_->SetRotate({-M_PI/2.0f, 0.0f, 0.0f});
 	model_->SetTranslate({shakeX, shakeY, 0.0f});
+
+	// optional: keep SPACE static
+	if (spaceModel_) {
+		spaceModel_->Update();
+	}
 
 	// 画面全体にランダムな位置でOBJパーティクルを発生
 	for (int i = 0; i < 2; ++i) {
@@ -111,8 +139,10 @@ void TitleScene::Update()
 
 void TitleScene::Draw()
 {
+	if (background_) background_->Draw();
 	ParticleManager::GetInstance()->Draw();
 
+	if (spaceModel_) spaceModel_->Draw();
 	model_->Draw();
 	fade_->Draw();
 

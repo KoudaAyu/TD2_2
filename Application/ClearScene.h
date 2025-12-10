@@ -7,6 +7,7 @@ class Object3dCom;
 class SpriteCom;
 class Sprite;
 class Fade;
+class Object3d;
 
 class ClearScene
 {
@@ -31,5 +32,15 @@ private:
     SpriteCom* spriteCom_ = nullptr;
 
     Fade* fade_ = nullptr;
+    // background sprite
+    Sprite* background_ = nullptr;
     Sprite* clearSprite_ = nullptr;
+
+    // Clear model (Clear/Clear.obj)
+    Object3d* clearModel_ = nullptr;
+    // SPACE model (Clear/SPACE.obj)
+    Object3d* spaceModel_ = nullptr;
+
+    // simple animation timer
+    float animTime_ = 0.0f;
 };

@@ -42,6 +42,11 @@ private:
 
 	Object3dCom* object3dCom_ = nullptr;
 	Object3d* model_ = nullptr;
+	// SPACE text model shown below the title
+	Object3d* spaceModel_ = nullptr;
+
+	// background sprite
+	Sprite* background_ = nullptr;
 
 	float motionTime_ = 0.0f; // モデル動作用タイマー
 
