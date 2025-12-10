@@ -6,6 +6,7 @@
 #include"Object3d.h"
 #include"Object3dCom.h"
 #include"Transform.h"
+#include "SoundManager.h"
 
 class Player;
 
@@ -211,6 +212,11 @@ private:
 
 	// 前方境界到達時に爆発を既に実行したか
 	bool explodedOnce_ = false;
+
+	// 爆発SE
+	SoundManager* soundManager_ = nullptr;
+	SoundData explosionSe_ = {};
+	bool hasExplosionSe_ = false;
 
 private:
 	Camera* camera_ = nullptr;

@@ -2,6 +2,7 @@
 #include "Player.h"
 #include"Random.h"
 #include"ParticleManager.h"
+#include "SoundManager.h"
 
 Enemy::~Enemy()
 {
@@ -11,6 +12,14 @@ Enemy::~Enemy()
 		bullet = nullptr;
 		}
 	bullets_.clear();
+
+	// Note: Do not unload explosion SE here, because SoundManager::SoundUnload
+	// currently stops all voices globally, which silences GameScene audio.
+	// Cleanup will be handled by SoundManager::Finalize at application shutdown.
+	// if (soundManager_ && hasExplosionSe_) {
+	// 	SoundManager::GetInstance()->SoundUnload(&explosionSe_);
+	// 	hasExplosionSe_ = false;
+	// }
 }
 
 void Enemy::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Object3dCom* object3dCom)
@@ -33,6 +42,14 @@ void Enemy::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Objec
 	isActive_ = true;
 	collidable_ = true;
 	leaveParticleTimer_ = 0.0f;
+
+	// prepare sound manager and load explosion SE once
+	soundManager_ = SoundManager::GetInstance();
+	if (soundManager_ && !hasExplosionSe_) {
+		const char* path = "Resources/Audio/SE/Explosion.wav";
+		explosionSe_ = soundManager_->SoundLoadWave(path);
+		hasExplosionSe_ = true;
+	}
 }
 
 void Enemy::Update()
@@ -405,6 +422,11 @@ void Enemy::ApproachUpdate()
 	if (worldTransform_.GetTranslate().z < 0.0f)
 	{
 		ExplodeOnceAndDamagePlayer();
+		// play explosion SE
+		if (soundManager_ && hasExplosionSe_) {
+			// reduce volume and play only once
+			soundManager_->SoundPlayWave(explosionSe_, false, 0.06f);
+		}
 		phase_ = Phase::Leave;
 		LeaveInitialize();
 	}
@@ -630,7 +652,7 @@ void Enemy::OnCollision()
             1.8f,   // radialSpeed (外へ)
             0.3f);  // radialAccel
 
-        // 一度外側に弾けたあと、中心へ収束する内向きの渦（スケールを小さく）
+        // 一度外側に弾けたあと、中心へ収束する内向きの渦（スケールを小さく）			
         pm->EmitBurst8RotatingInward("default", emitPos,
             3.0f,   // startRadius（外側スタート）
             0.8f,   // life
@@ -642,6 +664,24 @@ void Enemy::OnCollision()
         // 小さめの光片を散らしてディテールを追加（スケール小）
         pm->EmitBurst8("default", emitPos, 0.25f, 0.5f, 0.9f);
         pm->EmitBurst8("defaultMesh", emitPos, 0.28f, 0.45f, 0.95f);
+    }
+
+    // play explosion SE
+    if (soundManager_ && hasExplosionSe_) {
+        soundManager_->SoundPlayWave(explosionSe_, false, 0.15f);
+        soundManager_->SoundPlayWave(explosionSe_, false, 0.08f);
+    }
+
+    // 近ければプレイヤーを巻き込む（爆発ダメージ）
+    if (player_)
+    {
+        Vector3 p = player_->GetWorldTranslate();
+        float dist = Distance(p, emitCenter);
+        const float damageRadius = 3.0f; // 半径を少し拡大して巻き込みやすく
+        if (dist < damageRadius && player_->IsAlive())
+        {
+            player_->OnCollision();
+        }
     }
 
     // カメラの演出（衝撃を強めに）
@@ -679,6 +719,12 @@ void Enemy::ExplodeOnceAndDamagePlayer()
         pm->EmitBurst8Rotating("defaultMesh", emitPos,
             0.0f, 1.2f, Random::GeneratorFloat(-10.0f, 10.0f), 1.0f,
             true, 2.2f, 0.4f);
+    }
+
+    // play explosion SE
+    if (soundManager_ && hasExplosionSe_) {
+        // reduce volume and play only once
+        soundManager_->SoundPlayWave(explosionSe_, false, 0.06f);
     }
 
     // プレイヤーが近ければダメージ（閾値は少し大きめ）

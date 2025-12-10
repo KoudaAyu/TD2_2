@@ -136,6 +136,10 @@ private:
 	Sprite* bossHpSprite2_ = nullptr;
 	Sprite* bossHpSprite3_ = nullptr;
 
+	// PLAYER HP UI icons (bottom-left), one per remaining HP
+	std::vector<Sprite*> playerHpSprites_;
+	int playerHpShownCount_ = -1;
+
 	// UI fill state for smooth shrinking (0..1 per sprite)
 	float bossHpFill_[3] = { 0.0f, 0.0f, 0.0f };
 	// smoothing factor per frame (0..1) for exponential smoothing. Larger = faster.

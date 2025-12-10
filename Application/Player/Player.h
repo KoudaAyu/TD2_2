@@ -170,6 +170,11 @@ public:
 	// Return how many Update frames have passed since invincibility began (-1 if not invincible)
 	int GetInvincibleAgeFrames() const { return invincibleAgeFrames_; }
 
+	// Player max HP (number of hits tolerated before death)
+	int GetMaxHits() const { return kMaxHits; }
+	// Current damage count (number of hits taken)
+	int GetHitCount() const { return hitCount_; }
+
 	SoundManager* soundManager_;
 	SoundData shotBarrierSoundData_;
 

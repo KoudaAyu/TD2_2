@@ -583,6 +583,24 @@ void GameScene::Update()
         if (bossHpSprite2_) { Vector4 c = bossHpSprite2_->GetColor(); c.w = 0.0f; bossHpSprite2_->SetColor(c); bossHpSprite2_->Update(); }
         if (bossHpSprite3_) { Vector4 c = bossHpSprite3_->GetColor(); c.w = 0.0f; bossHpSprite3_->SetColor(c); bossHpSprite3_->Update(); }
     }
+
+    // Update Player HP icons visibility (bottom-left). Show one icon per remaining HP.
+    if (player_) {
+        int maxHits = player_->GetMaxHits();
+        int taken = player_->GetHitCount();
+        int remaining = std::clamp(maxHits - taken, 0, maxHits);
+        if (remaining != playerHpShownCount_) {
+            playerHpShownCount_ = remaining;
+            for (int i = 0; i < static_cast<int>(playerHpSprites_.size()); ++i) {
+                Sprite* s = playerHpSprites_[i];
+                if (!s) continue;
+                Vector4 c = s->GetColor();
+                c.w = (i < remaining) ? 1.0f : 0.2f; // show remaining, dim others
+                s->SetColor(c);
+                s->Update();
+            }
+        }
+    }
 }
 
 void GameScene::Draw()
@@ -629,6 +647,11 @@ void GameScene::Draw()
     if (bossHpSprite1_) bossHpSprite1_->Draw();
     if (bossHpSprite2_) bossHpSprite2_->Draw();
     if (bossHpSprite3_) bossHpSprite3_->Draw();
+
+    // draw player HP icons
+    for (Sprite* s : playerHpSprites_) {
+        if (s) s->Draw();
+    }
 
     // Existing UI manager draw can remain for other elements
     uiManager_.DrawAll();
@@ -1086,6 +1109,39 @@ void GameScene::InitializeUI(SpriteCom* spriteCom)
             Vector4 c = bossHpSprite3_->GetColor(); c.w = 0.0f; bossHpSprite3_->SetColor(c);
             bossHpSprite3_->Update();
         }
+    }
+
+    // PLAYER HP UI (bottom-left icons)
+    {
+        // prepare vector to hold sprites
+        playerHpSprites_.clear();
+        int sw = object3dCom_->GetDirectXCom()->GetClientWidth();
+        int sh = object3dCom_->GetDirectXCom()->GetClientHeight();
+        // icon size and spacing
+        Vector2 size = { 48.0f, 48.0f };
+        float startX = 10.0f;
+        float startY = static_cast<float>(sh) - 10.0f; // bottom-left
+        // anchor bottom-left
+        Vector2 anchor = {0.0f, 1.0f};
+        // create up to player max hits icons
+        int maxIcons = 5; // fallback
+        if (player_) { maxIcons = player_->GetMaxHits(); }
+        for (int i = 0; i < maxIcons; ++i) {
+            Sprite* hp = spriteCom->CreateSprite("Resources/UI/PlayerHP.png", {0.0f,0.0f}, size, 0.0f, anchor);
+            if (hp) {
+                hp->SetAnchorPoint(anchor);
+                hp->SetScale(size);
+                float x = startX + i * (size.x + 6.0f);
+                float y = startY;
+                hp->SetPosition({x, y});
+                Vector4 c = hp->GetColor();
+                c.w = 0.0f; // start hidden; will be shown in Update
+                hp->SetColor(c);
+                hp->Update();
+                playerHpSprites_.push_back(hp);
+            }
+        }
+        playerHpShownCount_ = -1; // force initial refresh
     }
 }
 
