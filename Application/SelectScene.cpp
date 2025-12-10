@@ -94,8 +94,7 @@ void SelectScene::Initialize(SpriteCom* spriteCom, Object3dCom* object3dCom, Cam
     }
 
     // initialize timer for spinner
-    startTime_ = std::chrono::steady_clock::now();
-    lastTime_ = startTime_;
+    lastTime_ = std::chrono::steady_clock::now();
 }
 
 
@@ -129,34 +128,20 @@ void SelectScene::Update()
         }
     }
 
-    // animate loading spinner (rotate and pulse alpha) using real time with smoothing
+    // animate loading spinner (rotate and pulse alpha) using real time
     if (loadingSpinner_) {
         auto now = std::chrono::steady_clock::now();
         std::chrono::duration<float> delta = now - lastTime_;
         lastTime_ = now;
         float realDt = delta.count();
-        if (realDt > 0.1f) realDt = 0.1f; // looser clamp to prevent big catch-up jumps
+        // clamp to avoid large jumps on stalls
+        if (realDt > 0.05f) realDt = 0.05f;
 
-        // target angle based on absolute time since start (avoids drift)
-        std::chrono::duration<float> sinceStart = now - startTime_;
-        float t = sinceStart.count();
+        totalTimeSec_ += realDt;
         const float spinSpeed = 2.0f * 3.14159265f; // rad/sec (1 rotation/sec)
-        float target = std::fmod(t * spinSpeed, 2.0f * 3.14159265f);
-
-        // smoothly approach target angle, limit max angular velocity when catching up
-        auto wrapPi = [](float a){
-            while (a > 3.14159265f) a -= 2.0f * 3.14159265f;
-            while (a < -3.14159265f) a += 2.0f * 3.14159265f;
-            return a;
-        };
-        float diff = wrapPi(target - currentAngle_);
-        float maxStep = spinSpeed * 0.5f * realDt; // catch-up limited to 0.5 rot/sec
-        if (diff > maxStep) diff = maxStep;
-        if (diff < -maxStep) diff = -maxStep;
-        currentAngle_ = wrapPi(currentAngle_ + diff);
-
-        float alpha = 0.6f + 0.4f * std::sin(t * 6.28318f * 0.5f); // 0.5 Hz pulse
-        loadingSpinner_->SetRotation(currentAngle_);
+        float radians = std::fmod(totalTimeSec_ * spinSpeed, 2.0f * 3.14159265f);
+        float alpha = 0.6f + 0.4f * std::sin(totalTimeSec_ * 6.28318f * 0.5f); // 0.5 Hz pulse
+        loadingSpinner_->SetRotation(radians);
         loadingSpinner_->SetColor({0.2f, 0.6f, 1.0f, alpha});
         loadingSpinner_->Update();
     }

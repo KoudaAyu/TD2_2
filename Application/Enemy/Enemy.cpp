@@ -3,6 +3,7 @@
 #include"Random.h"
 #include"ParticleManager.h"
 #include "SoundManager.h"
+#include "ModelManager.h"
 
 Enemy::~Enemy()
 {
@@ -28,6 +29,16 @@ void Enemy::Initialize(Object3d* model, Camera* camera, const Vector3 pos, Objec
 	camera_ = camera;
 	object3dCom_ = object3dCom;
 	worldTransform_.Initialize();
+
+	// Enemy model override: use enemy.obj (not apple) and apply slightly darker color
+	if (model_) {
+		if (Model* enemy = ModelManager::GetInstance()->LoadAndGetModel("enemy.obj")) {
+			model_->SetModel(new Model(*enemy));
+			const Vector4 enemyColor{0.60f, 0.35f, 0.78f, 1.0f}; // slightly darker purple
+			model_->SetColor(enemyColor);
+			if (model_->GetModel()) { model_->GetModel()->SetColor(enemyColor); }
+		}
+	}
 
 	// 出現アニメーション用の初期化を先に行い、モデルに開始位置を反映する
 	SpawnInitialize(pos);
@@ -123,18 +134,13 @@ void Enemy::Fire()
 			Object3d* bulletModel = new Object3d();
 			bulletModel->Initialize(object3dCom_);
 
-
-			if (model_)
+			// 弾モデルは EnemyBullet.obj を使用
+			if (Model* bulletSrc = ModelManager::GetInstance()->LoadAndGetModel("EnemyBullet.obj"))
 			{
-				if (auto* src = model_->GetModel())
-				{
-
-					bulletModel->SetModel(new Model(*src));
-
-					const Vector4 bulletColor{ 1.0f, 0.2f, 0.2f, 1.0f };
-					bulletModel->GetModel()->SetColor(bulletColor);
-					bulletModel->SetColor(bulletColor);
-				}
+				bulletModel->SetModel(new Model(*bulletSrc));
+				const Vector4 bulletColor{ 0.35f, 0.0f, 0.0f, 1.0f }; // dark red
+				bulletModel->GetModel()->SetColor(bulletColor);
+				bulletModel->SetColor(bulletColor);
 			}
 
 			EnemyBullet* bullet_ = new EnemyBullet();
@@ -176,10 +182,11 @@ void Enemy::Fire()
 
 				Object3d* bulletModel = new Object3d();
 				bulletModel->Initialize(object3dCom_);
-				if (model_ && model_->GetModel())
+				// 弾モデルは EnemyBullet.obj を使用
+				if (Model* bulletSrc = ModelManager::GetInstance()->LoadAndGetModel("EnemyBullet.obj"))
 				{
-					bulletModel->SetModel(new Model(*model_->GetModel()));
-					const Vector4 bulletColor{ 1.0f, 0.2f, 0.2f, 1.0f };
+					bulletModel->SetModel(new Model(*bulletSrc));
+					const Vector4 bulletColor{ 0.35f, 0.0f, 0.0f, 1.0f }; // dark red
 					bulletModel->GetModel()->SetColor(bulletColor);
 					bulletModel->SetColor(bulletColor);
 				}
@@ -225,18 +232,13 @@ void Enemy::AimBullet()
 	Object3d* bulletModel = new Object3d();
 	bulletModel->Initialize(object3dCom_);
 
-
-	if (model_)
+	// 弾モデルは EnemyBullet.obj を使用
+	if (Model* bulletSrc = ModelManager::GetInstance()->LoadAndGetModel("EnemyBullet.obj"))
 	{
-		if (auto* src = model_->GetModel())
-		{
-
-			bulletModel->SetModel(new Model(*src));
-
-			const Vector4 bulletColor{ 1.0f, 0.2f, 0.2f, 1.0f };
-			bulletModel->GetModel()->SetColor(bulletColor);
-			bulletModel->SetColor(bulletColor);
-		}
+		bulletModel->SetModel(new Model(*bulletSrc));
+		const Vector4 bulletColor{ 0.35f, 0.0f, 0.0f, 1.0f }; // dark red
+		bulletModel->GetModel()->SetColor(bulletColor);
+		bulletModel->SetColor(bulletColor);
 	}
 
 	EnemyBullet* bullet_ = new EnemyBullet();
@@ -297,7 +299,7 @@ void Enemy::SpawnUpdate()
 
 	worldTransform_.SetTranslate(newPos);
 
-	// 少し回転しながら現れる演出
+	// 少し回転しながら現 aparecer
 	Vector3 rot = worldTransform_.GetRotate();
 	rot.x = (1.0f - ease) * 3.14f * 0.5f; // X軸を回転させて倒れながら出現
 	rot.z += std::sin(spawnTimer_ * 0.2f) * (1.0f - ease) * 0.08f; // 微振動回転
@@ -639,7 +641,7 @@ void Enemy::OnCollision()
         Vector3 emitPos = emitCenter;
         emitPos.z += 0.5f;
 
-        // 中心を強調する少し大きめのオムニバースト（1回）
+        // 中心を強調する少し大きめのオムニバースト（1回）		
         pm->Emit("default", emitPos, 32);
 
         // メッシュ片を回転・外向きに飛ばす（スケールを控えめに）

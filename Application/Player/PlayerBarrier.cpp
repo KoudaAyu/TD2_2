@@ -35,16 +35,16 @@ void PlayerBarrier::Initialize(Object3d* model, const Vector3 pos, Object3dCom* 
     worldTransform.Initialize();
     worldTransform.SetTranslate(pos);
 
-    
     barrierModel_ = new Object3d();
     barrierModel_->Initialize(object3dCom_);
 
-    
+    // Barrier を apple.obj ベースにして、見やすいパープルを適用（少し暗め）
     if (Model* apple = ModelManager::GetInstance()->LoadAndGetModel("apple.obj")) {
-        const Vector4 barrierColor{0.0f, 0.7f, 1.0f, 1.0f};
-        barrierModel_->SetModel(new Model(*apple));          // コピーを作成して設定
-        barrierModel_->GetModel()->SetColor(barrierColor); // モデル内部の色
-        barrierModel_->SetColor(barrierColor);             // Object3d の色
+        const Vector4 barrierColor{0.72f, 0.40f, 0.85f, 1.0f};
+        barrierModel_->SetModel(new Model(*apple));
+        if (barrierModel_->GetModel()) barrierModel_->GetModel()->SetColor(barrierColor);
+        barrierModel_->SetColor(barrierColor);
+        barrierModel_->SetScale({0.26f, 0.26f, 0.26f});
     }
 
 	birthWave_ = 0; // initialize member

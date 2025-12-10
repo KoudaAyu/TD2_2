@@ -6,6 +6,7 @@
 #include"Fade.h"
 #include"KeyInput.h"
 #include "ParticleManager.h"
+#include "SoundManager.h"
 
 class TitleScene
 {
@@ -43,4 +44,9 @@ private:
 	Object3d* model_ = nullptr;
 
 	float motionTime_ = 0.0f; // モデル動作用タイマー
+
+	// BGM management
+	SoundManager* soundManager_ = nullptr;
+	SoundData bgmData_{};
+	bool hasBgm_ = false;
 };

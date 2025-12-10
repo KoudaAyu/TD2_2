@@ -121,7 +121,7 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 		// load but guard against failure using try/catch-like asserts not available; we assume file exists
 		bgmData_ = soundManager_->SoundLoadWave(bgmPath);
 		// start looped playback at modest volume
-		soundManager_->SoundPlayWave(bgmData_, true, 0.5f);
+		soundManager_->SoundPlayWave(bgmData_, true, 0.45f);
 		hasBgm_ = true;
 	}
 

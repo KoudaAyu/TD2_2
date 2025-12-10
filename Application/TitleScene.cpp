@@ -8,6 +8,12 @@
 
 TitleScene::~TitleScene()
 {
+	// stop and unload BGM if started
+	if (soundManager_ && hasBgm_) {
+		soundManager_->SoundStopBGM();
+		soundManager_->SoundUnload(&bgmData_);
+		hasBgm_ = false;
+	}
 	delete fade_;
 }
 
@@ -39,6 +45,14 @@ void TitleScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom*
 	ModelManager::GetInstance()->LoadModel("apple.obj");
 	// OBJモデルのパーティクルグループ作成
 	ParticleManager::GetInstance()->CreateParticleGroupFromModel("title_effect_obj", "apple.obj");
+
+	// Start Title BGM (loop)
+	soundManager_ = SoundManager::GetInstance();
+	if (soundManager_) {
+		bgmData_ = soundManager_->SoundLoadWave("Resources/Audio/BGM/Title.wav");
+		soundManager_->SoundPlayBGM(bgmData_, true, 0.5f);
+		hasBgm_ = true;
+	}
 }
 
 void TitleScene::Update()
