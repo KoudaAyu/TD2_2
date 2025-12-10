@@ -401,8 +401,10 @@ void Enemy::ApproachUpdate()
 		// if randomize initial offset is active, we only randomized initial timer; normal reset keeps interval
 	}
 
+	// 画面手前境界に達したら爆発を1回だけ起こした上で離脱演出へ移行
 	if (worldTransform_.GetTranslate().z < 0.0f)
 	{
+		ExplodeOnceAndDamagePlayer();
 		phase_ = Phase::Leave;
 		LeaveInitialize();
 	}
@@ -658,4 +660,39 @@ void Enemy::OnCollision()
 
     // 敵を非アクティブ化
     isActive_ = false;
+}
+
+void Enemy::ExplodeOnceAndDamagePlayer()
+{
+    if (explodedOnce_) return;
+    explodedOnce_ = true;
+
+    // 強めの爆発パーティクル
+    auto* pm = ParticleManager::GetInstance();
+    Vector3 pos = worldTransform_.GetTranslate();
+    if (pm)
+    {
+        Vector3 emitPos = pos; emitPos.z += 0.5f;
+        pm->Emit("default", emitPos, 48);
+        pm->EmitBurst8("default", emitPos, 0.25f, 0.55f, 0.95f);
+        pm->EmitBurst8("defaultMesh", emitPos, 0.28f, 0.60f, 0.95f);
+        pm->EmitBurst8Rotating("defaultMesh", emitPos,
+            0.0f, 1.2f, Random::GeneratorFloat(-10.0f, 10.0f), 1.0f,
+            true, 2.2f, 0.4f);
+    }
+
+    // プレイヤーが近ければダメージ（閾値は少し大きめ）
+    if (player_)
+    {
+        Vector3 p = player_->GetWorldTranslate();
+        float dist = Distance(p, pos);
+        const float damageRadius = 2.0f;
+        if (dist < damageRadius && player_->IsAlive())
+        {
+            player_->OnCollision();
+        }
+    }
+
+    // カメラ演出
+    if (camera_) { camera_->StartShake(0.6f, 0.4f); }
 }

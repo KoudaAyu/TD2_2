@@ -121,6 +121,9 @@ public:
 	void SetRandomizeSpawnY(bool v) { randomizeSpawnY_ = v; }
 	void SetSpawnYRandomRange(float r) { spawnYRandomRange_ = r; }
 
+	// 爆発演出と近接ダメージ（1回のみ）
+	void ExplodeOnceAndDamagePlayer();
+
 private:
 	
 	//フェーズ
@@ -205,6 +208,9 @@ private:
 	// 出現時のY座標ランダム化設定
 	bool randomizeSpawnY_ = true;
 	float spawnYRandomRange_ = 2.5f; // +- range in world units
+
+	// 前方境界到達時に爆発を既に実行したか
+	bool explodedOnce_ = false;
 
 private:
 	Camera* camera_ = nullptr;
