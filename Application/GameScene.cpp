@@ -103,6 +103,10 @@ void GameScene::Initialize(Camera* camera, Object3dCom* object3dCom, SpriteCom* 
 					pm->CreateParticleGroupFromModel("enemyMesh", "wall.obj");
 				}
 			}
+			// Boss専用のヒット演出に使うメッシュグループ
+			if (!pm->HasGroup("bossHitMesh")) {
+				pm->CreateParticleGroupFromModel("bossHitMesh", "bomb.obj");
+			}
 		}
 	}
 
@@ -825,6 +829,22 @@ void GameScene::CheckAllCollisions()
 				const_cast<PlayerBarrier*>(barrier)->OnCollision();
 				// バリアで当たった場合は即死させず、ヒット扱いにする
 				boss_->OnHit();
+				// 追加: ボスへのヒット時は専用グループで差別化したパーティクルを出す（控えめなサイズ/量）
+				auto* pm = ParticleManager::GetInstance();
+				if (pm)
+				{
+					Vector3 center = posB;
+					center.z += 0.4f; // 手前に少しだけ
+					// メッシュは小さめ＆短命
+					if (pm->HasGroup("bossHitMesh")) {
+						pm->EmitBurst8RotatingInward("bossHitMesh", center, 6.0f, 0.9f, 2.0f, 0.6f, 1.6f, 0.6f);
+						pm->EmitBurst8("bossHitMesh", center, 0.10f, 1.2f, 0.8f);
+					}
+					// スプライトも少なめ・小さめ
+					pm->EmitCustom("default", center, 10, { 0.95f, 0.5f, 0.2f, 1.0f }, 0.35f, 0.8f);
+					pm->EmitCustom("default", center, 6,  { 0.2f,  0.9f, 0.95f, 1.0f }, 0.08f, 0.35f);
+					pm->EmitBurst8Rotating("default", center, 1.6f, 0.5f, 5.0f, 0.35f, false, -0.8f, -0.4f);
+				}
 				break;
 			}
 		}
