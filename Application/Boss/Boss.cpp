@@ -1228,16 +1228,19 @@ void Boss::Update()
     else if (phase_ == Phase::Phase2)
     {
         UpdatePhase2();
+        MovePhase2();
     }
     else if (phase_ == Phase::Phase3)
     {
         // Phase3 now maps to the former Phase2_5 behavior
         UpdatePhase2_5();
+        MovePhase3();
     }
     else if (phase_ == Phase::Phase4)
     {
         // Phase4 now maps to the former Phase3 (drones)
         UpdatePhase3();
+        MovePhase4();
     }
     else if (phase_ == Phase::Phase5)
     {
@@ -1246,11 +1249,15 @@ void Boss::Update()
         {
             UpdatePhase4();
         }
+        MovePhase5();
+        // ドローン見た目のみ更新（発射はしない）
+        MoveDronesOnly();
     }
     else if (phase_ == Phase::Phase6)
     {
         // Phase6 maps to the former Phase5 behavior
         UpdatePhase5();
+        MovePhase6();
     }
 
     for (auto& p : parts_)
@@ -1429,7 +1436,6 @@ void Boss::UpdatePhaseByHP()
     if (maxHP_ <= 0) return;
 
     float hpRatio = static_cast<float>(hp_) / static_cast<float>(maxHP_);
-
     Phase newPhase = Phase::Phase1;
 
     for (size_t i = 0; i < hpPhaseThresholds_.size(); ++i)
@@ -1453,6 +1459,116 @@ void Boss::UpdatePhaseByHP()
                 camera_->StartShake(0.3f, 0.3f);
                 cameraShakeCooldown_ = kCameraShakeCooldownSeconds;
             }
+        }
+    }
+}
+
+// ----------------------
+// Per-phase movement (XY only, keep Z unchanged)
+// ----------------------
+void Boss::MovePhase2()
+{
+    const float dt = 1.0f / 60.0f;
+    phase2Time_ += dt;
+
+    Vector3 cur = worldTransform_.GetTranslate();
+    float twoPi = 2.0f * 3.14159265f;
+    // slow circular motion around current center
+    float radiusX = phase1OrbitRadiusX_ * 0.8f;
+    float radiusY = phase1OrbitRadiusY_ * 1.2f;
+    cur.x = spawnTarget_.x + std::cos(phase2Time_ * (twoPi * 0.08f)) * radiusX;
+    cur.y = spawnTarget_.y + std::sin(phase2Time_ * (twoPi * 0.12f)) * radiusY;
+    // keep original Z
+    cur.z = worldTransform_.GetTranslate().z;
+    worldTransform_.SetTranslate(cur);
+}
+
+void Boss::MovePhase3()
+{
+    const float dt = 1.0f / 60.0f;
+    phase3Time_ += dt;
+    Vector3 cur = worldTransform_.GetTranslate();
+    // figure-eight style: product of sines yields subtle pattern
+    float a = phase1OrbitRadiusX_ * 1.1f;
+    float b = phase1OrbitRadiusY_ * 0.9f;
+    float t = phase3Time_;
+    cur.x = spawnTarget_.x + a * std::sin(t * 0.8f);
+    cur.y = spawnTarget_.y + b * std::sin(t * 1.2f) * std::cos(t * 0.6f);
+    cur.z = worldTransform_.GetTranslate().z;
+    worldTransform_.SetTranslate(cur);
+}
+
+void Boss::MovePhase4()
+{
+    const float dt = 1.0f / 60.0f;
+    phase4Time_ += dt;
+    Vector3 cur = worldTransform_.GetTranslate();
+    // gentle sway following player X with mild lag
+    float targetX = spawnTarget_.x;
+    if (player_) targetX = player_->GetWorldTranslate().x;
+    float lerp = 0.06f;
+    cur.x += (targetX - cur.x) * lerp;
+    // vertical saw-ish bob using sin with increasing amplitude
+    cur.y = spawnTarget_.y + std::sin(phase4Time_ * 1.4f) * (phase1BobAmplitude_ * 0.8f);
+    cur.z = worldTransform_.GetTranslate().z;
+    worldTransform_.SetTranslate(cur);
+}
+
+void Boss::MovePhase5()
+{
+    const float dt = 1.0f / 60.0f;
+    phase5Time_ += dt;
+    Vector3 cur = worldTransform_.GetTranslate();
+    // small jittery motion using sin+cos mix, distinct from others
+    float jx = std::sin(phase5Time_ * 1.6f) * 0.6f + std::cos(phase5Time_ * 0.7f) * 0.4f;
+    float jy = std::cos(phase5Time_ * 1.1f) * 0.5f;
+    cur.x = spawnTarget_.x + jx;
+    cur.y = spawnTarget_.y + jy;
+    cur.z = worldTransform_.GetTranslate().z;
+    worldTransform_.SetTranslate(cur);
+}
+
+void Boss::MovePhase6()
+{
+    const float dt = 1.0f / 60.0f;
+    phase6Time_ += dt;
+    Vector3 cur = worldTransform_.GetTranslate();
+    // spiral-in-place XY motion (without changing Z)
+    float r = 1.0f + 0.3f * std::sin(phase6Time_ * 0.8f);
+    float ang = phase6Time_ * 0.9f;
+    cur.x = spawnTarget_.x + r * std::cos(ang) * phase1OrbitRadiusX_ * 0.8f;
+    cur.y = spawnTarget_.y + r * std::sin(ang) * phase1OrbitRadiusY_ * 0.8f;
+    cur.z = worldTransform_.GetTranslate().z;
+    worldTransform_.SetTranslate(cur);
+}
+
+// 新規: ドローンだけの移動更新（Phase5でも見た目が動くように）
+void Boss::MoveDronesOnly()
+{
+    const float dt = 1.0f / 60.0f;
+    const float twoPi = 2.0f * 3.14159265f;
+    Vector3 bossPos = worldTransform_.GetTranslate();
+
+    for (size_t i = 0; i < drones_.size(); ++i)
+    {
+        Drone& d = drones_[i];
+        if (!d.active) continue;
+
+        // advance orbit
+        d.angle += d.orbitSpeed * dt;
+        if (d.angle > twoPi) d.angle -= twoPi;
+
+        Vector3 dronePos = bossPos;
+        dronePos.x += std::cos(d.angle) * d.radius;
+        dronePos.y += std::sin(d.angle) * d.radius;
+        dronePos.z = bossPos.z; // keep z
+
+        if (i < droneObjs_.size() && droneObjs_[i])
+        {
+            Object3d* dobj = droneObjs_[i];
+            dobj->SetTranslate(dronePos);
+            dobj->SetScale({ droneModelScale_, droneModelScale_, droneModelScale_ });
+            dobj->ApplyState(Transform{ dobj->GetScale(), dobj->GetRotate(), dobj->GetTranslate() }, camera_, true);
         }
     }
 }

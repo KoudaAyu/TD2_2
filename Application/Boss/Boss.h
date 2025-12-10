@@ -295,4 +295,18 @@ private:
     bool spawnCineStage1_ = false; // outward burst
     bool spawnCineStage2_ = false; // inward convergence
     bool spawnCineStage3_ = false; // reveal
+
+    // --- 新規: 各フェーズ用の移動関数とタイマー（Zは変更しない） ---
+    void MovePhase2();
+    void MovePhase3();
+    void MovePhase4();
+    void MovePhase5();
+    void MovePhase6();
+    // ドローンだけの移動更新（射撃なし、描画は既存の Draw を利用）
+    void MoveDronesOnly();
+    float phase2Time_ = 0.0f;
+    float phase3Time_ = 0.0f;
+    float phase4Time_ = 0.0f;
+    float phase5Time_ = 0.0f;
+    float phase6Time_ = 0.0f;
 };
