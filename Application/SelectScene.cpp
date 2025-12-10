@@ -5,6 +5,7 @@
 #include "Object3dCom.h"
 #include "Camera.h"
 #include <cmath>
+#include <chrono>
 #include "ModelManager.h"
 #include "ParticleManager.h"
 #include "Sprite.h"
@@ -18,6 +19,7 @@ SelectScene::~SelectScene()
     if (objectModel_) { delete objectModel_; objectModel_ = nullptr; }
     if (bombModel_) { delete bombModel_; bombModel_ = nullptr; }
     if (selectSprite_) { delete selectSprite_; selectSprite_ = nullptr; }
+    if (loadingSpinner_) { delete loadingSpinner_; loadingSpinner_ = nullptr; }
 }
 
 
@@ -62,6 +64,22 @@ void SelectScene::Initialize(SpriteCom* spriteCom, Object3dCom* object3dCom, Cam
         // create a sprite that covers the whole screen
         selectSprite_ = spriteCom_->CreateSprite("Resources/white.png", { 0.0f, 0.0f }, { static_cast<float>(sw), static_cast<float>(sh) }, 0.0f, { 0.0f, 0.0f }, false, false);
         if (selectSprite_) { selectSprite_->SetColor({1.0f,1.0f,1.0f,1.0f}); selectSprite_->Update(); }
+
+        // create a small spinner sprite near the bottom-right
+        const float spinnerSize = 32.0f;
+        const float margin = 24.0f;
+        loadingSpinner_ = spriteCom_->CreateSprite("Resources/Black.png",
+            { sw - margin - spinnerSize * 0.5f, sh - margin - spinnerSize * 0.5f },
+            { spinnerSize, spinnerSize },
+            0.0f,
+            { 0.5f, 0.5f },
+            false,
+            false);
+        if (loadingSpinner_) {
+            loadingSpinner_->SetAnchorPoint({0.5f, 0.5f});
+            loadingSpinner_->SetColor({0.2f, 0.6f, 1.0f, 1.0f});
+            loadingSpinner_->Update();
+        }
     }
 
     // start BGM for select scene (looped) using dedicated BGM API
@@ -74,6 +92,10 @@ void SelectScene::Initialize(SpriteCom* spriteCom, Object3dCom* object3dCom, Cam
         soundManager_->SoundPlayBGM(bgmData_, true, bgmCurrentVolume_);
         hasBgm_ = true;
     }
+
+    // initialize timer for spinner
+    startTime_ = std::chrono::steady_clock::now();
+    lastTime_ = startTime_;
 }
 
 
@@ -105,6 +127,38 @@ void SelectScene::Update()
             if (bgmCurrentVolume_ > bgmTargetVolume_) bgmCurrentVolume_ = bgmTargetVolume_;
             soundManager_->SoundSetBGMVolume(bgmCurrentVolume_);
         }
+    }
+
+    // animate loading spinner (rotate and pulse alpha) using real time with smoothing
+    if (loadingSpinner_) {
+        auto now = std::chrono::steady_clock::now();
+        std::chrono::duration<float> delta = now - lastTime_;
+        lastTime_ = now;
+        float realDt = delta.count();
+        if (realDt > 0.1f) realDt = 0.1f; // looser clamp to prevent big catch-up jumps
+
+        // target angle based on absolute time since start (avoids drift)
+        std::chrono::duration<float> sinceStart = now - startTime_;
+        float t = sinceStart.count();
+        const float spinSpeed = 2.0f * 3.14159265f; // rad/sec (1 rotation/sec)
+        float target = std::fmod(t * spinSpeed, 2.0f * 3.14159265f);
+
+        // smoothly approach target angle, limit max angular velocity when catching up
+        auto wrapPi = [](float a){
+            while (a > 3.14159265f) a -= 2.0f * 3.14159265f;
+            while (a < -3.14159265f) a += 2.0f * 3.14159265f;
+            return a;
+        };
+        float diff = wrapPi(target - currentAngle_);
+        float maxStep = spinSpeed * 0.5f * realDt; // catch-up limited to 0.5 rot/sec
+        if (diff > maxStep) diff = maxStep;
+        if (diff < -maxStep) diff = -maxStep;
+        currentAngle_ = wrapPi(currentAngle_ + diff);
+
+        float alpha = 0.6f + 0.4f * std::sin(t * 6.28318f * 0.5f); // 0.5 Hz pulse
+        loadingSpinner_->SetRotation(currentAngle_);
+        loadingSpinner_->SetColor({0.2f, 0.6f, 1.0f, alpha});
+        loadingSpinner_->Update();
     }
 
     switch (phase_)
@@ -162,6 +216,9 @@ void SelectScene::Draw()
 {
     // Only draw the single fullscreen sprite when available
     if (selectSprite_) selectSprite_->Draw();
+
+    // Draw simple loading spinner overlay after background
+    if (loadingSpinner_) loadingSpinner_->Draw();
 
     // Draw fade overlay on top
     if (fade_) fade_->Draw();

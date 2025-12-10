@@ -4,6 +4,7 @@
 #include "KeyInput.h"
 #include "SpriteCom.h"
 #include "SoundManager.h"
+#include <chrono>
 
 
 class Object3d;
@@ -56,6 +57,14 @@ private:
     // Sprite support: single fullscreen sprite for selection/background
     SpriteCom* spriteCom_ = nullptr;
     Sprite* selectSprite_ = nullptr;
+
+    // Loading overlay elements
+    Sprite* loadingSpinner_ = nullptr;
+    float loadingAngle_ = 0.0f;
+    float totalTimeSec_ = 0.0f;
+    std::chrono::steady_clock::time_point startTime_{};
+    std::chrono::steady_clock::time_point lastTime_{};
+    float currentAngle_ = 0.0f;
 
     // Audio (BGM for select scene)
     SoundManager* soundManager_ = nullptr;
